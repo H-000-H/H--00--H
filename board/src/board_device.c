@@ -5,7 +5,7 @@
  *@author H-000-H
  *@details
  *   board_device.c — 板级设备模型运行时实现
- *   维护 device 实例表与递归互斥锁池 (device_tree_init 静态分配, 池水位线预警).
+ *   维护 device 实例表与 per-device 递归锁 (device_tree_init 静态分配存储).
  *   实现设备查找、属性解析 (safe_parse_int32 替代 strtol).
  *   VFS 转发层在 pdev->lock 保护下完成 check-then-act; device_ops_unregister
  *   持锁斩断 ops 防 TOCTOU 竞态.
@@ -18,7 +18,8 @@
 #include "device.h"
 #include "event_bus.h"
 #include "hal_amp.h"
-#include "osal.h"
+#include "mini_backend.h"
+#include "mini_log.h"
 #include "safe_state.h"
 #include "status.h"
 #include <stdint.h>
@@ -27,14 +28,15 @@
 
 #include "compiler_compat_poison.h"
 
-/* 编译期断言: 互斥锁池必须能覆盖最大设备数 */
-_Static_assert(OSAL_MUTEX_POOL_SIZE >= DEV_ID_COUNT, "OSAL_MUTEX_POOL_SIZE too small for DEV_ID_COUNT devices");
-
 /* -------------------------------------------------------------------------- */
 /* 运行时设备实例表 */
 /* -------------------------------------------------------------------------- */
+/* 设备锁走 mini_mutex_create_static_recursive, 存储在下面的编译期定长数组里,
+ * 不占后端互斥锁池, 所以不存在"池耗尽 / 池水位"这回事。
+ * (原先按互斥锁池尺寸宏写的 _Static_assert 与 90% 预警引用的是 lwIP 用的
+ *  那个池, 与设备锁无关, 属于遗留失真, 已删。) */
 static struct device s_devices[DEV_ID_COUNT] MINI_ALIGNED(4);
-static uint8_t       s_device_lock_storage[DEV_ID_COUNT][OSAL_MUTEX_STORAGE_SIZE] MINI_ALIGNED(4);
+static uint8_t       s_device_lock_storage[DEV_ID_COUNT][MINI_MUTEX_STORAGE_SIZE] MINI_ALIGNED(4);
 
 /**
  * @brief 判断设备状态机是否允许 from→to 迁移
@@ -91,9 +93,9 @@ int device_tree_init(void)
 
         if (node && s_devices[index].status != DEVICE_STATUS_DISABLED && !(node->flags & DEVICE_FLAG_DIRECT))
         {
-            /* pdev->lock 需要递归: osal_mutex_create_static_recursive */
-            struct osal_mutex* lock = NULL;
-            if (osal_mutex_create_static_recursive(&lock, s_device_lock_storage[index], sizeof(s_device_lock_storage[index])) == OSAL_OK)
+            /* pdev->lock 必须递归: device_open 持锁后会调 device_set_status 再锁一次 */
+            mini_mutex_t* lock = NULL;
+            if (mini_mutex_create_static_recursive(&lock, s_device_lock_storage[index], sizeof(s_device_lock_storage[index])) == MINI_OK)
             {
                 s_devices[index].lock = lock;
                 device_lc_bind(&s_devices[index]);
@@ -112,10 +114,6 @@ int device_tree_init(void)
             }
         }
     }
-
-    /* 池水位线预警 */
-    if (board_dev_count() >= OSAL_MUTEX_POOL_SIZE * 9 / 10)
-        osal_log(OSAL_LOG_WARN, "board", "device_tree_init: mutex pool >90%% used (%d/%d)\n", board_dev_count(), OSAL_MUTEX_POOL_SIZE);
 
     return board_dev_count() > 0 ? MINI_OK : MINI_ERR_IO;
 }
@@ -538,7 +536,7 @@ int device_set_status(struct device* pdev, enum device_status status)
 
     if (!pdev)
         return MINI_ERR_INVAL;
-    if (pdev->lock && osal_mutex_lock(pdev->lock, OSAL_LOCK_TIMEOUT_DEFAULT_MS) != OSAL_OK)
+    if (pdev->lock && mini_mutex_lock(pdev->lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) != MINI_OK)
         return MINI_ERR_BUSY;
 
     if (!device_status_can_transit(pdev->status, status))
@@ -547,7 +545,7 @@ int device_set_status(struct device* pdev, enum device_status status)
         pdev->status = status;
 
     if (pdev->lock)
-        (void)osal_mutex_unlock(pdev->lock);
+        (void)mini_mutex_unlock(pdev->lock);
     return ret;
 }
 
@@ -628,7 +626,7 @@ int device_get_count(void) { return board_dev_count(); }
 /* 所有 VFS 入口在持锁状态下完成状态检查 + ops 调用. */
 /* device_open/close/suspend/resume + device_write/read/ioctl 全部 */
 /* 在 device_lock(pdev) 保护下执行 check-then-act, 阻断多线程重入. */
-/* pdev->lock 使用 osal_mutex_create_static_recursive; 驱动 io_lock 使用默认 plain 锁: */
+/* pdev->lock 使用 mini_mutex_create_static_recursive; 驱动 io_lock 使用默认 plain 锁: */
 /* - device_write(st7789) → write_cmd → device_write(spi) 持有不同锁, 安全 */
 /* - 驱动内部对 pdev 自身递归加锁, 递归 mutex 放行 */
 /* device_ops_unregister() 用于 remove 路径清理 priv_data + ops. */
@@ -858,7 +856,7 @@ int device_lock(struct device* pdev)
         return MINI_ERR_INVAL;
     if (!pdev->lock)
         return MINI_ERR_BUSY;
-    return osal_mutex_lock(pdev->lock, OSAL_LOCK_TIMEOUT_DEFAULT_MS) == OSAL_OK ? MINI_OK : MINI_ERR_BUSY;
+    return mini_mutex_lock(pdev->lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) == MINI_OK ? MINI_OK : MINI_ERR_BUSY;
 }
 
 /**
@@ -870,7 +868,7 @@ int device_unlock(struct device* pdev)
 {
     if (!pdev || !pdev->lock)
         return MINI_ERR_INVAL;
-    return osal_mutex_unlock(pdev->lock) == OSAL_OK ? MINI_OK : MINI_ERR_IO;
+    return mini_mutex_unlock(pdev->lock) == MINI_OK ? MINI_OK : MINI_ERR_IO;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -19,9 +19,9 @@
 | 2 | Hardware direct-inject | DTSI macros into structs; no enum mapping layer |
 | 3 | Compile-time probe | `DRIVER_REGISTER` + dtc-lite static tables |
 | 4 | Enforced bus isolation | `#pragma GCC poison` blocks upper layers from calling HAL directly |
-| 5 | OSAL triple-backend | FreeRTOS / RT-Thread / NULL, trimmed by Kconfig |
+| 5 | the unified interface triple-backend | FreeRTOS / RT-Thread / NULL, trimmed by Kconfig |
 | 6 | Dual system backends | compile-time choice of `SYSTEM_C` / `SYSTEM_CPP` |
-| 7 | Unified error codes | `status.h`'s `MINI_ERR_*` / `OSAL_ERR_*` |
+| 7 | Unified error codes | `status.h`'s `MINI_ERR_*` / `MINI_ERR_*` |
 
 ---
 
@@ -45,7 +45,7 @@
 ## Known Limitations
 
 1. Without a vendor SDK, this repo can only do static analysis / empty-stub linking; peripherals cannot be validated standalone.
-2. OSAL priority number semantics vary with the backend.
+2. the unified interface priority number semantics vary with the backend.
 3. USB depends on the board-level `usb_tusb_port`; the middleware does not embed any MCU-specific TinyUSB port.
 4. The default `board.dts` has no real peripheral nodes.
 
@@ -61,7 +61,7 @@
 
 | Layer | Preference | Trade-off |
 | :--- | :--- | :--- |
-| **Below the app layer** (HAL / Bus / VFS / board / core / OSAL) | **C** by default; capable teams may use **Rust** | C has the cleanest link surface and fits vendor SDKs / weak symbols best. Rust suits teams with crisp boundaries willing to maintain FFI; it is not this repo's default path. |
+| **Below the app layer** (HAL / Bus / VFS / board / core / the unified interface) | **C** by default; capable teams may use **Rust** | C has the cleanest link surface and fits vendor SDKs / weak symbols best. Rust suits teams with crisp boundaries willing to maintain FFI; it is not this repo's default path. |
 | **App layer and above** (business services, UI, policy, toolchain side) | **C++** or **Rust** | Expressiveness and type constraints matter more; C++ can plug into this repo's `SYSTEM_CPP` / ETL path. Middleware public headers still avoid hard-binding a C++ runtime. |
 
 This repo offers a `SYSTEM_C` / `SYSTEM_CPP` choice: the system-module language is selected per board; **the southbound stack remains C-ABI-first**.
@@ -70,12 +70,12 @@ This repo offers a `SYSTEM_C` / `SYSTEM_CPP` choice: the system-module language 
 
 | Option | Stance | Rationale |
 | :--- | :---: | :--- |
-| **FreeRTOS** | Preferred kernel | **Pristine**: clear scheduler & IPC model, closest to this repo's OSAL shim; do not force in a second FreeRTOS when the platform (e.g. ESP-IDF) already has one. |
+| **FreeRTOS** | Preferred kernel | **Pristine**: clear scheduler & IPC model, closest to this repo's the unified interface shim; do not force in a second FreeRTOS when the platform (e.g. ESP-IDF) already has one. |
 | **RT-Thread** | Optional | **Richest components** with soft-bound ecosystem (packages/device framework are optional); when coexisting with this repo's device model, drivers still go through mini_tree — do not mix two probe systems. |
-| **Bare-metal `OSAL_NULL` + xtask** | Default for small systems | No scheduler overhead; cooperative, unfit for complex preemptive workloads. |
-| **Zephyr** | **Not currently integrated** | A mature ecosystem with a complete device-tree model; however, **its dts-generated macro layer is deep — hard to trace after expansion and nearly impossible to debug on target**, one reason this repo prefers a plain Linux-style device tree + `dtc-lite` (which emits ordinary C static tables you can breakpoint and inspect). Its dts is rooted in the same idea as Linux's device tree, so if that model is needed, Linux itself is the direct reference. This repo's OSAL backends are currently bare-metal / mini-os / FreeRTOS / RT-Thread, and Zephyr is not yet on the integration roadmap (no Zephyr backend). |
+| **Bare-metal `OS_BARE` + xtask** | Default for small systems | No scheduler overhead; cooperative, unfit for complex preemptive workloads. |
+| **Zephyr** | **Not currently integrated** | A mature ecosystem with a complete device-tree model; however, **its dts-generated macro layer is deep — hard to trace after expansion and nearly impossible to debug on target**, one reason this repo prefers a plain Linux-style device tree + `dtc-lite` (which emits ordinary C static tables you can breakpoint and inspect). Its dts is rooted in the same idea as Linux's device tree, so if that model is needed, Linux itself is the direct reference. This repo's OS backends are currently bare-metal / mini-os / FreeRTOS / RT-Thread, and Zephyr is not yet on the integration roadmap (no Zephyr backend). |
 
-See [osal_switching.md](osal_switching.md) for behavioral differences such as priority numbers and ISR critical sections.
+See [backend_switching.md](backend_switching.md) for behavioral differences such as priority numbers and ISR critical sections.
 
 ### Toolchain & IDE
 
@@ -101,4 +101,4 @@ Borrow Linux/ESP's **layering & VFS mindset**, use FreeRTOS (or RT-Thread compon
 ## Related Documents
 
 - [architecture.md](architecture.md) · [roadmap.md](roadmap.md) · [api_compatibility.md](api_compatibility.md) · [ecosystem.md](ecosystem.md)
-- [references.md](references.md) · [osal_switching.md](osal_switching.md) · [keil_integration.md](keil_integration.md)
+- [references.md](references.md) · [backend_switching.md](backend_switching.md) · [keil_integration.md](keil_integration.md)

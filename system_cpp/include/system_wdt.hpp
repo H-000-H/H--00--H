@@ -8,7 +8,7 @@
  */
 #pragma once
 
-#include "osal.h"
+#include "mini_backend.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -18,8 +18,8 @@ extern "C"
 #endif
 
     int system_wdt_init(uint32_t timeout_ms);
-    int system_wdt_subscribe(osal_task_handle_t task);
-    int system_wdt_unsubscribe(osal_task_handle_t task);
+    int system_wdt_subscribe(mini_task_handle_t task);
+    int system_wdt_unsubscribe(mini_task_handle_t task);
     void system_wdt_feed(void);
 
     int system_wdt_init_iwdg(uint32_t timeout_ms);
@@ -27,7 +27,7 @@ extern "C"
     void system_wdt_iwdg_set_long_timeout(void);
     void system_wdt_iwdg_restore_timeout(void);
 
-    int system_wdt_stack_monitor_register(osal_task_handle_t task, uint32_t alarm_threshold_bytes);
+    int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes);
     void system_wdt_stack_check_all(void);
 
 #ifdef __cplusplus

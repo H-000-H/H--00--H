@@ -20,6 +20,6 @@
 #define LogError(message) COREMQTT_LOG_E message
 #define LogWarn(message) COREMQTT_LOG_W message
 #define LogInfo(message) COREMQTT_LOG_I message
-#define LogDebug(message) /**< 调试日志静默, 需要时改映射到 osal_log DEBUG */
+#define LogDebug(message) /**< 调试日志静默, 需要时改映射到 mini_log DEBUG */
 
 #endif /* CORE_MQTT_CONFIG_H */

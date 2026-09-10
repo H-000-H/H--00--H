@@ -14,7 +14,8 @@
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_log.h"
 #include "system_log.h"
 #include <stdio.h>
 
@@ -31,7 +32,7 @@ struct vfs_tim_priv
 
 static struct vfs_tim_priv              s_tim_priv_pool[TIM_VFS_PRIV_COUNT] MINI_ALIGNED(4);
 static uint8_t                          s_tim_priv_used[TIM_VFS_PRIV_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_tim_priv_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_tim_priv_pool_ctrl MINI_ALIGNED(4);
 static const char* const                k_tag = "vfs-tim-host";
 
 /**
@@ -452,7 +453,7 @@ static const tim_ioctl_map_t s_tim_ioctl_map[TIM_CMD_COUNT] = {
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_tim_priv_pool_init()
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_tim_priv_pool_ctrl, s_tim_priv_used, TIM_VFS_PRIV_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_tim_priv_pool_ctrl, s_tim_priv_used, TIM_VFS_PRIV_COUNT));
 }
 
 /**
@@ -521,7 +522,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
             {
                 snprintf(key, sizeof(key), fmt[field_index], chan_index);
                 if (device_get_prop_int(pdev, key, dst[field_index]) != MINI_OK)
-                    osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                    mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
             }
             snprintf(key, sizeof(key), "oc%d-pin", chan_index);
             if (device_get_prop_int_array(pdev, key, pin_arr, VFS_TIM_PIN_FIELD_COUNT) == VFS_TIM_PIN_FIELD_COUNT)
@@ -536,7 +537,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                 pin_cfg->pull = (uint32_t)pin_arr[7];
             }
             else
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
         }
         break;
     }
@@ -563,7 +564,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
             {
                 snprintf(key, sizeof(key), fmt[field_index], chan_index);
                 if (device_get_prop_int(pdev, key, dst[field_index]) != MINI_OK)
-                    osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                    mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
             }
             snprintf(key, sizeof(key), "ic%d-pin", chan_index);
             if (device_get_prop_int_array(pdev, key, pin_arr, VFS_TIM_PIN_FIELD_COUNT) == VFS_TIM_PIN_FIELD_COUNT)
@@ -578,7 +579,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                 pin_cfg->pull = (uint32_t)pin_arr[7];
             }
             else
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
         }
         break;
     }
@@ -602,7 +603,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                                               (int*)&cfg->encoder_mode.config.pulse_per_rev};
         for (int field_index = 0; field_index < (int)(sizeof(cfg_keys) / sizeof(cfg_keys[0])); field_index++)
             if (device_get_prop_int(pdev, cfg_keys[field_index], cfg_dst[field_index]) != MINI_OK)
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", cfg_keys[field_index]);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", cfg_keys[field_index]);
 
         static const char* const ch_fmt[] = {"encoder-ch%d-channel-id", "encoder-ch%d-chn-mode", "encoder-ch%d-chn-polarity",
                                              "encoder-ch%d-chn-filter", "encoder-ch%d-chn-prescaler"};
@@ -617,7 +618,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
             {
                 snprintf(key, sizeof(key), ch_fmt[field_index], chan_index);
                 if (device_get_prop_int(pdev, key, dst[field_index]) != MINI_OK)
-                    osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                    mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
             }
             snprintf(key, sizeof(key), "encoder-ch%d-pin", chan_index);
             if (device_get_prop_int_array(pdev, key, pin_arr, VFS_TIM_PIN_FIELD_COUNT) == VFS_TIM_PIN_FIELD_COUNT)
@@ -632,7 +633,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                 pin_cfg->pull = (uint32_t)pin_arr[7];
             }
             else
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
         }
         break;
     }
@@ -654,7 +655,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                       (int*)&cfg->hall_mode.capture_channel.prescaler};
         for (int field_index = 0; field_index < (int)(sizeof(keys) / sizeof(keys[0])); field_index++)
             if (device_get_prop_int(pdev, keys[field_index], dst[field_index]) != MINI_OK)
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", keys[field_index]);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", keys[field_index]);
         for (int chan_index = 0; chan_index < HAL_HALL_TIM_MAX_CHANNELS; chan_index++)
         {
             char                key[VFS_TIM_KEY_MAX];
@@ -673,7 +674,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                 pin_cfg->pull = (uint32_t)pin_arr[7];
             }
             else
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", key);
         }
         break;
     }
@@ -690,7 +691,7 @@ static int vfs_tim_priv_parse_dts(struct device* pdev, struct hal_tim_host_confi
                       (int*)&cfg->bdtr.ossi_state,       (int*)&cfg->bdtr.ossr_state,  (int*)&cfg->bdtr.dead_time,      (int*)&cfg->bdtr.lock_level};
         for (int field_index = 0; field_index < (int)(sizeof(keys) / sizeof(keys[0])); field_index++)
             if (device_get_prop_int(pdev, keys[field_index], dst[field_index]) != MINI_OK)
-                osal_log(OSAL_LOG_WARN, k_tag, "missing DTS prop %s\n", keys[field_index]);
+                mini_log(MINI_LOG_WARN, k_tag, "missing DTS prop %s\n", keys[field_index]);
     }
 
     return MINI_OK;
@@ -963,7 +964,7 @@ static int vfs_tim_probe(struct device* pdev)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    pool_idx = osal_pool_claim(&s_tim_priv_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_tim_priv_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -1021,7 +1022,7 @@ err_deinit:
     pdev->ops = NULL;
     MINI_IGNORE_RESULT(hal_tim_device_deinit(&priv->tim));
 err_pool:
-    MINI_IGNORE_RESULT(osal_pool_release(&s_tim_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_tim_priv_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -1049,7 +1050,7 @@ static int vfs_tim_remove(struct device* pdev)
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
 
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
@@ -1059,7 +1060,7 @@ static int vfs_tim_remove(struct device* pdev)
     MINI_IGNORE_RESULT(hal_tim_device_deinit(&priv->tim));
 
     MINI_MEM_SET(priv, 0, sizeof(*priv));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_tim_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_tim_priv_pool_ctrl, pool_idx));
 
     dev_lc_remove_finish(lc);
     return MINI_OK;

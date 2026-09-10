@@ -9,7 +9,7 @@
 #include "system_scrubber.hpp"
 
 #include "hal_flash.h"
-#include "osal.h"
+#include "mini_time.h"
 #include "safe_state.h"
 #include "system_cfg.h"
 #include "system_scrubber_config.h"
@@ -19,14 +19,14 @@
 
 static constexpr const char* k_tag = "Scrubber";
 static constexpr uint32_t kScrubberPrio =
-#if defined(CONFIG_OSAL_FREERTOS)
+#if defined(CONFIG_OS_FREERTOS)
     1; /* FreeRTOS: 0=最低, 31=最高 — 后台巡检, 最低优先级 */
 #else
     30; /* RT-Thread: 0=最高, 31=最低 — 后台巡检, 最低优先级 */
 #endif
 static constexpr uint32_t kScrubberStack = 2048;
 
-static osal_task_handle_t s_handle = nullptr;
+static mini_task_handle_t s_handle = nullptr;
 static volatile bool s_running = false;
 
 static uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len)
@@ -88,7 +88,7 @@ static void scrubber_task(void* param)
     if (base_addr == 0 || total_size == 0)
     {
         SYS_LOGE(k_tag, "cannot locate app partition — scrubber aborted");
-        osal_task_self_delete();
+        mini_task_self_delete();
         return;
     }
 
@@ -98,7 +98,7 @@ static void scrubber_task(void* param)
     {
         SYS_LOGW(k_tag, "CRC baseline not set (0x%08X) — scrubber inactive, run post_build_crc.py",
                  (unsigned)baseline_crc);
-        osal_task_self_delete();
+        mini_task_self_delete();
         return;
     }
 
@@ -142,11 +142,11 @@ static void scrubber_task(void* param)
             crc = 0xFFFFFFFF;
         }
 
-        osal_delay_ms(SYSTEM_SCRUBBER_INTERVAL_MS);
+        mini_delay_ms(SYSTEM_SCRUBBER_INTERVAL_MS);
     }
 
     SYS_LOGI(k_tag, "scrubber task exiting");
-    osal_task_self_delete();
+    mini_task_self_delete();
 }
 
 int system_scrubber_init(void) { return MINI_OK; }
@@ -157,7 +157,7 @@ int system_scrubber_start(void)
         return MINI_OK;
 
     s_running = true;
-    int ret = osal_task_create_handle("scrubber", kScrubberStack, kScrubberPrio, scrubber_task,
+    int ret = mini_task_create_handle("scrubber", kScrubberStack, kScrubberPrio, scrubber_task,
                                       nullptr, 0, &s_handle);
     if (ret != 0)
     {

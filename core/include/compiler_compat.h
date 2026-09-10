@@ -487,13 +487,12 @@ MINI_STATIC_INLINE MINI_NO_RETURN void unreachable(void) { __builtin_unreachable
 /* -------------------------------------------------------------------------- */
 /* mini_pre_execution 启动优先级 */
 /* constructor 实际优先级 = 基数 + 100; 数值越小越先执行。 */
-/* 依赖链: 总线/OSAL 资源池(150) → 信号量/队列/事件组池(151/152/153) → 驱动池(160) → 调度器(161) → */
+/* 依赖链: 总线/后端资源池(150) → 信号量/队列/事件组池(151/152/153) → 驱动池(160) → 调度器(161) → */
 /* 中断下半部池(170)。 */
 /* -------------------------------------------------------------------------- */
-#define MINI_PRE_EXEC_PRIO_RES_POOL 150    /* 总线池 / VFS 私有池 / OSAL 互斥锁池 */
-#define MINI_PRE_EXEC_PRIO_SEM_POOL 151    /* OSAL 信号量池 / DAC 私有池 */
-#define MINI_PRE_EXEC_PRIO_QUEUE_POOL 152  /* OSAL 队列池 (osal_null) */
-#define MINI_PRE_EXEC_PRIO_EVENT_POOL 153  /* OSAL 事件组池 (CONFIG_OSAL_EVENT) */
+#define MINI_PRE_EXEC_PRIO_RES_POOL 150    /* 总线池 / VFS 私有池 / 后端互斥锁池 */
+#define MINI_PRE_EXEC_PRIO_SEM_POOL 151    /* 后端信号量池 / DAC 私有池 */
+#define MINI_PRE_EXEC_PRIO_QUEUE_POOL 152  /* 队列池 */
 #define MINI_PRE_EXEC_PRIO_DRIVER_POOL 160 /* 驱动静态池 / VFS client 池 / 协调式调度器 */
 #define MINI_PRE_EXEC_PRIO_SCHEDULER 161   /* 抢占式调度器早期初始化 */
 #define MINI_PRE_EXEC_PRIO_IRQ_BOTTOM 170  /* 中断下半部池 */
@@ -823,7 +822,7 @@ MINI_STATIC_INLINE void MINI_REG_FIELD_SET(uintptr_t addr, uint32_t mask, uint32
  * 架构判定: 目标核无法内联原子读改写时, GCC 会把 __atomic_* 降级为 libatomic
  * 库调用, 而嵌入式工具链 (Arm GNU Toolchain 等) 通常不附带 libatomic.a → 链接
  * undefined reference。此类目标改用关中断临界区的软件原子 (与
- * CONFIG_OSAL_SPINLOCK_IRQ_DISABLE=y 的 "关中断即原子" 设计语义一致):
+ * 软件临界区 "关中断即原子" 的设计语义一致):
  *   - ARMv6 及以下 (Cortex-M0/M0+ 的 v6-M): 只有 32 位 LDREX/STREX, 无
  *     LDREXB/STREXB, 1 字节 CAS 无法内联
  *   - RISC-V 无 A 扩展 (RV32I/E 等): 完全没有原子指令
@@ -856,7 +855,7 @@ MINI_STATIC_INLINE void MINI_REG_FIELD_SET(uintptr_t addr, uint32_t mask, uint32
 #   define MINI_ATOMIC_IRQ_RESTORE(x)                                               \
         __asm__ volatile("csrw mstatus, %0" :: "r"(x) : "memory")
 #else
-/* ARM: 保存 PRIMASK 并关中断, 恢复时写回 (嵌套安全, 同 core/src/buffer_pool.c) */
+/* ARM: 保存 PRIMASK 并关中断, 恢复时写回 (嵌套安全) */
 #   define MINI_ATOMIC_IRQ_SAVE() __extension__({                                   \
         unsigned long _mini_at_pm;                                                  \
         __asm__ volatile("mrs %0, primask\ncpsid i"                                 \

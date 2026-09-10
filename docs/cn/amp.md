@@ -3,13 +3,13 @@
 > **AMP 是可选积木的一部分，按需自行使用**：默认单核即可完整开发；需要双核/异构时再启用，从核镜像与共享内存布局由你自行拼接。
 >
 > `CPU_CORES` / `AMP_MODE` 与 `hal_cpu_*`（目录 `hal/amp`）如何配合。
-> **完整从核镜像与共享内存布局由平台工程提供**；本仓只给 HAL 契约与 OSAL spinlock 行为差异。
+> **完整从核镜像与共享内存布局由平台工程提供**；本仓只给 HAL 契约与 后端自旋锁行为差异。
 
 | 项 | 内容 |
 | :--- | :--- |
 | **读者** | 双核 / AMP 板级工程师 |
 | **前置** | [getting_started.md](getting_started.md) Kconfig · [device_tree_porting.md](device_tree_porting.md) |
-| **相关** | [osal_switching.md](osal_switching.md) · [architecture.md](architecture.md) · [runtime_services.md](runtime_services.md) |
+| **相关** | [backend_switching.md](backend_switching.md) · [architecture.md](architecture.md) · [runtime_services.md](runtime_services.md) |
 
 ---
 
@@ -19,7 +19,7 @@
 2. [Kconfig](#2-kconfig)
 3. [HAL 契约](#3-hal-契约)
 4. [推荐拓扑](#4-推荐拓扑)
-5. [OSAL / 同步](#5-osal-同步)
+5. [后端 / 同步](#5-后端-同步)
 6. [安全](#6-安全)
 7. [验收](#7-验收)
 
@@ -31,9 +31,9 @@ AMP 属于**可选积木**（与安全类模块同类，见 [runtime_services.md
 
 | 项 | 说明 |
 | :--- | :--- |
-| 默认状态 | 单核（`CONFIG_CPU_CORES=1`）；设备模型 / VFS / OSAL / EventBus 等核心功能照常工作 |
+| 默认状态 | 单核（`CONFIG_CPU_CORES=1`）；设备模型 / VFS / 统一接口 / EventBus 等核心功能照常工作 |
 | 启用方式 | 需要双核/异构时改 `CONFIG_CPU_CORES=2`（+ `CONFIG_AMP_MODE`） |
-| 使用前提 | 平台侧自行提供：从核镜像、共享内存布局、核间通信（IPC）；本仓只给 HAL 契约与 OSAL 行为差异 |
+| 使用前提 | 平台侧自行提供：从核镜像、共享内存布局、核间通信（IPC）；本仓只给 HAL 契约与后端行为差异 |
 | 参考实现 | [Heterogeneous-Multicore](https://github.com/H-000-H/Heterogeneous-Multicore)（mini_tree 配套平台示例） |
 | 不启用的影响 | **无**——单核配置是完整可用的基线 |
 
@@ -71,7 +71,7 @@ AMP 属于**可选积木**（与安全类模块同类，见 [runtime_services.md
 
 ## 4. 推荐拓扑
 
-常见约定（可按 SoC 调整，但文档与 OSAL 按此假设）：
+常见约定（可按 SoC 调整，但文档与 后端按此假设）：
 
 | 核 | 角色 |
 | :--- | :--- |
@@ -89,10 +89,10 @@ AMP 属于**可选积木**（与安全类模块同类，见 [runtime_services.md
 
 ---
 
-## 5. OSAL / 同步
+## 5. 后端 / 同步
 
-- `CONFIG_OSAL_NULL` 下，AMP 时互斥等原语倾向 **原子 CAS**；单核可退化为关中断。
-- Spinlock：`OSAL_SPINLOCK_IRQ_DISABLE` vs `ATOMIC` — 多核共享数据优先 atomic，见 [osal_switching.md](osal_switching.md)。
+- `CONFIG_OS_BARE` 下，AMP 时互斥等原语倾向 **原子 CAS**；单核可退化为关中断。
+- Spinlock：`MINI_OS_SPINLOCK` vs `ATOMIC` — 多核共享数据优先 atomic，见 [backend_switching.md](backend_switching.md)。
 - **不要**假设另一核上的 `device_*` 锁对你可见；跨核只走明确的共享对象。
 
 ---
@@ -119,5 +119,5 @@ AMP 属于**可选积木**（与安全类模块同类，见 [runtime_services.md
 
 ## 相关文档
 
-- [device_tree_porting.md](device_tree_porting.md) · [osal_switching.md](osal_switching.md) · [design_decisions.md](design_decisions.md)
+- [device_tree_porting.md](device_tree_porting.md) · [backend_switching.md](backend_switching.md) · [design_decisions.md](design_decisions.md)
 - [runtime_services.md](runtime_services.md) · [todolist.md](todolist.md)（AMP 样例跟踪）

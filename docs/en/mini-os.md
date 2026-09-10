@@ -1,11 +1,11 @@
 # mini-os Kernel (lib/mini-os)
 
-> The in-tree minimal real-time kernel of mini_tree (Cortex-M only, freestanding, no libc dependency), and the smallest RTOS backend among the four OSAL backends. This document covers its scheduler, time wheels, synchronization primitives, memory management and port layer, plus its integration wiring with mini_tree.
+> The in-tree minimal real-time kernel of mini_tree (Cortex-M only, freestanding, no libc dependency), and the smallest RTOS backend among the four OS backends. This document covers its scheduler, time wheels, synchronization primitives, memory management and port layer, plus its integration wiring with mini_tree.
 
 | Item | Content |
 | :--- | :--- |
 | **Readers** | Developers who need to understand/debug kernel behavior, do board wiring, or trim the kernel |
-| **Prerequisites** | [architecture.md](architecture.md) (layering), [osal_switching.md](osal_switching.md) (backend switching), [getting_started.md](getting_started.md) (dual-track Kconfig) |
+| **Prerequisites** | [architecture.md](architecture.md) (layering), [backend_switching.md](backend_switching.md) (backend switching), [getting_started.md](getting_started.md) (dual-track Kconfig) |
 | **Source** | `lib/mini-os/` (`src/` kernel · `inc/` headers · `arch/arm/cortex-m/port/` port layer) |
 | **License** | Apache-2.0 (design informed by FreeRTOS / RT-Thread / Zephyr / Linux) |
 
@@ -30,7 +30,7 @@
 
 mini-os is the in-tree minimal RTOS kernel. Design goals:
 
-- **Smallest footprint**: lowest text/bss among the four OSAL backends (see [memory_footprint.md](memory_footprint.md) §4);
+- **Smallest footprint**: lowest text/bss among the four OS backends (see [memory_footprint.md](memory_footprint.md) §4);
 - **Freestanding**: no libc dependency (only self-contained headers like `stddef.h`), heap implemented in-tree;
 - **Cortex-M only**: the port covers M0/M0+/M3/M4/M7 (the RISC-V port is an empty stub; ESP32 is Xtensa and unsupported);
 - **GCC/Clang toolchains**: the kernel uses GNU extensions (`__attribute__((constructor))` etc.); Keil ARMCC cannot build it directly.
@@ -74,7 +74,7 @@ Thread delays / sync timeouts use a layered time wheel (`s_wheel[MINI_OS_TICK_WH
 | SysTick | `0xFE` | Tick driving (thread wheel / time slice / timer wheel) |
 
 - ISR-side wake-ups **never switch context by themselves**: `mini_os_schedule_yield_isr()` inspects the ready bitmap and pends PendSV only when a higher-priority thread is ready;
-- All `*_isr` API variants (`mini_os_semaphore_post_isr` etc.) follow this convention; OSAL's `osal_yield_from_isr()` forwards to it.
+- All `*_isr` API variants (`mini_os_semaphore_post_isr` etc.) follow this convention; the unified interface's `mini_yield_from_isr()` forwards to it.
 
 ### 2.4 Key threads and constructor priorities
 
@@ -114,7 +114,7 @@ Other points:
 ### 3.3 Event group (event.c, optional)
 
 - 32-bit flags, OR / WHOLE (all-set) wait semantics, configurable auto-clear;
-- Switch: `MINI_OS_EVENT` (off by default on its own, but `OSAL_EVENT` (default y) selects it — see §7);
+- Switch: `MINI_OS_EVENT` (off by default on its own, but `（已移除）` (default y) selects it — see §7);
 - When off, `event.h`/`event.c` compile to nothing, and `event.c` is dropped from the source list entirely (not even an empty object file).
 
 ---
@@ -147,9 +147,9 @@ Implementation in `lib/mini-os/src/memory.c` (~840 lines) + `inc/mem_heap.h`:
 - **Heap source**: the linker script `lib/mini-os/mini-os-heap.ld` provides `__mini_os_heap_start` / `__mini_os_heap_end`; the heap sits between bss and the MSP stack and **does not count into bss** (important for the bss accounting in [memory_footprint.md](memory_footprint.md) §4);
 - **Optional slab**: fixed-size classes 16/32/64/128/256 (plus 512 with `MINI_OS_SLAB_LONG`), page size 2 KiB (power of two ≤ 64 KiB); pages are carved from the heap by `1/MINI_OS_SLAB_PROPORTION` (default 1/4), or served from an independent static region via `MINI_OS_SLAB_STATIC`; requests above the largest class fall through to the free list.
 
-> Unlike the other mini_tree backends: `osal_calloc/osal_free` (mini-os backend) use the mini-os own heap instead of libc, so the `s_rtt_heap`/`ucHeap`-style large bss arrays seen with RT-Thread/FreeRTOS do not exist here.
+> Unlike the other mini_tree backends: `mini_calloc/mini_free` (mini-os backend) use the mini-os own heap instead of libc, so the `s_rtt_heap`/`ucHeap`-style large bss arrays seen with RT-Thread/FreeRTOS do not exist here.
 >
-> **The memory module is reusable standalone (bare-metal)**: `memory.c` has no scheduler/port dependency and can be compiled into a bare-metal firmware as a single file — with `CONFIG_OSAL_NULL_MINI_OS_MEM` (default off) the bare-metal backend's `osal_malloc/osal_calloc/osal_free` switch from the libc heap to the mini-os heap; the heap zone is taken over lazily on the first allocation (`mini_os_heap_ensure_init()`, idempotent), no `.init_array` traversal needed. The board linker script must provide `__mini_os_heap_start/__mini_os_heap_end` (`INCLUDE mini-os-heap.ld`). The free list is unlocked (same as libc malloc) — never call from an ISR.
+> **The memory module is reusable standalone (bare-metal)**: `memory.c` has no scheduler/port dependency and can be compiled into a bare-metal firmware as a single file — with `（已移除: 内存统一走 libc/内核堆）` (default off) the bare-metal backend's `mini_malloc/mini_calloc/mini_free` switch from the libc heap to the mini-os heap; the heap zone is taken over lazily on the first allocation (`mini_os_heap_ensure_init()`, idempotent), no `.init_array` traversal needed. The board linker script must provide `__mini_os_heap_start/__mini_os_heap_end` (`INCLUDE mini-os-heap.ld`). The free list is unlocked (same as libc malloc) — never call from an ISR.
 
 ---
 
@@ -182,7 +182,7 @@ On mismatch → halt in a loop (better to fail fast than to debug a corrupted Pe
 
 ### 6.4 Critical sections
 
-Two compile-time alternatives: PRIMASK full mask, or a BASEPRI threshold that only masks IRQs not higher than `MINI_OS_IRQ_MAX_SYSCALL_PRIORITY`. The OSAL pool critical sections use the nestable `mini_os_irq_save/restore`.
+Two compile-time alternatives: PRIMASK full mask, or a BASEPRI threshold that only masks IRQs not higher than `MINI_OS_IRQ_MAX_SYSCALL_PRIORITY`. The the slot-pool critical sections use the nestable `mini_os_irq_save/restore`.
 
 ---
 
@@ -196,7 +196,7 @@ Every option resolves through the same **three-tier chain** (reference implement
 
 > **Note**: feature switches are always defined as `1`/`0`, so test with `#if`, never `#ifdef` (`#ifdef` is true for a disabled option too).
 
-### 7.1 Kconfig surface (`Kconfig.mini_tree`, all `depends on OSAL_MINI_OS`)
+### 7.1 Kconfig surface (`Kconfig.mini_tree`, all `depends on OS_MINI_OS`)
 
 | Option | Type / default | Notes |
 | :--- | :--- | :--- |
@@ -208,13 +208,13 @@ Every option resolves through the same **three-tier chain** (reference implement
 | `MINI_OS_DEFAULT_IDLE_STACK_SIZE` | int / 256 | Idle thread stack |
 | `MINI_OS_TIMER_THREAD_STACK_SIZE` | int / 512 | SOFT-timer service thread stack (≥ min stack, multiple of 8) |
 | `MINI_OS_TIME_SLICE` | bool / n | Round-robin time slicing (default: strict priority) |
-| `MINI_OS_EVENT` | bool / n | 32-bit event group (`OSAL_EVENT` selects it by default) |
+| `MINI_OS_EVENT` | bool / n | 32-bit event group (`（已移除）` selects it by default) |
 | `MINI_OS_THREAD_DETACH` | bool / n | detach/join (one switch, adds reclamation fields to every TCB) |
 | `MINI_OS_FIND_BY_NAME` | bool / n | By-name registries for threads/semaphores/mutexes |
 | `MINI_OS_LONG_TIME` | bool / n | 64-bit tick (via an extra wrap-around counter) |
 | `MINI_OS_STACK_OVERFLOW_CHECK` | bool / n | MSP stack sentinel (requires mini-os-heap.ld) |
 | `MINI_OS_USE_FPU` | bool / y | FPU context save (only visible on CM4F/CM7; do not turn off with hard-float) |
-| `MINI_OS_SPINLOCK`(+`_ATOMIC`/`_YIELD`/`_NUM`) | bool / y | Header-only spinlock (off → OSAL falls back to IRQ masking); atomic mode is SMP-only |
+| `MINI_OS_SPINLOCK`(+`_ATOMIC`/`_YIELD`/`_NUM`) | bool / y | Header-only spinlock (off → the unified interface falls back to IRQ masking); atomic mode is SMP-only |
 | `ARCH` | (no prompt) | mini-os architecture id (0=M0/M0+ 1=M3 2=M4 3=M7), derived automatically from `PLATFORM_ARM_*`, **must not be set by hand** |
 
 ---
@@ -223,11 +223,11 @@ Every option resolves through the same **three-tier chain** (reference implement
 
 ### 8.1 Selecting the backend
 
-`CONFIG_OSAL_MINI_OS=y` (`make menuconfig`, or edit `.config` by hand and re-configure). Constraints:
+`CONFIG_OS_MINI_OS=y` (`make menuconfig`, or edit `.config` by hand and re-configure). Constraints:
 
 - `depends on !PLATFORM_RISCV && !PLATFORM_ESP32` — Cortex-M only;
 - `select USB_TUSB_OS_NONE` — TinyUSB does not run on mini-os (no mini-os backend for the USB stack yet);
-- `OSAL_EVENT` (default y) automatically selects `MINI_OS_EVENT`.
+- `（已移除）` (default y) automatically selects `MINI_OS_EVENT`.
 
 ### 8.2 Board wiring (mandatory)
 
@@ -238,20 +238,20 @@ Every option resolves through the same **three-tier chain** (reference implement
 | Linker script | `#include` `lib/mini-os/mini-os-heap.ld` providing `__mini_os_heap_start` / `__mini_os_heap_end` |
 | Startup flow | Must iterate `.init_array` (satisfied by default on GCC/Clang) — the kernel self-initializes via constructors (heap/registries/idle/sentinel) |
 
-### 8.3 OSAL mapping notes (`osal/src/osal_mini_os.c`)
+### 8.3 backend mapping notes (`core/src/mini_backend_mini_os.c`)
 
 | Topic | Semantics |
 | :--- | :--- |
-| Priorities | mini-os: smaller number = higher priority (same as RT-Thread, **opposite of FreeRTOS**); by convention each OSAL backend keeps its native kernel semantics |
-| Error codes | `MINI_OS_ERR_*` matches `OSAL_ERR_*` numerically when `config.h`/`status.h` are visible — zero-overhead pass-through; only `MINI_OS_ERR_AGAIN` maps to `OSAL_ERR_TIMEOUT` |
-| ISR mode | `*_isr` calls never switch context; `osal_yield_from_isr()` forwards to `mini_os_schedule_yield_isr()` |
-| Object pool | Mutexes/semaphores embed kernel objects statically + an `osal_pool` slot pool; pool critical sections use `mini_os_irq_save/restore` |
-| Scheduler start | `osal_scheduler_start()` first lazily boots the kernel (`schedule_init` + idle thread + SysTick), then starts the scheduler |
-| Scheduler freeze | mini-os has no global suspend-all API; `osal_sched_freeze()` degrades to IRQ masking (same one-way freeze semantics as `osal_null`) |
+| Priorities | mini-os: smaller number = higher priority (same as RT-Thread, **opposite of FreeRTOS**); by convention each OS backend keeps its native kernel semantics |
+| Error codes | `MINI_OS_ERR_*` matches `MINI_ERR_*` numerically when `config.h`/`status.h` are visible — zero-overhead pass-through; only `MINI_OS_ERR_AGAIN` maps to `MINI_ERR_TIMEOUT` |
+| ISR mode | `*_isr` calls never switch context; `mini_yield_from_isr()` forwards to `mini_os_schedule_yield_isr()` |
+| Object pool | Mutexes/semaphores embed kernel objects statically + an `mini_slot` slot pool; pool critical sections use `mini_os_irq_save/restore` |
+| Scheduler start | `mini_scheduler_start()` first lazily boots the kernel (`schedule_init` + idle thread + SysTick), then starts the scheduler |
+| Scheduler freeze | mini-os has no global suspend-all API; `（已移除）()` degrades to IRQ masking (same one-way freeze semantics as `mini_backend_bare`) |
 
 ### 8.4 Build integration
 
-The root build `add_subdirectory(lib/mini-os)` in `lib/CMakeLists.txt` when `OSAL_BACKEND=MINI_OS`; mini-os' own CMakeLists declares `project(... C ASM)` (the only kernel library in-tree that does not rely on the root project enabling ASM; by contrast, rtthread used to silently drop `context_gcc.S` for lack of `enable_language(ASM)` — fixed). The event-group source file is compiled in conditionally based on `CONFIG_MINI_OS_EVENT`/`CONFIG_OSAL_EVENT` from `.config`; when off, not even an object file is produced.
+The root build `add_subdirectory(lib/mini-os)` in `lib/CMakeLists.txt` when `OS_BACKEND=MINI_OS`; mini-os' own CMakeLists declares `project(... C ASM)` (the only kernel library in-tree that does not rely on the root project enabling ASM; by contrast, rtthread used to silently drop `context_gcc.S` for lack of `enable_language(ASM)` — fixed). The event-group source file is compiled in conditionally based on `CONFIG_MINI_OS_EVENT`/`CONFIG_MINI_OS_EVENT` from `.config`; when off, not even an object file is produced.
 
 ---
 
@@ -287,7 +287,7 @@ The output is the static library `libmini-os.a`. Standalone builds have no `.con
 ## Related Documents
 
 - [memory_footprint.md](memory_footprint.md) — four-backend memory benchmark (§4)
-- [osal_switching.md](osal_switching.md) — OSAL backend switching and semantic differences
+- [backend_switching.md](backend_switching.md) — OS backend switching and semantic differences
 - [fast_path.md](fast_path.md) — HARD-timer / ISR callback red lines
 - [patterns.md](patterns.md) — mini_tree key mechanisms (xtask/time-slice bare-metal counterparts)
 - `lib/mini-os/README.md` — official kernel feature list and three-tier configuration notes

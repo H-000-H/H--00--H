@@ -6,7 +6,7 @@
  *@details
  *   board_driver.c — 板级驱动核心实现
  *   board_driver_probe_all: 3 趟 deferred probe, 按依赖拓扑顺序匹配驱动,
- *   失败按 criticality 分级 (FATAL 触发 OSAL_PANIC, WARNING 告警, IGNORE 静默).
+ *   失败按 criticality 分级 (FATAL 触发 MINI_PANIC, WARNING 告警, IGNORE 静默).
  *   board_driver_remove_all: 逆 probe 顺序卸载, 失败保留 ERROR 状态.
  *   实现安全停机子系统 (safety pin + 回调 + emergency_stop_all_cores).
  */
@@ -18,7 +18,7 @@
 #include "hal_amp.h"
 #include "hal_gpio.h"
 #include "hal_platform_safety.h"
-#include "osal.h"
+#include "mini_panic.h"
 #include "status.h"
 #include "system_log.h"
 #include <stdio.h>
@@ -205,7 +205,7 @@ static void handle_probe_failure(struct device* pdev, device_id_t id)
     {
     case DEVICE_CRIT_FATAL:
         DRV_LOGE(k_tag, "FATAL: '%s' probe failed — initiating safe shutdown", device_get_name(pdev));
-        OSAL_PANIC("FATAL device '%s' probe failed", device_get_name(pdev));
+        MINI_PANIC("FATAL device '%s' probe failed", device_get_name(pdev));
         break;
     case DEVICE_CRIT_IGNORE:
         break;
@@ -252,7 +252,7 @@ void system_safety_hardware_shutdown(const char* reason)
 #ifdef CONFIG_SAFETY_SHUTDOWN
     MINI_UNUSED_PARAM(reason);
 
-    if (!osal_in_isr())
+    if (!hal_is_in_isr())
     {
         for (int loop_index = 0; loop_index < g_safety_cb_count; loop_index++)
             if (g_safety_cbs[loop_index])

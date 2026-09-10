@@ -108,7 +108,7 @@ Commonly poisoned APIs and their replacements:
 
 | Poisoned API | Replacement |
 | :--- | :--- |
-| `malloc` / `free` / `calloc` / `realloc` | static pool / `bufferpool` / `kalloc` |
+| `malloc` / `free` / `calloc` / `realloc` | static pool / `mini_slot` / `kalloc` |
 | `printf` / `fprintf` / `sprintf` | `SYS_LOG*` |
 | bare `memcpy` / `memset` / `memmove` | `safe_mem*` or explicit length checks |
 | `strcpy` / `strcat` / `strdup` / `strndup` | `safe_str*` |

@@ -8,6 +8,7 @@
 #include "event_bus.hpp"
 
 #include "compiler_compat.h"
+#include "mini_time.h"
 #include "safe_state.h"
 #include "system_log.h"
 #include "system_wdt.hpp"
@@ -22,7 +23,7 @@ extern volatile bool g_system_os_initialized;
 
 static constexpr const char* k_tag = "EventBus";
 static constexpr uint32_t kDispatchPrio =
-#if defined(CONFIG_OSAL_FREERTOS)
+#if defined(CONFIG_OS_FREERTOS)
     30; /* FreeRTOS: 0=最低, 31=最高 */
 #else
     1; /* RT-Thread: 0=最高, 31=最低 */
@@ -37,19 +38,19 @@ int EventBus::init()
     if (m_inited)
         return MINI_OK;
 
-    m_queue = osal_queue_create(k_queue_len, sizeof(event));
+    m_queue = mini_queue_create(k_queue_len, sizeof(event));
     if (m_queue == nullptr)
     {
-        SYS_LOGE(k_tag, "FATAL: osal_queue_create failed — event bus unusable");
+        SYS_LOGE(k_tag, "FATAL: mini_queue_create failed — event bus unusable");
         return MINI_ERR_NOMEM;
     }
 
-    if (osal_mutex_create_static(&m_sub_lock, m_sub_lock_storage, sizeof(m_sub_lock_storage)) !=
-            OSAL_OK ||
+    if (mini_mutex_create_static(&m_sub_lock, m_sub_lock_storage, sizeof(m_sub_lock_storage)) !=
+            MINI_OK ||
         m_sub_lock == nullptr)
     {
         SYS_LOGE(k_tag, "FATAL: mutex create failed");
-        osal_queue_delete(m_queue);
+        mini_queue_delete(m_queue);
         m_queue = nullptr;
         return MINI_ERR_NOMEM;
     }
@@ -67,14 +68,14 @@ EventBus& EventBus::get_instance()
 
 int EventBus::subscribe(uint32_t id_min, uint32_t id_max, EventCallback callback, void* user_data)
 {
-    if (osal_in_isr())
+    if (hal_is_in_isr())
         return MINI_ERR_ISR;
     if (m_is_sealed)
         return MINI_ERR_NOTSUPP;
     if (callback == nullptr || m_sub_lock == nullptr || id_min > id_max)
         return MINI_ERR_INVAL;
 
-    if (osal_mutex_lock(m_sub_lock, OSAL_LOCK_TIMEOUT_DEFAULT_MS) != OSAL_OK)
+    if (mini_mutex_lock(m_sub_lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) != MINI_OK)
     {
         SYS_LOGE(k_tag, "Fatal: EventBus subscribe lock timeout (possible deadlock)");
         return MINI_ERR_TIMEOUT;
@@ -91,13 +92,13 @@ int EventBus::subscribe(uint32_t id_min, uint32_t id_max, EventCallback callback
         ret = MINI_OK;
     }
 
-    osal_mutex_unlock(m_sub_lock);
+    mini_mutex_unlock(m_sub_lock);
     return ret;
 }
 
 int EventBus::post(uint32_t id, uintptr_t arg)
 {
-    if (osal_in_isr())
+    if (hal_is_in_isr())
         return MINI_ERR_ISR;
 
     return post_internal(id, arg, false, nullptr);
@@ -120,9 +121,9 @@ int EventBus::post_internal(uint32_t id, uintptr_t arg, bool from_isr, bool* px_
     bool ok;
 
     if (from_isr)
-        ok = osal_queue_send_from_isr(m_queue, &event, px_yield_required);
+        ok = mini_queue_send_from_isr(m_queue, &event, px_yield_required);
     else
-        ok = osal_queue_send(m_queue, &event, 0);
+        ok = mini_queue_send(m_queue, &event, 0);
 
     if (!ok)
     {
@@ -147,7 +148,7 @@ void EventBus::dispatch_task(void* param)
     EventBus* self = static_cast<EventBus*>(param);
     event event;
 
-    while (osal_queue_receive(self->m_queue, &event, OSAL_WAIT_FOREVER))
+    while (mini_queue_receive(self->m_queue, &event, MINI_WAIT_FOREVER))
     {
         if (self->m_task == nullptr)
             break;
@@ -160,7 +161,7 @@ void EventBus::dispatch_task(void* param)
 
         if (self->m_sub_lock)
         {
-            if (osal_mutex_lock(self->m_sub_lock, OSAL_LOCK_TIMEOUT_DEFAULT_MS) != OSAL_OK)
+            if (mini_mutex_lock(self->m_sub_lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) != MINI_OK)
             {
                 SYS_LOGE(k_tag, "Fatal: EventBus dispatch lock timeout — safe shutdown");
                 enter_safe_state("EventBus mutex deadlock");
@@ -171,7 +172,7 @@ void EventBus::dispatch_task(void* param)
         for (size_t index = 0; index < snapshot_count; index++)
             snapshot[index] = self->m_subscribers[index];
         if (self->m_sub_lock)
-            osal_mutex_unlock(self->m_sub_lock);
+            mini_mutex_unlock(self->m_sub_lock);
 
         for (size_t index = 0; index < snapshot_count; index++)
         {
@@ -182,7 +183,7 @@ void EventBus::dispatch_task(void* param)
     }
 
     SYS_LOGI(k_tag, "dispatch task exiting");
-    osal_task_self_delete();
+    mini_task_self_delete();
 }
 
 void EventBus::start()
@@ -190,9 +191,9 @@ void EventBus::start()
     if (m_task != nullptr || m_queue == nullptr)
         return;
 
-    if (osal_task_create_handle("evt_bus", kDispatchStack, kDispatchPrio, dispatch_task, this, 0, &m_task) != MINI_OK)
+    if (mini_task_create_handle("evt_bus", kDispatchStack, kDispatchPrio, dispatch_task, this, 0, &m_task) != MINI_OK)
     {
-        SYS_LOGE(k_tag, "FATAL: osal_task_create_handle failed — event bus unusable");
+        SYS_LOGE(k_tag, "FATAL: mini_task_create_handle failed — event bus unusable");
         return;
     }
     MINI_IGNORE_RESULT(system_wdt_subscribe(m_task));
@@ -204,33 +205,33 @@ void EventBus::stop()
     if (!m_task)
         return;
 
-    osal_task_handle_t handle = m_task;
+    mini_task_handle_t handle = m_task;
     m_task = nullptr;
 
-    /* 向队列发空事件唤醒 dispatch 线程 (osal_queue_send 返回 bool) */
+    /* 向队列发空事件唤醒 dispatch 线程 (mini_queue_send 返回 bool) */
     event dummy = {EVENT_SYS_FAULT, 0};
-    if (!osal_queue_send(m_queue, &dummy, 0))
+    if (!mini_queue_send(m_queue, &dummy, 0))
     {
-        SYS_LOGE(k_tag, "FATAL: osal_queue_send failed — event bus unusable");
+        SYS_LOGE(k_tag, "FATAL: mini_queue_send failed — event bus unusable");
         return;
     }
 
     uint32_t waited = 0;
-    while (osal_task_is_running(handle) && waited < kStopWaitMs)
+    while (mini_task_is_running(handle) && waited < kStopWaitMs)
     {
-        osal_delay_ms(10);
+        mini_delay_ms(10);
         waited += 10;
     }
 
-    if (osal_task_is_running(handle))
+    if (mini_task_is_running(handle))
     {
         SYS_LOGW(k_tag, "dispatch task did not exit, force deleting");
-        osal_task_delete(handle);
+        mini_task_delete(handle);
     }
 
     /* 先标记未初始化，阻止新的 post，再销毁队列 */
     m_inited = false;
-    osal_queue_delete(m_queue);
+    mini_queue_delete(m_queue);
     m_queue = nullptr;
 }
 

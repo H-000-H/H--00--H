@@ -108,7 +108,7 @@
 
 | 被 poison 的 API | 替代 |
 | :--- | :--- |
-| `malloc` / `free` / `calloc` / `realloc` | 静态池 / `bufferpool` / `kalloc` |
+| `malloc` / `free` / `calloc` / `realloc` | 静态池 / `mini_slot` / `kalloc` |
 | `printf` / `fprintf` / `sprintf` | `SYS_LOG*` |
 | 裸 `memcpy` / `memset` / `memmove` | `safe_mem*` 或显式长度校验 |
 | `strcpy` / `strcat` / `strdup` / `strndup` | `safe_str*` |

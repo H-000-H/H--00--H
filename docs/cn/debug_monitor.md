@@ -29,7 +29,7 @@
 后端：
 
 - `CONFIG_SYS_LOG_USE_PRINTF`
-- `CONFIG_SYS_LOG_USE_OSAL`
+- `CONFIG_SYS_LOG_USE_PRINTF`
 - （可选）ESP 路径仅在对应宏下编译
 
 热路径不要刷 INFO；见 [fast_path.md](fast_path.md)。
@@ -42,7 +42,7 @@
 
 | 文件 | 看什么 |
 | :--- | :--- |
-| `config.h` | OSAL/SYSTEM/LOG 宏是否正确 |
+| `config.h` | OS/SYSTEM/LOG 宏是否正确 |
 | `board_nodes.h` | `DEV_ID_COUNT`、各 `DEV_ID_*`、chosen |
 | `dt_config_gen.h` | `DTC_GEN_COUNT_*`、时钟容量 |
 | `board_probe.c` | 是否包含你新写的 `board_driver_probe_*` |

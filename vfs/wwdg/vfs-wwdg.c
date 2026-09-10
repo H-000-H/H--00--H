@@ -13,7 +13,6 @@
 #include "dev_lifecycle.h"
 #include "device.h"
 #include "driver.h"
-#include "osal.h"
 #include "status.h"
 #include "system_log.h"
 

@@ -25,7 +25,7 @@
 #include "compiler_compat.h"
 #include "device.h"
 #include "driver.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -58,10 +58,10 @@ struct uart_bus_client
 
 static struct uart_bus_host   s_uart_hosts[UART_BUS_HOST_MAX];
 static uint8_t                s_uart_host_used[UART_BUS_HOST_MAX];
-static osal_pool_t            s_uart_host_pool_ctrl;
+static mini_slot_t            s_uart_host_pool_ctrl;
 static struct uart_bus_client s_uart_clients[UART_BUS_CLIENT_MAX];
 static uint8_t                s_uart_client_used[UART_BUS_CLIENT_MAX];
-static osal_pool_t            s_uart_client_pool_ctrl;
+static mini_slot_t            s_uart_client_pool_ctrl;
 static const char* const      k_tag = "uart_bus";
 
 /**
@@ -69,8 +69,8 @@ static const char* const      k_tag = "uart_bus";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void uart_bus_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_uart_host_pool_ctrl, s_uart_host_used, UART_BUS_HOST_MAX));
-    MINI_IGNORE_RESULT(osal_pool_init(&s_uart_client_pool_ctrl, s_uart_client_used, UART_BUS_CLIENT_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_uart_host_pool_ctrl, s_uart_host_used, UART_BUS_HOST_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_uart_client_pool_ctrl, s_uart_client_used, UART_BUS_CLIENT_MAX));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -84,7 +84,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void uart_bus_pool_init(v
 static struct uart_bus_host* uart_host_from_device(struct device* pdev)
 {
     for (int index = 0; index < UART_BUS_HOST_MAX; index++)
-        if (osal_pool_is_used(&s_uart_host_pool_ctrl, index) && s_uart_hosts[index].pdev == pdev)
+        if (mini_slot_is_used(&s_uart_host_pool_ctrl, index) && s_uart_hosts[index].pdev == pdev)
             return &s_uart_hosts[index];
     return NULL;
 }
@@ -100,7 +100,7 @@ static struct uart_bus_host* uart_host_from_device(struct device* pdev)
 static struct uart_bus_client* uart_client_from_device(struct device* pdev)
 {
     for (int index = 0; index < UART_BUS_CLIENT_MAX; index++)
-        if (osal_pool_is_used(&s_uart_client_pool_ctrl, index) && s_uart_clients[index].pdev == pdev)
+        if (mini_slot_is_used(&s_uart_client_pool_ctrl, index) && s_uart_clients[index].pdev == pdev)
             return &s_uart_clients[index];
     return NULL;
 }
@@ -145,7 +145,7 @@ static int uart_host_init_impl(struct device* pdev, const void* cfg)
     if (uart_host_from_device(pdev))
         return MINI_OK;
 
-    idx = osal_pool_claim(&s_uart_host_pool_ctrl);
+    idx = mini_slot_claim(&s_uart_host_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -159,7 +159,7 @@ static int uart_host_init_impl(struct device* pdev, const void* cfg)
     if (ret != MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_uart_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_uart_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -167,7 +167,7 @@ static int uart_host_init_impl(struct device* pdev, const void* cfg)
     if (ret != MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_uart_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_uart_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -204,7 +204,7 @@ static int uart_host_deinit_impl(struct device* pdev)
 
     idx = (int)(host - s_uart_hosts);
     MINI_MEM_SET(host, 0, sizeof(*host));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_host_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_host_pool_ctrl, idx));
     return MINI_OK;
 }
 
@@ -259,7 +259,7 @@ static int uart_client_register_impl(struct device* pdev, const void* cfg, void*
     if (!host)
         return MINI_ERR_IO;
 
-    idx = osal_pool_claim(&s_uart_client_pool_ctrl);
+    idx = mini_slot_claim(&s_uart_client_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -273,7 +273,7 @@ static int uart_client_register_impl(struct device* pdev, const void* cfg, void*
     if (ret != MINI_OK)
     {
         MINI_MEM_SET(cli, 0, sizeof(*cli));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_uart_client_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_uart_client_pool_ctrl, idx));
         return ret;
     }
 
@@ -311,7 +311,7 @@ static void uart_client_unregister_impl(struct device* pdev)
 
     idx = (int)(cli - s_uart_clients);
     MINI_MEM_SET(cli, 0, sizeof(*cli));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_client_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_client_pool_ctrl, idx));
 }
 
 int uart_bus_client_register(struct device* pdev) { return uart_client_register_impl(pdev, NULL, NULL); }

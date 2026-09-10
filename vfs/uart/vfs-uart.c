@@ -25,7 +25,7 @@
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 #include "uart_bus.h"
@@ -44,7 +44,7 @@ struct vfs_uart_priv
 
 static struct vfs_uart_priv              s_uart_priv_pool[UART_VFS_PRIV_COUNT] MINI_ALIGNED(4);
 static uint8_t                           s_uart_priv_used[UART_VFS_PRIV_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_uart_priv_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_uart_priv_pool_ctrl MINI_ALIGNED(4);
 static const char* const                 k_host_tag = "uart_host_vfs";
 
 /**
@@ -52,7 +52,7 @@ static const char* const                 k_host_tag = "uart_host_vfs";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_uart_priv_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_uart_priv_pool_ctrl, s_uart_priv_used, UART_VFS_PRIV_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_uart_priv_pool_ctrl, s_uart_priv_used, UART_VFS_PRIV_COUNT));
 }
 
 /**
@@ -181,7 +181,7 @@ static int vfs_uart_priv_probe(struct device* pdev)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    pool_idx = osal_pool_claim(&s_uart_priv_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_uart_priv_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -212,7 +212,7 @@ static int vfs_uart_priv_probe(struct device* pdev)
 err_bus:
     MINI_IGNORE_RESULT(uart_bus_host_deinit(pdev));
 err_pool:
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_priv_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -244,7 +244,7 @@ static int vfs_uart_priv_remove(struct device* pdev)
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
 
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
@@ -259,7 +259,7 @@ static int vfs_uart_priv_remove(struct device* pdev)
     }
 
     MINI_MEM_SET(priv, 0, sizeof(*priv));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_priv_pool_ctrl, pool_idx));
 
     dev_lc_remove_finish(lc);
     return MINI_OK;
@@ -278,7 +278,7 @@ struct uart_vfs_client
 
 static struct uart_vfs_client s_uart_vfs_pool[UART_VFS_COUNT];
 static uint8_t                s_uart_vfs_used[UART_VFS_COUNT];
-static osal_pool_t            s_uart_vfs_pool_ctrl;
+static mini_slot_t            s_uart_vfs_pool_ctrl;
 static const char* const      k_tag = "uart_vfs";
 
 /**
@@ -286,7 +286,7 @@ static const char* const      k_tag = "uart_vfs";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void uart_vfs_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_uart_vfs_pool_ctrl, s_uart_vfs_used, UART_VFS_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_uart_vfs_pool_ctrl, s_uart_vfs_used, UART_VFS_COUNT));
 }
 
 /**
@@ -498,7 +498,7 @@ int uart_vfs_probe(struct device* pdev)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    pool_idx = osal_pool_claim(&s_uart_vfs_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_uart_vfs_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -527,7 +527,7 @@ int uart_vfs_probe(struct device* pdev)
 err_pool:
     pdev->ops = NULL;              /* 切断 fops, 防 UAF */
     dev_lc_reset(device_lc(pdev)); /* 重置生命周期 */
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_vfs_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_vfs_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -550,7 +550,7 @@ int uart_vfs_remove(struct device* pdev)
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
 
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
@@ -558,7 +558,7 @@ int uart_vfs_remove(struct device* pdev)
 
     uart_bus_client_unregister(pdev);
     MINI_MEM_SET(priv, 0, sizeof(*priv));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_uart_vfs_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_uart_vfs_pool_ctrl, pool_idx));
 
     dev_lc_remove_finish(lc);
     return MINI_OK;

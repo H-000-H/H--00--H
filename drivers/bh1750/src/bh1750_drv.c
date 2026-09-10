@@ -16,7 +16,8 @@
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include "vfs-i2c.h"
@@ -41,7 +42,7 @@ struct bh1750_device
 
 static struct bh1750_device           s_bh1750_pool[BH1750_POOL_COUNT] MINI_ALIGNED(4);
 static uint8_t                        s_bh1750_used[BH1750_POOL_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_bh1750_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_bh1750_pool_ctrl MINI_ALIGNED(4);
 static const char* const              k_tag = "bh1750";
 
 /**
@@ -49,7 +50,7 @@ static const char* const              k_tag = "bh1750";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void bh1750_pool_boot_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_bh1750_pool_ctrl, s_bh1750_used, BH1750_POOL_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_bh1750_pool_ctrl, s_bh1750_used, BH1750_POOL_COUNT));
 }
 
 /**
@@ -192,7 +193,7 @@ static int bh1750_cmd_lux(struct bh1750_device* dev, void* arg, size_t len, uint
         return MINI_ERR_INVAL;
     if (bh1750_i2c_wr(dev, &on, 1, timeout_ms) != MINI_OK || bh1750_i2c_wr(dev, &cont, 1, timeout_ms) != MINI_OK)
         return MINI_ERR_IO;
-    osal_delay_ms(120);
+    mini_delay_ms(120);
     if (bh1750_i2c_rd(dev, raw, 2, timeout_ms) != MINI_OK)
         return MINI_ERR_IO;
     *lux = (int)(((uint16_t)((raw[0] << 8) | raw[1]) * 12) / 10);
@@ -246,7 +247,7 @@ static int bh1750_probe(struct device* pdev)
     int                   pool_idx, ret;
     if (!pdev)
         return MINI_ERR_INVAL;
-    pool_idx = osal_pool_claim(&s_bh1750_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_bh1750_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
     dev = &s_bh1750_pool[pool_idx];
@@ -270,7 +271,7 @@ static int bh1750_probe(struct device* pdev)
 err:
     pdev->ops = NULL;
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_bh1750_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_bh1750_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -293,14 +294,14 @@ static int bh1750_remove(struct device* pdev)
     idx = (int)(dev - s_bh1750_pool);
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
     bh1750_hw_destroy(dev);
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_bh1750_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_bh1750_pool_ctrl, idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

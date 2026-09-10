@@ -1,6 +1,6 @@
 # Runtime Services
 
-> Horizontal capabilities used after boot: event bus, VIRQ, system-language backends, buffer pools, plus optional watchdog / CRC scrubber / safe-state modules. Layer overview: [architecture.md](architecture.md).
+> Horizontal capabilities used after boot: event bus, VIRQ, system-language backends, plus optional watchdog / CRC scrubber / safe-state modules. Layer overview: [architecture.md](architecture.md).
 
 | Item | Content |
 | :--- | :--- |
@@ -15,7 +15,7 @@
 1. [EventBus](#1-eventbus)
 2. [VIRQ & Top/Bottom Halves](#2-virq-topbottom-halves)
 3. [SYSTEM_C vs SYSTEM_CPP](#3-system_c-vs-system_cpp)
-4. [BufferPool & algorithm/buffer](#4-bufferpool-algorithmbuffer)
+4. [Buffer (algorithm/buffer)](#4-buffer-algorithmbuffer)
 5. [Optional Safety Modules (Bricks)](#5-optional-safety-modules-bricks)
 
 ---
@@ -118,14 +118,13 @@ When `CONFIG_SYSTEM` is on, Kconfig picks **one**: compile `system_c/` or `syste
 
 ---
 
-## 4. BufferPool & algorithm/buffer
+## 4. Buffer (algorithm/buffer)
 
 | Component | Path | Use |
 | :--- | :--- | :--- |
-| BufferPool | `core/include/buffer_pool.h` | Fixed-size block pool; driver/protocol borrow-return |
 | Ring & double buffer | `algorithm/buffer/` | `fifo_spsc`, `double_buffer_spsc` etc. |
 
-Business code may use them directly; avoid complex allocation in ISRs (pool ISR-safety is documented per-header).
+Business code may use them directly; avoid complex allocation in ISRs (ISR-safety is documented per-header).
 
 ---
 
@@ -143,7 +142,7 @@ Business code may use them directly; avoid complex allocation in ISRs (pool ISR-
 Key points:
 
 1. **Recommended**: link and enable these modules (default on for production); they are already part of the `mini_tree` library.
-2. **Optional**: with the Kconfig switches off, the core (device model / VFS / OSAL / EventBus) keeps working.
+2. **Optional**: with the Kconfig switches off, the core (device model / VFS / 统一接口 / EventBus) keeps working.
 3. Unrelated to **EventBus seal** — sealing is core runtime behavior, not an optional brick.
 
 ---

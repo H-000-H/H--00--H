@@ -13,7 +13,7 @@
 
 - **English**: Platform-agnostic embedded middleware using a Linux-style Device Tree & Driver Model to unify peripheral access across Bare-Metal / mini-os / FreeRTOS / RT-Thread; zero vendor SDK lock-in.
 
-Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`, `OSAL (NULL/MINI_OS/FREERTOS/RTTHREAD)`, `VFS`, `BUS`, `HAL`, `EventBus`, `VIRQ`.
+Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`, `the unified interface (NULL/MINI_OS/FREERTOS/RTTHREAD)`, `VFS`, `BUS`, `HAL`, `EventBus`, `VIRQ`.
 
 ---
 
@@ -40,7 +40,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | `usb_tusb_port.md` | TinyUSB board-level contract (`usb_tusb_port`) | P1 (USB) | [en](usb_tusb_port.md) |
 | `amp.md` | Dual-core heterogeneous AMP | P2 | [en](amp.md) |
 | `mini-os.md` | In-tree mini-os kernel: scheduler/time wheels/PI/heap/port/three-tier config/integration wiring/memory figures | P1 | [en](mini-os.md) |
-| `osal_switching.md` | OSAL backend switching (NULL/MINI_OS/FREERTOS/RTTHREAD; priority semantics vary by backend) | P1 | [en](osal_switching.md) |
+| `backend_switching.md` | OS backend switching (NULL/MINI_OS/FREERTOS/RTTHREAD; priority semantics vary by backend) | P1 | [en](backend_switching.md) |
 | `net.md` | Network protocol stack glue: coreMQTT v5 thin wrapper / TCP / transport adapter / PPP·USB NIC / `NET_*` error codes | P1 (network) | [en](net.md) |
 
 ### 1.3 Application & Coding
@@ -50,7 +50,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | `service_spec.md` | App-layer do's/don'ts; `device_find` returns `ERR_PTR` → use `IS_ERR`; two-phase boot | **P0** | [en](service_spec.md) |
 | `app_cpp_guide.md` | Upper-layer C++ restrictions (ETL containers, tiers, forbidden) | P1 (C++) | [en](app_cpp_guide.md) |
 | `coding_style.md` | `.clang-format` (LLVM/Allman/RemoveBracesLLVM/Left pointer/200 cols) + layered `.clang-tidy` + `compiler_compat_poison.h` (on by default, `ALLOW_*` opt-out) | **P0** | [en](coding_style.md) |
-| `runtime_services.md` | EventBus / VIRQ / SYSTEM_C·CPP / BufferPool | P1 | [en](runtime_services.md) |
+| `runtime_services.md` | EventBus / VIRQ / SYSTEM_C·CPP / Buffer | P1 | [en](runtime_services.md) |
 | `fast_path.md` | ISR / hot-path red lines (no printf/mutex/malloc/heavy logic) | **P0** (drivers) | [en](fast_path.md) |
 | `can_hook.md` | CAN protocol superset hooks | P2 | [en](can_hook.md) |
 | `memory_footprint.md` | Memory/flash baseline (flash total; different metric from CHANGELOG's RAM floor) + trimming knobs | P2 | [en](memory_footprint.md) |
@@ -81,7 +81,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 ## 2. Quick Index by Priority
 
 - **P0 (Must-read)**: `getting_started.md` · `architecture.md` · `ecosystem.md` · `device_tree_porting.md` · `driver_guide.md` · `service_spec.md` · `coding_style.md` · `fast_path.md` · `tools_guide.md`
-- **P1 (As-needed)**: `patterns.md` · `peripherals.md` · `usb_tusb_port.md` · `mini-os.md` · `osal_switching.md` · `app_cpp_guide.md` · `runtime_services.md` · `debug_monitor.md` · `design_decisions.md` · `file_index.md`
+- **P1 (As-needed)**: `patterns.md` · `peripherals.md` · `usb_tusb_port.md` · `mini-os.md` · `backend_switching.md` · `app_cpp_guide.md` · `runtime_services.md` · `debug_monitor.md` · `design_decisions.md` · `file_index.md`
 - **P2 (Deep-dive)**: `usage.md` · `faq.md` · `amp.md` · `can_hook.md` · `memory_footprint.md` · `api_compatibility.md` · `keil_integration.md` · `references.md` · `problem_summary.md` · `roadmap.md` · `todolist.md` · `board_linux_vs_device_model.md`
 
 ---
@@ -91,7 +91,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | Topic | English |
 | :--- | :--- |
 | Product drivers | 39, in `drivers/<chip>/{include,src}`, GLOB-scanned |
-| OSAL backends | `CONFIG_OSAL_NULL` (bare-metal, default) / `MINI_OS` (in-tree lib/mini-os, Cortex-M only) / `FREERTOS` (v11.3.0) / `RTTHREAD` (v5.3.0) |
+| OS backends | `CONFIG_OS_BARE` (bare-metal, default) / `MINI_OS` (in-tree lib/mini-os, Cortex-M only) / `FREERTOS` (v11.3.0) / `RTTHREAD` (v5.3.0) |
 | Targets | Cortex-M0/M0+/M3/M4F/M7 · RISC-V 32-bit · dual-core AMP |
 | Peripheral coverage | Bus-based 6 (SPI/I2C/I2S/UART/CAN/USB) · Bus-less 7 (GPIO/ADC/DAC/TIM/RTC/IWDG/WWDG) · HAL-Only: AMP/Storage/Platform Safety/**SDIO (reserved)** |
 | Error codes | `MINI_OK=0`; `MINI_ERR_*` (full name, see `status.h`); `device_find` failure returns `ERR_PTR` not `NULL` |
@@ -102,7 +102,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 ## 4. Documentation Conventions
 
 - Each topic document includes: title + summary, audience/prerequisites, table of contents (for long docs), body (tables and commands first), related-document links.
-- Paths and symbols in back-ticks; error codes as full `MINI_ERR_*`; technical terms kept verbatim (e.g. `Device Tree`, `OSAL`, `VFS`).
+- Paths and symbols in back-ticks; error codes as full `MINI_ERR_*`; technical terms kept verbatim (e.g. `Device Tree`, `the unified interface`, `VFS`).
 - New docs go into `docs/cn/` and `docs/en/` bilingually; the root keeps only `README` / `CHANGELOG` / `CONTRIBUTING` and legal files.
 
 ---

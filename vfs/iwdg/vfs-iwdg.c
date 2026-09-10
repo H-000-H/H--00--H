@@ -13,7 +13,7 @@
 #include "dev_lifecycle.h"
 #include "device.h"
 #include "driver.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -25,13 +25,13 @@ struct vfs_iwdg_priv
 };
 static struct vfs_iwdg_priv s_priv;
 static uint8_t              s_used;
-static osal_pool_t          s_pool;
+static mini_slot_t          s_pool;
 static const char*          k_tag = "vfs_iwdg";
 
 /**
  * @brief IWDG VFS 私有数据池启动初始化
  */
-mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void boot(void) { MINI_IGNORE_RESULT(osal_pool_init(&s_pool, &s_used, 1)); }
+mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void boot(void) { MINI_IGNORE_RESULT(mini_slot_init(&s_pool, &s_used, 1)); }
 
 /**
  * @brief IWDG 打开: 引用计数, 首次打开时调用 hal_iwdg_start 启动独立看门狗
@@ -154,7 +154,7 @@ static int vfs_iwdg_probe(struct device* pdev)
     int                    value, idx, ret;
     if (!pdev)
         return MINI_ERR_INVAL;
-    idx = osal_pool_claim(&s_pool);
+    idx = mini_slot_claim(&s_pool);
     if (idx < 0)
         return MINI_ERR_NOMEM;
     MINI_IGNORE_RESULT(device_get_prop_int(pdev, "timeout-ms", &value));
@@ -165,7 +165,7 @@ static int vfs_iwdg_probe(struct device* pdev)
     ret = hal_iwdg_init(&s_priv.iwdg, &cfg);
     if (ret != MINI_OK)
     {
-        MINI_IGNORE_RESULT(osal_pool_release(&s_pool, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_pool, idx));
         return ret;
     }
     s_priv.ops = s_fops;
@@ -173,7 +173,7 @@ static int vfs_iwdg_probe(struct device* pdev)
     device_lc_bind(pdev);
     if (device_set_priv(pdev, &s_priv) != MINI_OK)
     {
-        MINI_IGNORE_RESULT(osal_pool_release(&s_pool, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_pool, idx));
         return MINI_ERR_IO;
     }
     SYS_LOGI(k_tag, "probe OK");
@@ -189,7 +189,7 @@ static int vfs_iwdg_remove(struct device* pdev)
 {
     MINI_IGNORE_RESULT(pdev);
     device_ops_unregister(pdev);
-    MINI_IGNORE_RESULT(osal_pool_release(&s_pool, 0));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_pool, 0));
     return MINI_OK;
 }
 

@@ -66,7 +66,7 @@ void board_safety_register_shutdown(safety_shutdown_fn_t fn);
 /* 带 fops 的驱动 remove 标准序列 (dev_lifecycle): */
 /* dev_lc_remove_start(device_lc(pdev)); */
 /* device_ops_unregister(pdev); */
-/* dev_lc_remove_drain(device_lc(pdev), OSAL_WAIT_FOREVER);  // 原子轮询, 无持锁 */
+/* dev_lc_remove_drain(device_lc(pdev), MINI_WAIT_FOREVER);  // 原子轮询, 无持锁 */
 /* ... teardown ... */
 /* dev_lc_remove_finish(device_lc(pdev)); */
 /* probe 阶段: device_lc_bind(pdev); */

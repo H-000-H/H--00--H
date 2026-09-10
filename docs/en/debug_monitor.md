@@ -29,7 +29,7 @@
 Backends:
 
 - `CONFIG_SYS_LOG_USE_PRINTF`
-- `CONFIG_SYS_LOG_USE_OSAL`
+- `CONFIG_SYS_LOG_USE_PRINTF`
 - (Optional) ESP paths compile only under their macros
 
 Do not spam INFO on hot paths; see [fast_path.md](fast_path.md).
@@ -42,7 +42,7 @@ In the build directory (name varies per project), verify:
 
 | File | What to Check |
 | :--- | :--- |
-| `config.h` | Whether the OSAL/SYSTEM/LOG macros are correct |
+| `config.h` | Whether the OS/SYSTEM/LOG macros are correct |
 | `board_nodes.h` | `DEV_ID_COUNT`, each `DEV_ID_*`, chosen |
 | `dt_config_gen.h` | `DTC_GEN_COUNT_*`, clock capacities |
 | `board_probe.c` | Whether your new `board_driver_probe_*` is included |

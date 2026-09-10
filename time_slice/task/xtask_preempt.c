@@ -13,7 +13,7 @@
  *   - 全部状态收于 s_priv, 对外 API 走 g_scheduler (xtask.h 契约)
  */
 
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
 #ifdef CONFIG_XTASK_PREEMPT
 
 #include "board_devtable.h"
@@ -22,7 +22,8 @@
 #include "dt_config_gen.h"
 #include "hal_systick.h"
 #include "interrupt.h"
-#include "osal_null.h"
+#include "mini_critical.h"
+#include "mini_time.h"
 #include "vfs-tim.h"
 #include "xtask.h"
 
@@ -353,9 +354,9 @@ x_task_handle_t x_scheduler_task_create(const char* name, uint32_t period_ms, ui
     list_init(&slot->sleep_node);
 
     /* 与 tick 中断互斥: 休眠链表可能正被 wakeup_due 修改 */
-    uint32_t irq = osal_null_irq_disable();
+    mini_irq_state_t irq = mini_critical_enter();
     sleep_insert(slot); /* 首个周期后唤醒 */
-    osal_null_irq_restore(irq);
+    mini_critical_exit(irq);
     return (x_task_handle_t)(uintptr_t)task;
 }
 
@@ -388,7 +389,7 @@ int scheduler_tim_isr_top(void* context, uint16_t irq_num)
 int x_scheduler_tick(x_scheduler* sched, unsigned int ms)
 {
     s_priv.tick_count += ms;
-    /* 同步对外契约时钟 (osal_time_ms 等读 g_scheduler.tick_count) */
+    /* 同步对外契约时钟 (mini_time_ms 等读 g_scheduler.tick_count) */
     MINI_ATOMIC_STORE(&g_scheduler.tick_count, s_priv.tick_count, MINI_RELAXED);
     if (sched != NULL)
         MINI_IGNORE_RESULT(sched); /* preempt 用全局 s_priv, sched 仅契约 */
@@ -406,17 +407,17 @@ int x_task_run_preempt(x_scheduler* sched)
     MINI_IGNORE_RESULT(sched); /* preempt 用全局 s_priv */
 
     /* 临界区: 与 tick 中断 (wakeup_due) 互斥, 防就绪/休眠链表被撕裂 */
-    uint32_t               irq = osal_null_irq_disable();
+    mini_irq_state_t       irq = mini_critical_enter();
     struct x_preempt_task* task = ready_highest();
     if (task == NULL)
     {
-        osal_null_irq_restore(irq);
+        mini_critical_exit(irq);
         idle_wfi(); /* 无就绪任务 → 精确休眠 (WFI 须在中断使能态执行) */
         return MINI_OK;
     }
 
     ready_remove(task);
-    osal_null_irq_restore(irq);
+    mini_critical_exit(irq);
     if (task->task.xTask_cb)
     {
 #ifdef CONFIG_XTASK_COROUTINE
@@ -436,9 +437,9 @@ int x_task_run_preempt(x_scheduler* sched)
 #endif
     }
     /* 与 tick 中断互斥: wakeup_due 可能正从休眠链表摘节点 */
-    irq = osal_null_irq_disable();
+    irq = mini_critical_enter();
     sleep_insert(task);
-    osal_null_irq_restore(irq);
+    mini_critical_exit(irq);
     return MINI_OK;
 }
 
@@ -446,4 +447,4 @@ int x_task_run_preempt(x_scheduler* sched)
 void x_scheduler_poll(void) { x_task_run_preempt(&g_scheduler); }
 
 #endif /* CONFIG_XTASK_PREEMPT */
-#endif /* CONFIG_OSAL_NULL */
+#endif /* CONFIG_OS_BARE */

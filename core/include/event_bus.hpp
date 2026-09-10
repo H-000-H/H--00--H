@@ -7,7 +7,8 @@
  */
 #pragma once
 
-#include "osal.h"
+#include "mini_backend.h"
+#include "mini_time.h"
 #include "status.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -109,7 +110,7 @@ public:
      *  一个回调卡住会阻塞后续所有事件的分发. 因此回调中不得:
      *    - 执行阻塞 I/O (SPI 传输、Flash 擦写等)
      *    - 执行长时间计算或忙等
-     *    - 调用 osal_delay_ms 或任何阻塞操作
+     *    - 调用 mini_delay_ms 或任何阻塞操作
      *  长时间工作应转发到用户专用任务 (设置标志位、发信号量、入工作队列). */
     void start(); /**< 启动事件分发任务 */
     void stop(); /**< 停止事件分发任务 */
@@ -141,12 +142,12 @@ private:
     bool m_inited = false; /**< 是否已初始化 */
     bool m_is_sealed = false; /**< 是否已封表 */
 
-    osal_queue_handle_t m_queue = nullptr; /**< 事件队列句柄 */
+    mini_queue_t* m_queue = nullptr; /**< 事件队列句柄 */
     void* m_task = nullptr; /**< 分发任务句柄 */
     size_t m_dropped = 0; /**< 累计丢弃事件计数 */
 
-    struct osal_mutex* m_sub_lock = nullptr; /**< 订阅表互斥锁 */
-    uint8_t m_sub_lock_storage[OSAL_MUTEX_STORAGE_SIZE]; /**< 互斥锁存储区 */
+    mini_mutex_t* m_sub_lock = nullptr; /**< 订阅表互斥锁 */
+    uint8_t m_sub_lock_storage[MINI_MUTEX_STORAGE_SIZE]; /**< 互斥锁存储区 */
 
     static void dispatch_task(void* param); /**< 分发任务入口 (静态) */
 

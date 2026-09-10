@@ -7,7 +7,7 @@
  *   @note 与 xtask_preempt.c 二选一互斥 (Kconfig choice + CMake 双重门控)
  */
 
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
 #ifndef CONFIG_XTASK_PREEMPT
 
 #include "board_devtable.h"
@@ -216,4 +216,4 @@ int x_task_run(x_scheduler* sched)
 void x_scheduler_poll(void) { x_task_run(&g_scheduler); }
 
 #endif /* !CONFIG_XTASK_PREEMPT */
-#endif /* CONFIG_OSAL_NULL */
+#endif /* CONFIG_OS_BARE */

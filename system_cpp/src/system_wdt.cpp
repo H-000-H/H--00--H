@@ -60,14 +60,14 @@ void system_wdt_feed_iwdg(void)
 
 struct StackMonitorEntry
 {
-    osal_task_handle_t task; /**< 被监控任务句柄 */
+    mini_task_handle_t task; /**< 被监控任务句柄 */
     uint32_t alarm_threshold_bytes; /**< 栈剩余报警阈值 (字节) */
 };
 
 static StackMonitorEntry s_stack_entries[BOARD_STACK_MONITOR_MAX_TASKS];
 static size_t s_stack_entry_count = 0;
 
-int system_wdt_stack_monitor_register(osal_task_handle_t task, uint32_t alarm_threshold_bytes)
+int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes)
 {
     if (task == nullptr || alarm_threshold_bytes == 0)
         return MINI_ERR_INVAL;
@@ -91,25 +91,25 @@ void system_wdt_stack_check_all(void)
         if (entry.task == nullptr)
             continue;
 
-        uint32_t wm_bytes = osal_task_get_stack_watermark(entry.task);
+        uint32_t wm_bytes = mini_task_get_stack_watermark(entry.task);
 
         if (wm_bytes == 0)
         {
             SYS_LOGE(k_tag, "FAIL: task '%s' stack overflowed (wm=0)!",
-                     osal_task_get_name(entry.task));
+                     mini_task_get_name(entry.task));
             continue;
         }
 
         if (wm_bytes < entry.alarm_threshold_bytes)
         {
             SYS_LOGE(k_tag, "STACK CRITICAL: '%s' watermark %u bytes < alarm %u",
-                     osal_task_get_name(entry.task), (unsigned)wm_bytes,
+                     mini_task_get_name(entry.task), (unsigned)wm_bytes,
                      (unsigned)entry.alarm_threshold_bytes);
         }
         else if (wm_bytes < entry.alarm_threshold_bytes * 2)
         {
             SYS_LOGW(k_tag, "STACK WARN: '%s' watermark %u bytes (alarm=%u)",
-                     osal_task_get_name(entry.task), (unsigned)wm_bytes,
+                     mini_task_get_name(entry.task), (unsigned)wm_bytes,
                      (unsigned)entry.alarm_threshold_bytes);
         }
     }
@@ -125,7 +125,7 @@ int system_wdt_init(uint32_t timeout_ms)
     return MINI_OK;
 }
 
-int system_wdt_subscribe(osal_task_handle_t task)
+int system_wdt_subscribe(mini_task_handle_t task)
 {
     if (task == nullptr)
         return MINI_ERR_INVAL;
@@ -134,7 +134,7 @@ int system_wdt_subscribe(osal_task_handle_t task)
     return MINI_OK;
 }
 
-int system_wdt_unsubscribe(osal_task_handle_t task)
+int system_wdt_unsubscribe(mini_task_handle_t task)
 {
     if (task == nullptr)
         return MINI_ERR_INVAL;

@@ -21,7 +21,7 @@
 #include "compiler_compat.h"
 #include "device.h"
 #include "hal_can.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -46,7 +46,7 @@ struct can_bus_client
 
 static struct can_bus_host   s_can_hosts[CAN_BUS_HOST_MAX];
 static uint8_t               s_can_host_used[CAN_BUS_HOST_MAX];
-static osal_pool_t           s_can_host_pool_ctrl;
+static mini_slot_t           s_can_host_pool_ctrl;
 static struct can_bus_client s_can_clients[DEV_ID_COUNT];
 static const char* const     k_tag = "can_bus";
 
@@ -55,7 +55,7 @@ static const char* const     k_tag = "can_bus";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void can_bus_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_can_host_pool_ctrl, s_can_host_used, CAN_BUS_HOST_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_can_host_pool_ctrl, s_can_host_used, CAN_BUS_HOST_MAX));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -69,7 +69,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void can_bus_pool_init(vo
 static struct can_bus_host* can_host_from_device(struct device* pdev)
 {
     for (int index = 0; index < CAN_BUS_HOST_MAX; index++)
-        if (osal_pool_is_used(&s_can_host_pool_ctrl, index) && s_can_hosts[index].pdev == pdev)
+        if (mini_slot_is_used(&s_can_host_pool_ctrl, index) && s_can_hosts[index].pdev == pdev)
             return &s_can_hosts[index];
     return NULL;
 }
@@ -128,7 +128,7 @@ static int can_host_init_impl(struct device* pdev, const void* cfg)
     if (can_host_from_device(pdev))
         return MINI_OK;
 
-    idx = osal_pool_claim(&s_can_host_pool_ctrl);
+    idx = mini_slot_claim(&s_can_host_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -144,7 +144,7 @@ static int can_host_init_impl(struct device* pdev, const void* cfg)
     if (ret != MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_can_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_can_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -153,7 +153,7 @@ static int can_host_init_impl(struct device* pdev, const void* cfg)
     {
         MINI_IGNORE_RESULT(hal_can_bus_host_deinit(&host->hal_host));
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_can_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_can_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -193,7 +193,7 @@ static int can_host_deinit_impl(struct device* pdev)
     if (ret == MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_can_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_can_host_pool_ctrl, idx));
     }
     return ret;
 }

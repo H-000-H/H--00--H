@@ -77,12 +77,12 @@ config AMP_MODE
     depends on CPU_CORES > 1
     default y
     help
-      双核 AMP 模式使能。AMP 模式下 osal_null 的互斥锁
+      双核 AMP 模式使能。AMP 模式下裸机的互斥锁
       等同步原语使用原子 CAS 实现；单核模式下退化为
       关中断 + 普通变量访问，减少开销。
       注意: M0/M0+ (ARMv6-M) 无 LDREX/STREX 指令, 跨核
       原子性无硬件保证; 若 M0 作异构从核, 应避免跨核共享锁。
-      Dual-core AMP mode. Under AMP, osal_null mutexes use
+      Dual-core AMP mode. Under AMP, bare-metal mutexes use
       atomic CAS; single-core falls back to IRQ-lock + plain
       access. Note: M0/M0+ (ARMv6-M) has no LDREX/STREX, so
       cross-core atomicity is not guaranteed; when M0 is a
@@ -90,16 +90,16 @@ config AMP_MODE
 
 endmenu
 
-menu "OSAL Backend"
+menu "OS Backend"
 choice
     prompt "RTOS backend"
-    default OSAL_NULL
+    default OS_BARE
     help
       选择 OS 抽象层后端。
 
       Select the OS abstraction layer backend.
 
-config OSAL_MINI_OS
+config OS_MINI_OS
     bool "mini-os (in-tree, 自研 RTOS)"
     select USB_TUSB_OS_NONE
     depends on !PLATFORM_RISCV && !PLATFORM_ESP32
@@ -122,7 +122,7 @@ config OSAL_MINI_OS
       script must include lib/mini-os/mini-os-heap.ld for
       __heap_start / __heap_end.
 
-config OSAL_FREERTOS
+config OS_FREERTOS
     bool "FreeRTOS"
     select USB_TUSB_OS_FREERTOS
     help
@@ -130,15 +130,15 @@ config OSAL_FREERTOS
 
       Use bundled or project-supplied FreeRTOS.
 
-config OSAL_RTTHREAD
+config OS_RTTHREAD
     bool "RT-Thread"
     select USB_TUSB_OS_RTTHREAD
     help
-      使用 RT-Thread 内核作为 OSAL 后端。
+      使用 RT-Thread 内核作为 OS 后端。
 
-      Use RT-Thread kernel as OSAL backend.
+      Use RT-Thread kernel as OS backend.
 
-config OSAL_NULL
+config OS_BARE
     bool "None (bare-metal)"
     select USB_TUSB_OS_NONE
     help
@@ -147,25 +147,25 @@ config OSAL_NULL
       No RTOS. Queue uses ring buffer + busy-wait.
 endchoice
 
-config OSAL_NULL_MAX_QUEUES
+config OS_BARE_MAX_QUEUES
     int "Bare-metal queue pool size (base)"
     default 0
     range 0 8
-    depends on OSAL_NULL
+    depends on OS_BARE
     help
-      裸机队列池基础大小 (静态预分配, 供手动 osal_queue_create 使用)。
+      裸机队列池基础大小 (静态预分配, 供手动 mini_queue_create 使用)。
       开启 EVENT_BUS 时自动在此基础上 +1 (EventBus 需要一个队列);
       关闭 (默认) 时仅基础数。
 
-      Base bare-metal static queue pool size (for manual osal_queue_create).
+      Base bare-metal static queue pool size (for manual mini_queue_create).
       When EVENT_BUS is enabled, 1 is auto-added on top (EventBus needs a
       queue); when off (default), only the base counts.
 
-config OSAL_NULL_QUEUE_BUF_SZ
+config OS_BARE_QUEUE_BUF_SZ
     int "Per-queue buffer size (bytes)"
     default 2048
     range 512 8192
-    depends on OSAL_NULL
+    depends on OS_BARE
     help
       每个队列静态内嵌的元素缓冲 (字节)。
       2048 B = 512 个基础单元, EventBus (64×8 B) 约占 1/4。
@@ -175,37 +175,10 @@ config OSAL_NULL_QUEUE_BUF_SZ
       2048 B = 512 base units; EventBus (64×8 B) uses ~1/4.
       Lower bound 512 B keeps the default EventBus queue (128 units) creatable.
 
-config OSAL_NULL_MINI_OS_MEM
-    bool "裸机 osal_malloc/osal_calloc/free 走 mini-os 内存模块 (默认关, 走 libc 堆) / Bare-metal osal_malloc/osal_calloc/free via the mini-os memory module (default off, libc heap)"
-    default n
-    depends on OSAL_NULL
-    help
-      裸机下 osal_malloc/osal_calloc/osal_free 的内存来源开关:
-      关闭 (默认): 走 libc malloc/calloc/free (newlib 堆, 依赖 _sbrk);
-      开启: 转发到随仓自研内核 lib/mini-os 的内存模块 (memory.c 单文件,
-            first-fit + 相邻合并 + magic 双值防 double-free, 无调度器依赖),
-            堆区由链接脚本提供 __mini_os_heap_start/__mini_os_heap_end
-            (可 INCLUDE mini-os-heap.ld, 或板级脚本自行定义),
-            首次分配时惰性初始化, 无需启动遍历 .init_array。
-      注意: 该堆的空闲链表无锁 (与 libc malloc 一致), ISR 内禁止调用
-      osal_malloc/osal_calloc/osal_free。
-
-      Memory source for bare-metal osal_malloc/osal_calloc/osal_free:
-      off (default): libc malloc/calloc/free (newlib heap, needs _sbrk);
-      on: forwards to the in-tree mini-os memory module (memory.c single
-          file, first-fit + adjacent coalescing + magic double-free guard,
-          no scheduler dependency). The heap zone is provided by the linker
-          script via __mini_os_heap_start/__mini_os_heap_end (INCLUDE
-          mini-os-heap.ld or define the symbols in the board script);
-          lazy init on the first allocation, no .init_array traversal
-          required.
-      Note: the free list is unlocked (same as libc malloc) — never call
-      osal_malloc/osal_calloc/osal_free from an ISR.
-
-config OSAL_NULL_WFI
+config OS_BARE_WFI
     bool "裸机忙等用 WFI 休眠唤醒 (默认关, 纯轮询) / Bare-metal busy-wait via WFI (default off, plain spin)"
     default n
-    depends on OSAL_NULL
+    depends on OS_BARE
     help
       裸机等锁/等信号量/等队列时的忙等策略:
       开启: 等锁循环里执行 WFI 进入低功耗, 靠中断 (tick) 唤醒后重试 —
@@ -223,118 +196,6 @@ config OSAL_NULL_WFI
           latency, at the cost of power. Under the preemptive scheduler
           (XTASK_PREEMPT) keep this off in most cases.
 
-config OSAL_EVENT
-    bool "OSAL 事件组抽象 (osal_event_*)"
-    default y
-    select MINI_OS_EVENT if OSAL_MINI_OS
-    select FREERTOS_EVENT_GROUPS if OSAL_FREERTOS
-    select RTTHREAD_EVENT if OSAL_RTTHREAD
-    help
-      OSAL 层的事件组抽象 (osal/include/osal.h 中 #ifdef
-      CONFIG_OSAL_EVENT 包裹的 osal_event_create / _create_static /
-      _destroy / _set / _set_from_isr / _clear / _get / _wait)。
-
-      默认开启: 四后端 (裸机 / mini-os / FreeRTOS / RT-Thread) 提供完全
-      一致的语义, 业务只调 osal_event_*, 换后端不需改一行代码。
-      代价很小: 每个后端一个 OSAL_EVENT_POOL_SIZE (默认 4) 槽的静态池
-      + 当前后端内核事件组自身的开销。
-
-      本项不是 "二选一" 开关: 开启后屏蔽层与原生 API 两条路并存,
-      按调用点自由选:
-      - 走屏蔽层: osal_event_*, 四后端语义一致, 换后端不改代码;
-      - 走原生 API: 本项已经把内核事件组一起编入 (见下方 select),
-        所以 mini_os_event_* / xEventGroup* / rt_event_* 可以直接调,
-        用于屏蔽层没暴露的内核特性 (如 FreeRTOS 的 xEventGroupSync、
-        RT-Thread 的等待期动态改 AND/OR、mini-os 的
-        mini_os_event_group_delete); 代价是这段代码绑定到具体后端。
-      两条路各管各的对象: osal_event 句柄是 OSAL 自己包了一层的
-      struct osal_event (对业务不透明), 不能喂给内核 API; 走原生路
-      就自己 create 一个内核原生事件组。三个内核的 include 目录都是
-      PUBLIC, 经 lib(INTERFACE) -> mini_tree 传递, app 层直接
-      #include "event.h" / "event_groups.h" / <rtthread.h> 即可。
-
-      关闭本项 (n) 则是纯粹的裁剪: osal.h 里的 osal_event_* 声明与
-      四后端实现整体消失, 不占 Flash/RAM, 误用会在编译期因符号缺失
-      直接报错 (不是链接期)。注意三个内核事件组开关自身默认也是 n,
-      所以关掉本项后原生 API 也一并没了; 只想用原生 API 不要屏蔽层
-      的话, 关本项 + 单独打开当前后端的原生开关即可。
-      (裸机 OSAL_NULL 没有 "原生事件 API" 这一说: 它的事件组完全由
-      osal_null.c 用原子标志字自实现, 关掉本项就等于没有事件组。)
-
-      开启时本项会自动带上当前后端对应的事件组开关:
-      - OSAL_MINI_OS   -> MINI_OS_EVENT        (lib/mini-os/src/event.c)
-      - OSAL_FREERTOS  -> FREERTOS_EVENT_GROUPS (event_groups.c, 并连带
-                          FREERTOS_USE_TIMERS: xEventGroupSetBitsFromISR
-                          经软件定时器守护任务代理)
-      - OSAL_RTTHREAD  -> RTTHREAD_EVENT        (src/ipc.c 的 rt_event_*)
-      - OSAL_NULL      -> 无需内核支持, osal_null.c 用原子标志字 +
-                          忙等自实现 (语义与三后端一致)
-      注意: 被 select 的符号由 tools/genconfig.py 回写到 mini_tree/.config
-      (根 CMakeLists 在配置期先跑一次, 构建期再跑一次), 所以 config.h 与
-      .config 两侧真值一致; 三处 lib 的 CMakeLists 额外把 CONFIG_OSAL_EVENT
-      也算作编入事件组源文件的兜底触发条件, 以覆盖绕过回写的构建路径。
-
-      AND/OR 与 auto_clear 在创建时固定 (不是等待时传参): mini-os 的
-      等待模式是创建期属性, 抽象层取三后端最小公约数, FreeRTOS 与
-      RT-Thread 后端在等待时把创建期保存的模式转成内核参数, 四后端
-      行为一致。可用标志位统一为低 24 位 (OSAL_EVENT_BITS), 因为
-      FreeRTOS 把高 8 位留作内核控制位。
-
-      The OSAL event-group abstraction (the osal_event_* API in
-      osal/include/osal.h, wrapped in #ifdef CONFIG_OSAL_EVENT).
-
-      Default on: all four backends (bare-metal / mini-os / FreeRTOS /
-      RT-Thread) expose identical semantics, so application code only
-      calls osal_event_* and survives a backend switch untouched. The
-      cost is small: one static pool of OSAL_EVENT_POOL_SIZE (4) slots
-      per backend plus whatever the kernel event group itself needs.
-
-      This is not an either/or switch: with it on, the abstraction and
-      the native API coexist and every call site picks freely.
-      - abstraction: osal_event_*, identical semantics on all four
-        backends, survives a backend switch;
-      - native API: this option already compiles the kernel event group
-        in (see the select lines below), so mini_os_event_* /
-        xEventGroup* / rt_event_* can be called directly for kernel
-        features the abstraction does not expose (FreeRTOS
-        xEventGroupSync, per-wait AND/OR on RT-Thread,
-        mini_os_event_group_delete), at the cost of binding that code to
-        one backend.
-      Each route owns its objects: an osal_event handle is OSAL's own
-      struct osal_event wrapper (opaque to application code) and must not
-      be passed to kernel APIs — create a native kernel event group
-      separately when taking the native route. All three kernels export
-      their include dirs PUBLIC, propagated through lib(INTERFACE) ->
-      mini_tree, so application code can simply #include "event.h" /
-      "event_groups.h" / <rtthread.h>.
-
-      Turning this off (n) is a plain trimming switch: the osal_event_*
-      declarations and all four backend implementations disappear (no
-      Flash/RAM cost) and misuse fails at compile time because the
-      symbols simply do not exist. The three kernel event switches are
-      themselves default n, so disabling this option removes the native
-      API as well; to keep only the native route, turn this off and
-      enable the current backend's native switch on its own.
-      (The bare-metal OSAL_NULL backend has no "native event API" at all:
-      its event group lives entirely inside osal_null.c over an atomic
-      flag word, so turning this off means no event groups whatsoever.)
-
-      When on, this symbol automatically pulls in the event-group switch
-      of the selected backend (MINI_OS_EVENT / FREERTOS_EVENT_GROUPS,
-      which in turn selects FREERTOS_USE_TIMERS for the FromISR path /
-      RTTHREAD_EVENT); OSAL_NULL needs no kernel support and implements
-      the same semantics over an atomic flag word plus a busy-wait.
-      Note that tools/genconfig.py writes selected symbols back to
-      mini_tree/.config (the root CMakeLists runs it once at configure time
-      and again at build time), so config.h and .config always agree; the
-      three lib CMakeLists additionally treat CONFIG_OSAL_EVENT as a
-      fallback trigger for the event sources, covering build paths that
-      bypass that write-back.
-      AND/OR and auto_clear are fixed at creation time rather than
-      passed per wait, which is the smallest common denominator of the
-      three kernels; usable flags are the low 24 bits (OSAL_EVENT_BITS)
-      because FreeRTOS reserves the top 8 as control bits.
-
 comment "mini-os 内核调优 (CONFIG_MINI_OS_* 由 mini-os 三层配置体系直接消费)"
 
 config ARCH
@@ -344,7 +205,7 @@ config ARCH
     default 1 if PLATFORM_ARM_CM3
     default 0 if PLATFORM_ARM_CM0
     default 2
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       mini-os 内核架构 ID, 由上面的 PLATFORM_ARM_* 选择自动派生:
       0 = Cortex-M0/M0+, 1 = Cortex-M3, 2 = Cortex-M4, 3 = Cortex-M7
@@ -355,7 +216,7 @@ config ARCH
       与实际 CPU 不符会直接破坏上下文。启动时
       mini_os_cpu_probe() (构造函数优先级 101) 会用 SCB->CPUID 的
       part number 复核, 不匹配立即 fail-fast。
-      OSAL_MINI_OS 已 depends on !PLATFORM_RISCV && !PLATFORM_ESP32,
+      OS_MINI_OS 已 depends on !PLATFORM_RISCV && !PLATFORM_ESP32,
       因此四个分支完整覆盖, 末尾 default 2 仅为兜底。
 
       mini-os kernel architecture id, derived automatically from the
@@ -369,7 +230,7 @@ config ARCH
       does not match the real CPU corrupts contexts.
       mini_os_cpu_probe() (constructor priority 101) cross-checks the
       SCB->CPUID part number at boot and fails fast on a mismatch.
-      OSAL_MINI_OS already depends on !PLATFORM_RISCV && !PLATFORM_ESP32,
+      OS_MINI_OS already depends on !PLATFORM_RISCV && !PLATFORM_ESP32,
       so the four branches cover every case; the trailing default 2 is
       only a fallback.
 
@@ -377,7 +238,7 @@ config MINI_OS_PRIORITY
     int "mini-os 优先级数量 (数字越小越优先, 需为 8 的倍数)"
     range 8 32
     default 32
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       mini-os 就绪位图优先级数 (数字越小越优先, 同 RT-Thread 语义)。
       上限 32: 调度器的就绪位图 g_priority 是单个 32 位字,
@@ -407,7 +268,7 @@ config MINI_OS_DEFAULT_SYSTICK
     int "mini-os tick 频率 (Hz)"
     range 100 10000
     default 1000
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       mini-os 内核 tick 频率 (默认 1000 = 1 tick = 1 ms)。
 
@@ -416,7 +277,7 @@ config MINI_OS_DEFAULT_SYSTICK
 config MINI_OS_CPU_CLOCK_HZ
     int "mini-os CPU 主频 (Hz, SysTick reload 推导用)"
     default 72000000
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       CPU 时钟频率, 用于推导 SysTick 重装值
       reload = (CPU_CLOCK_HZ / 1000) * ticks_per_ms - 1。
@@ -426,7 +287,7 @@ config MINI_OS_CPU_CLOCK_HZ
 config MINI_OS_TICK_WHEEL
     int "mini-os tick 时间轮槽数 (2 的幂)"
     default 32
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       线程延时/同步超时时间轮槽数, 必须为 2 的幂。
 
@@ -436,7 +297,7 @@ config MINI_OS_TICK_WHEEL
 config MINI_OS_THREAD_MIN_STACK_SIZE
     int "mini-os 线程最小栈 (字节)"
     default 256
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       mini_os_thread_create 强制执行的最小栈大小。
 
@@ -445,7 +306,7 @@ config MINI_OS_THREAD_MIN_STACK_SIZE
 config MINI_OS_DEFAULT_IDLE_STACK_SIZE
     int "mini-os 空闲线程栈 (字节)"
     default 256
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       空闲线程默认栈大小, 必须 >= 线程最小栈。
 
@@ -454,7 +315,7 @@ config MINI_OS_DEFAULT_IDLE_STACK_SIZE
 config MINI_OS_TIMER_THREAD_STACK_SIZE
     int "mini-os 软定时器服务线程栈 (字节)"
     default 512
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       软定时器服务线程 (SOFT timer callback 运行处) 栈大小,
       必须 >= 线程最小栈且为 8 的倍数。
@@ -465,7 +326,7 @@ config MINI_OS_TIMER_THREAD_STACK_SIZE
 config MINI_OS_TIME_SLICE
     bool "mini-os 同优先级时间片轮转"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       同优先级线程间的时间片轮转 (默认关, 严格优先级调度)。
 
@@ -475,26 +336,21 @@ config MINI_OS_TIME_SLICE
 config MINI_OS_EVENT
     bool "mini-os 事件组 (32 位标志)"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       32 位事件组 (OR / WHOLE 等待语义, 可配自动清零)。
-      自身默认 n, 但 OSAL_EVENT (默认 y) 会 select 本项, 所以正常
-      跟着一起开; osal_mini_os.c 的 osal_event_* 直接映射
-      mini_os_event_*。编入后两条路并存: 既可调 osal_event_* 屏蔽层,
-      也可直接调 mini_os_event_* 原生 API。
-      只开本项、关掉 OSAL_EVENT 时则只剩原生 API 这一条路。
+      默认关闭。事件组不属于统一后端接口: 需要事件语义时自行开启本项,
+      开启后 src/event.c 编入内核库, 业务直接调 mini_os_event_* 原生
+      API。
       与 FREERTOS_EVENT_GROUPS / RTTHREAD_EVENT 对称。
       关闭时 inc/event.h 与 src/event.c 均编译为空, 且 src/event.c
       不再进入编译单元列表 (见 lib/mini-os/CMakeLists.txt)。
 
       32-bit event group flags (OR / WHOLE wait semantics,
       configurable auto-clear).
-      Default n on its own, but OSAL_EVENT (default y) selects it, so it
-      normally comes along; osal_event_* in osal_mini_os.c maps straight
-      onto mini_os_event_*. Once compiled in, both routes coexist: the
-      osal_event_* abstraction and the mini_os_event_* native API.
-      Enabling this option alone while OSAL_EVENT is off leaves only the
-      native route.
+      Default off. Event groups are not part of the unified backend
+      interface: enable this option to compile src/event.c into the kernel
+      library and call the native mini_os_event_* API directly.
       Symmetric with FREERTOS_EVENT_GROUPS / RTTHREAD_EVENT.
       When off, inc/event.h and src/event.c compile to nothing and
       src/event.c is dropped from the source list
@@ -503,7 +359,7 @@ config MINI_OS_EVENT
 config MINI_OS_THREAD_DETACH
     bool "mini-os 线程 detach/join"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       线程 detach 与 join 支持 (二者绑定同一开关, 每个 TCB 增加回收字段)。
 
@@ -513,7 +369,7 @@ config MINI_OS_THREAD_DETACH
 config MINI_OS_FIND_BY_NAME
     bool "mini-os 按名查找 (线程/信号量/互斥锁)"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       启用线程/信号量/互斥锁的全局按名注册表 (每个对象增加链表节点)。
 
@@ -523,7 +379,7 @@ config MINI_OS_FIND_BY_NAME
 config MINI_OS_LONG_TIME
     bool "mini-os 64 位长 tick 计数"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       增加一个 32 位回绕计数器构成 64 位 tick (默认仅 32 位 tick)。
 
@@ -533,7 +389,7 @@ config MINI_OS_LONG_TIME
 config MINI_OS_STACK_OVERFLOW_CHECK
     bool "mini-os MSP 栈溢出哨兵检测"
     default n
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       在链接脚本 __mini_os_heap_end 边界埋哨兵字, 空闲线程每轮巡检,
       溢出即停机 (fail fast)。需板级包含 mini-os-heap.ld。
@@ -545,7 +401,7 @@ config MINI_OS_STACK_OVERFLOW_CHECK
 config MINI_OS_USE_FPU
     bool "mini-os FPU 上下文保存 (M4F/M7 默认开启)"
     default y
-    depends on OSAL_MINI_OS && (PLATFORM_ARM_CM4F || PLATFORM_ARM_CM7)
+    depends on OS_MINI_OS && (PLATFORM_ARM_CM4F || PLATFORM_ARM_CM7)
     help
       PendSV 切换时保存 FPU 上下文 (惰性保存 s16-s31)。
       仅在带 FPU 的平台 (CM4F / CM7) 可见, 且默认开启:
@@ -574,27 +430,23 @@ config MINI_OS_USE_FPU
 config MINI_OS_SPINLOCK
     bool "mini-os 自旋锁"
     default y
-    depends on OSAL_MINI_OS
+    depends on OS_MINI_OS
     help
       编译 inc/spinlock.h 的内核自旋锁实现 (header-only; 关闭时该头
-      不定义任何实体)。OSAL 层 osal_spinlock_* 直接内嵌并转发到
-      mini_os_spinlock_t, 因此选了 mini-os 后端就应该保持开启。
-      关闭后 osal_mini_os.c 退化为 mini_os_irq_save/restore 兜底,
-      OSAL 公共 API 仍可编译, 但失去内核自旋锁的 islocked 查询与
-      原子模式 (SMP) 能力。
+      不定义任何实体)。裸机与内核的等锁原语共用该实现, 因此选了
+      mini-os 后端就应该保持开启。关闭后失去 islocked 查询与原子
+      模式 (SMP) 能力。
 
       Compile the in-kernel spinlock (inc/spinlock.h, header-only;
-      the header defines nothing when off). OSAL osal_spinlock_*
-      embeds and forwards to mini_os_spinlock_t, so keep this on
-      whenever the mini-os backend is selected. Turning it off makes
-      osal_mini_os.c fall back to mini_os_irq_save/restore: the OSAL
-      API still builds, but islocked and the atomic (SMP) mode are
-      lost.
+      the header defines nothing when off). Bare-metal and kernel
+      locking primitives share this implementation, so keep this on
+      whenever the mini-os backend is selected. Turning it off loses
+      islocked and the atomic (SMP) mode.
 
 config MINI_OS_SPINLOCK_ATOMIC
     bool "mini-os 自旋锁原子模式 (SMP)"
     default n
-    depends on OSAL_MINI_OS && MINI_OS_SPINLOCK
+    depends on OS_MINI_OS && MINI_OS_SPINLOCK
     help
       原子 test-and-set 忙等自旋锁: TAS 失败后 mini_os_pause() 延迟并
       mini_os_schedule_yield() 让出 CPU, 避免饿死持锁者。仅适合 SMP;
@@ -611,7 +463,7 @@ config MINI_OS_SPINLOCK_ATOMIC
 config MINI_OS_SPINLOCK_YIELD
     bool "mini-os 自旋锁有界轮询循环"
     default n
-    depends on OSAL_MINI_OS && MINI_OS_SPINLOCK_ATOMIC
+    depends on OS_MINI_OS && MINI_OS_SPINLOCK_ATOMIC
     help
       在两次 schedule_yield 之间插入有界轮询循环 (MINI_OS_SPINLOCK_NUM
       次 "读锁 + pause"), 锁一旦释放立即回到 TAS 重试, 减少切换开销。
@@ -628,7 +480,7 @@ config MINI_OS_SPINLOCK_NUM
     int "mini-os 自旋锁轮询次数"
     range 1 4096
     default 256
-    depends on OSAL_MINI_OS && MINI_OS_SPINLOCK_YIELD
+    depends on OS_MINI_OS && MINI_OS_SPINLOCK_YIELD
     help
       有界轮询循环的迭代次数 (每次为 "读锁 + pause"), 跑满仍未拿到锁
       才 schedule_yield。值越大越倾向忙等 (省切换开销, 但耗电/占 CPU),
@@ -642,12 +494,12 @@ config MINI_OS_SPINLOCK_NUM
 choice
     prompt "裸机调度器 (Bare-metal scheduler)"
     default XTASK_COOP
-    depends on OSAL_NULL
+    depends on OS_BARE
     help
-      裸机 (CONFIG_OSAL_NULL) 下的任务调度方式, 三选一:
+      裸机 (CONFIG_OS_BARE) 下的任务调度方式, 三选一:
       无调度 / 协调式 / 抢占式。OS 后端由各自内核调度, 无此选项。
 
-      Scheduler for the bare-metal (CONFIG_OSAL_NULL) backend:
+      Scheduler for the bare-metal (CONFIG_OS_BARE) backend:
       none / cooperative / preemptive. OS backends schedule via their
       own kernels and ignore this choice.
 
@@ -656,27 +508,26 @@ config XTASK_NONE
     help
       不编入任何调度器。应用层自己写 while(1) 大循环 + 轮询
       (如 mini_tree_system_loop), 不提供 xscheduler_* 原生 API。
-      time_slice/ 头路径不暴露, OSAL_NULL_TASK_CPP C++ 封装需同步关闭。
+      time_slice/ 头路径也不暴露。
 
       No scheduler is compiled. Drive everything from your own
-      while(1) loop (e.g. mini_tree_system_loop); the xscheduler_*
-      native APIs and time_slice/ headers are not available, and the
-      OSAL_NULL_TASK_CPP C++ wrapper must be disabled too.
+      while(1) loop (e.g. mini_tree_system_loop); neither the
+      xscheduler_* native APIs nor the time_slice/ headers are
+      available.
 
 config XTASK_COOP
     bool "协调式时间片 (xtask_coop.c) / Cooperative round-robin"
     help
       普通 (裸机) 协调式时间片调度器 (time_slice/task/xtask_coop.c)。
       提供 xscheduler_task_create() / x_scheduler_poll()
-      等原生 API, 也是 OSAL_NULL_TASK_CPP C++ 封装 (osal_task.cpp) 的底层。
+      等原生 API。
       默认 tick 源为 Cortex-M SysTick (内核异常, 不经 VIRQ), 关闭 VIRQ 时
       SysTick 路径照常 tick; 仅当 DTS 显式配 chosen TIM (走通用 TIM + VIRQ)
       时, 关闭 VIRQ 才导致该 TIM 中断无法路由、调度器无 tick。
 
       Bare-metal cooperative round-robin time-slice scheduler
       (time_slice/task/xtask_coop.c). Exposes the
-      native xscheduler_task_create() / x_scheduler_poll() APIs that the
-      OSAL_NULL_TASK_CPP C++ wrapper (osal_task.cpp) builds on.
+      native xscheduler_task_create() / x_scheduler_poll() APIs.
       The default tick source is the Cortex-M SysTick (core exception, not
       via VIRQ), so the SysTick path keeps ticking even with VIRQ off; only
       when DTS explicitly sets chosen TIM (generic TIM + VIRQ) does disabling
@@ -710,7 +561,7 @@ endchoice
 config XTASK_COROUTINE
     bool "protothread 协程让出 (PT_DELAY/PT_YIELD) / protothread coroutine yields"
     default y
-    depends on OSAL_NULL && !XTASK_NONE
+    depends on OS_BARE && !XTASK_NONE
     help
       开启后任务回调可用 protothread 宏 (xtask.h): PT_BEGIN / PT_YIELD /
       PT_WAIT_UNTIL / PT_DELAY / PT_END。任务回调内延时让出执行权 (挂起到期点),
@@ -732,29 +583,6 @@ config XTASK_COROUTINE
       coroutine handling, and callbacks stay plain run-to-completion
       (periodic).
       Supported by both schedulers (XTASK_COOP / XTASK_PREEMPT).
-
-config OSAL_NULL_TASK_CPP
-    bool "Bare-metal task create C++ wrapper (unified OSAL vs raw xtask)"
-    default y
-    depends on OSAL_NULL && SYSTEM_CPP && !XTASK_NONE
-    help
-      裸机任务创建的 C++ 封装 (osal/src/osal_task.cpp), 需要 SYSTEM_CPP (C++ 构建)。
-      开启 (默认): 走统一 OSAL 路径 — 通过 C++ 重载 osal_task_create() 创建
-      xtask 周期任务, 返回 etl::optional<x_task_handle_t>, 调用习惯与 OS 后端
-      对齐 (参数语义见 osal_null.h 中该重载的注释)。
-      关闭: 靠 xtask 自己 — 不编译封装, 直接调用 xscheduler_task_create() /
-      x_scheduler_poll() 等 xtask 原生 API。
-      仅裸机 (CONFIG_OSAL_NULL) 生效; OS 后端任务创建始终走标准 C API。
-
-      Bare-metal task-create C++ wrapper (osal/src/osal_task.cpp), needs
-      SYSTEM_CPP (C++ build). On (default): unified OSAL path — create
-      xtask periodic tasks via the C++ overload osal_task_create(), which
-      returns etl::optional<x_task_handle_t> and keeps the OSAL calling
-      convention (parameter semantics are documented on that overload in
-      osal_null.h). Off: raw xtask — the wrapper is not compiled; call
-      xscheduler_task_create() / x_scheduler_poll() directly.
-      Bare-metal (CONFIG_OSAL_NULL) only; on OS backends task creation
-      always goes through the standard C API.
 
 config HARD_PRIORITY
     int "Maximum hardware interrupt priority levels (N+1 preemptive scheduler)"
@@ -863,7 +691,7 @@ config X_PREEMPT_PRIO_PER_GROUP
 config FREERTOS_USE_TIMERS
     bool "FreeRTOS software timers"
     default n
-    depends on OSAL_FREERTOS
+    depends on OS_FREERTOS
     help
       开启 FreeRTOS 软件定时器（对应 lib/freeRTOS/FreeRTOSConfig.h 中的
       configUSE_TIMERS）。默认关闭。
@@ -875,7 +703,7 @@ config FREERTOS_HEAP_SIZE
     int "FreeRTOS heap size (bytes)"
     default 8192
     range 2048 131072
-    depends on OSAL_FREERTOS
+    depends on OS_FREERTOS
     help
       FreeRTOS 动态堆大小 (configTOTAL_HEAP_SIZE), 供任务栈/信号量/队列分配。
       默认 8 KB; 任务多/栈大时按需调大。
@@ -886,19 +714,17 @@ config FREERTOS_EVENT_GROUPS
     bool "FreeRTOS 事件组 (event groups)"
     default n
     select FREERTOS_USE_TIMERS
-    depends on OSAL_FREERTOS
+    depends on OS_FREERTOS
     help
       开启 FreeRTOS 事件组 (对应 lib/freeRTOS/FreeRTOSConfig.h 中的
       configUSE_EVENT_GROUPS)。默认关闭。
       注意: FreeRTOS.h 在未定义 configUSE_EVENT_GROUPS 时会默认置 1,
       因此本项必须显式定义 0/1 才能真正关掉; 关闭后
       lib/freeRTOS/CMakeLists.txt 不再将 event_groups.c 编入内核库。
-      自身默认 n, 但 OSAL_EVENT (默认 y) 会 select 本项;
-      osal_freertos.c 的 osal_event_* 映射 xEventGroup*。编入后两条路
-      并存: 既可调 osal_event_* 屏蔽层, 也可直接调
-      xEventGroupCreate/xEventGroupWaitBits/xEventGroupSync 等原生 API
-      (屏蔽层没暴露 Sync 与等待期动态 AND/OR)。只开本项、关掉
-      OSAL_EVENT 时则只剩原生 API 这一条路。
+      默认关闭。事件组不属于统一后端接口: 需要事件语义时自行开启本项,
+      开启后 event_groups.c 编入内核库, 业务直接调
+      xEventGroupCreate / xEventGroupWaitBits / xEventGroupSync 等原生
+      API (含 Sync 与等待期动态 AND/OR)。
       事件组依赖软件定时器守护任务, 开启本项会自动带上
       FREERTOS_USE_TIMERS。
 
@@ -908,13 +734,11 @@ config FREERTOS_EVENT_GROUPS
       undefined, so this option must define 0/1 explicitly to really
       disable it; when off, lib/freeRTOS/CMakeLists.txt drops
       event_groups.c from the kernel library.
-      Default n on its own, but OSAL_EVENT (default y) selects it;
-      osal_event_* in osal_freertos.c maps onto xEventGroup*. Once
-      compiled in, both routes coexist: the osal_event_* abstraction and
-      the native xEventGroupCreate / xEventGroupWaitBits /
-      xEventGroupSync API (the abstraction exposes neither Sync nor
-      per-wait AND/OR). Enabling this option alone while OSAL_EVENT is
-      off leaves only the native route.
+      Default off. Event groups are not part of the unified backend
+      interface: enable this option to compile event_groups.c into the
+      kernel library and call the native xEventGroupCreate /
+      xEventGroupWaitBits / xEventGroupSync API directly (including Sync
+      and per-wait AND/OR).
       Event groups rely on the timer daemon task, so this option
       selects FREERTOS_USE_TIMERS automatically.
 
@@ -922,7 +746,7 @@ config RTT_HEAP_SIZE
     int "RT-Thread heap size (bytes)"
     default 32768
     range 4096 1048576
-    depends on OSAL_RTTHREAD
+    depends on OS_RTTHREAD
     help
       RT-Thread 独立系统堆大小 (s_rtt_heap, 静态 .bss), 供线程栈/IPC 分配。
       默认 32 KB。
@@ -932,17 +756,14 @@ config RTT_HEAP_SIZE
 config RTTHREAD_EVENT
     bool "RT-Thread 事件集 (rt_event)"
     default n
-    depends on OSAL_RTTHREAD
+    depends on OS_RTTHREAD
     help
       开启 RT-Thread 事件集 (对应 lib/rtthread/rtconfig.h 中的
       RT_USING_EVENT, src/ipc.c 内的 rt_event_* 实现)。默认关闭。
       关闭时 ipc.c 的事件集代码段整体不参与编译;
-      自身默认 n, 但 OSAL_EVENT (默认 y) 会 select 本项;
-      osal_rtthread.c 的 osal_event_* 映射 rt_event_*。编入后两条路
-      并存: 既可调 osal_event_* 屏蔽层, 也可直接调 rt_event_create /
-      rt_event_recv 等原生 API (屏蔽层把 AND/OR 固定在创建期, 原生
-      API 可以每次等待动态改)。只开本项、关掉 OSAL_EVENT 时则
-      只剩原生 API 这一条路。
+      默认关闭。事件集不属于统一后端接口: 需要事件语义时自行开启本项,
+      开启后 ipc.c 的事件集代码段编入, 业务直接调 rt_event_create /
+      rt_event_recv 等原生 API (AND/OR 可每次等待动态改)。
       与 FREERTOS_EVENT_GROUPS / MINI_OS_EVENT 对称: 三个 RTOS
       后端的事件组一律 Kconfig 隔离且默认关闭。
 
@@ -950,66 +771,14 @@ config RTTHREAD_EVENT
       lib/rtthread/rtconfig.h, the rt_event_* block inside src/ipc.c).
       Default off.
       When off the event block of ipc.c is excluded from compilation;
-      Default n on its own, but OSAL_EVENT (default y) selects it;
-      osal_event_* in osal_rtthread.c maps onto rt_event_*. Once compiled
-      in, both routes coexist: the osal_event_* abstraction and the
-      native rt_event_create / rt_event_recv API (the abstraction fixes
-      AND/OR at creation time, the native API can change it per wait).
-      Enabling this option alone while OSAL_EVENT is off leaves only the
-      native route.
+      Default off. Event sets are not part of the unified backend
+      interface: enable this option to compile the event block of ipc.c
+      and call the native rt_event_create / rt_event_recv API directly
+      (AND/OR can be changed per wait).
       Symmetric with FREERTOS_EVENT_GROUPS / MINI_OS_EVENT: event groups
       of all three RTOS backends are Kconfig-gated and off by default.
 endmenu
 
-menu "OSAL Spinlock"
-choice
-    prompt "Spinlock implementation"
-    default OSAL_SPINLOCK_IRQ_DISABLE
-    help
-      选择底层自旋锁实现。
-      例外: mini-os 后端 (CONFIG_OSAL_MINI_OS) 直接复用内核
-      inc/spinlock.h 的 mini_os_spinlock_t, 锁模式属于编译期内核
-      ABI (结构体布局随模式变), OSAL 层无权覆盖, 因此由
-      MINI_OS_SPINLOCK_ATOMIC 决定; 本 choice 对 mini-os 后端无效
-      (不一致时 osal_mini_os.c 会给 #warning)。
-
-      Select the underlying spinlock implementation.
-      Exception: the mini-os backend (CONFIG_OSAL_MINI_OS) reuses the
-      in-kernel mini_os_spinlock_t from inc/spinlock.h, where the lock
-      mode is compile-time kernel ABI (the struct layout changes with
-      the mode). OSAL cannot override it, so MINI_OS_SPINLOCK_ATOMIC
-      decides; this choice has no effect on the mini-os backend
-      (osal_mini_os.c emits a #warning when they disagree).
-
-config OSAL_SPINLOCK_IRQ_DISABLE
-    bool "Disable interrupts (single-core safe)"
-    help
-      自旋锁映射到 irq_disable/irq_restore。裸机与单核 RTOS 均安全。
-      这是默认实现。
-
-      Map spinlock to irq_disable/irq_restore. Safe for bare-metal
-      and single-core RTOS. This is the default.
-
-config OSAL_SPINLOCK_ATOMIC
-    bool "Atomic test-and-set (busy-wait)"
-    help
-      使用原子 test-and-set 的真忙等自旋锁。
-      仅在 SMP/多核系统安全，且持有上下文可运行于另一核。
-      注意：在 M0/M0+ (ARMv6-M, 无 LDREX/STREX) 上会退化为
-      libatomic 软件实现（IRQ 锁），单核正确但无法提供跨核互斥。
-      mini-os 后端请改用 MINI_OS_SPINLOCK_ATOMIC (本项对其无效)。
-
-      True busy-wait spinlock using atomic test-and-set.
-      Only safe on SMP/multi-core systems where the owning
-      context can run on another core.
-      Note: on M0/M0+ (ARMv6-M, no LDREX/STREX) this falls
-      back to the libatomic software implementation (IRQ-lock),
-      which is correct on a single core but cannot provide
-      cross-core mutual exclusion.
-      For the mini-os backend use MINI_OS_SPINLOCK_ATOMIC instead
-      (this option has no effect there).
-endchoice
-endmenu
 
 menu "System Log"
 choice
@@ -1038,12 +807,6 @@ config SYS_LOG_USE_ESP
       with tag colors and level filtering controlled by CONFIG_LOG_*.
       ESP-IDF builds only (esp_log.h does not exist outside IDF).
 
-config SYS_LOG_USE_OSAL
-    bool "OSAL logging"
-    help
-      通过 OSAL 日志接口输出。
-
-      Output via OSAL log interface.
 endchoice
 endmenu
 
@@ -1131,11 +894,11 @@ config USB
               其他芯片查 lib/tinyusb/src/tusb_option.h 第 62-150 行的 OPT_MCU_*。
 
         choice
-            prompt "TinyUSB OS port (auto-follow OSAL)"
+            prompt "TinyUSB OS port (auto-follow OS backend)"
             default USB_TUSB_OS_NONE
             depends on USB
             help
-              由 OSAL Backend 自动派生 (select 联动), 无需手填。
+              由 OS 后端自动派生 (select 联动), 无需手填。
               对应 tusb_option.h 的 OPT_OS_*:
                 NONE=1 / FREERTOS=2 / RTTHREAD=3
               注意: 选 uC/OS 或 ThreadX (本地扩展, 见 Kconfig.local) 时
@@ -1448,76 +1211,6 @@ config EVENT_BUS_DISPATCH_STACK
     range 512 8192
     depends on EVENT_BUS
 
-config BUFFER_POOL
-    bool "Buffer pool (free-list + dual-pointer block allocator)"
-    default n
-    help
-      Buffer Pool 总开关，默认关闭。
-      空闲链表(双向) + 双指针块分配器：从静态池按调用方指定大小切块，
-      每个分配出来的小内存池内部用双指针(head/tail)管理内容。
-      模式由下方 choice 二选一（Kconfig 编译期决定）：
-        · 静态优先 (默认)：先由空闲链表从静态池切块，用尽后回退动态分配；
-        · 全动态：静态池直接屏蔽，分配一律走动态内存。
-      关闭后 core/src/buffer_pool.c 不编入，buffer_pool_* / buffer_block_*
-      API 不可用。
-
-      Master switch for the buffer pool, off by default.
-      Free-list (doubly-linked) + dual-pointer block allocator: cuts
-      caller-sized blocks from a static pool; each allocated block
-      manages its contents via head/tail pointers. One of two modes
-      below (fixed at Kconfig time):
-        · static-first (default): the free list cuts blocks from the
-          static pool, falling back to dynamic allocation when exhausted;
-        · dynamic-only: the static pool is disabled, allocation goes
-          straight to dynamic memory.
-      When off, core/src/buffer_pool.c is not compiled and the
-      buffer_pool_* / buffer_block_* APIs are unavailable.
-
-choice
-    prompt "Allocation mode"
-    default BUFFER_POOL_STATIC_THEN_DYNAMIC
-    depends on BUFFER_POOL
-    help
-      选择 Buffer Pool 分配模式（编译期固定）。
-
-      Select the buffer pool allocation mode (fixed at build time).
-
-config BUFFER_POOL_DYNAMIC_ONLY
-    bool "Dynamic only (static pool disabled)"
-    help
-      全动态模式：静态池屏蔽，buffer_pool_alloc 一律走动态分配
-      (osal_calloc/osal_free)。适合堆充足、无需静态规划的场合。
-      裸机/无堆平台需确保 libc 堆可用或自定义 osal_calloc。
-
-      Dynamic-only mode: the static pool is disabled and every
-      buffer_pool_alloc goes to dynamic allocation (osal_calloc/free).
-      For targets with ample heap. Bare-metal/no-heap targets must
-      provide a working heap or override osal_calloc.
-
-config BUFFER_POOL_STATIC_THEN_DYNAMIC
-    bool "Static pool first, then dynamic"
-    help
-      静态优先模式：空闲链表先从静态池切块，池用尽后回退动态分配。
-      静态池大小见 BUFFER_POOL_SIZE。
-
-      Static-first mode: the free list cuts blocks from the static
-      pool first, falling back to dynamic allocation when exhausted.
-      See BUFFER_POOL_SIZE for the static pool size.
-
-endchoice
-
-config BUFFER_POOL_SIZE
-    int "Static pool size (bytes)"
-    default 4096
-    range 256 65536
-    depends on BUFFER_POOL && BUFFER_POOL_STATIC_THEN_DYNAMIC
-    help
-      静态池默认大小（字节）。调用方未提供 static_mem 时按此大小内部
-      分配；提供 static_mem 时以 config.static_len 为准。
-
-      Default static pool size in bytes. Used for internal allocation
-      when the caller does not supply static_mem; config.static_len
-      wins when static_mem is provided.
 
 config VIRQ
     bool "Virtual IRQ + bottom-half framework (VIRQ)"
@@ -1567,8 +1260,8 @@ config BOTTOM_HALF_QUEUE_DEPTH
 
       Bottom-half FIFO depth; must be a power of two.
 
-config OSAL_MUTEX_POOL_SIZE
-    int "OSAL static mutex pool size"
+config OS_MUTEX_POOL_SIZE
+    int "OS static mutex pool size"
     default 24
     range 4 256
 
@@ -1654,7 +1347,7 @@ menu "lwIP (TCP/IP Stack)"
 
     config SYS
         bool "lwIP NO_SYS mode (bare-metal polling)"
-        default y if OSAL_NULL
+        default y if OS_BARE
         default n
         help
           lwIP 的 NO_SYS 开关。选中 (=y) 时 NO_SYS=1, lwIP 以裸机轮询模式运行
@@ -1662,16 +1355,16 @@ menu "lwIP (TCP/IP Stack)"
           sys_check_timeouts() 与网卡收包); 未选中时 NO_SYS=0, lwIP 创建
           tcpip 内核线程, 依赖"可阻塞切换的真 RTOS 线程"语义。
 
-          硬约束: OSAL 后端为裸机 (OSAL_NULL + xtask 协调/抢占调度器) 时
-          必须保持 y。xtask 任务是裸机协程, osal_queue/osal_sem 在裸机后端
+          硬约束: OS 后端为裸机 (OS_BARE + xtask 协调/抢占调度器) 时
+          必须保持 y。xtask 任务是裸机协程, 队列/信号量在裸机后端
           是环形缓冲 + 忙等, 没有"阻塞即切换线程"的语义——裸机下强行
           NO_SYS=0 会导致 tcpip 线程死锁或永不推进。默认值已按后端自动
-          选择: OSAL_NULL => y, RTOS (FreeRTOS/RT-Thread/ThreadX/uC-OS) => n。
+          选择: OS_BARE => y, RTOS (FreeRTOS/RT-Thread/ThreadX/uC-OS) => n。
 
-          Hard constraint: keep this enabled on bare-metal (OSAL_NULL).
-          xtask tasks are bare-metal coroutines; osal_queue/osal_sem busy-wait
+          Hard constraint: keep this enabled on bare-metal (OS_BARE).
+          xtask tasks are bare-metal coroutines; queues/semaphores busy-wait
           with no block-and-switch semantics, so NO_SYS=0 would deadlock the
-          tcpip thread. The default follows the OSAL backend automatically.
+          tcpip thread. The default follows the OS backend automatically.
 
     config SYS_LIGHTWEIGHT_PROT
         bool "Lightweight protection (critical section via IRQ lock)"
@@ -1687,12 +1380,12 @@ menu "lwIP (TCP/IP Stack)"
         bool "Compat mutex (emulate sys_mutex_t with sys_sem_t)"
         default n
         help
-          0 = 使用原生 sys_mutex_t (OSAL mutex); 1 = 用 sys_sem_t 模拟互斥锁。
+          0 = 使用原生 sys_mutex_t (统一接口互斥锁); 1 = 用 sys_sem_t 模拟互斥锁。
           本移植提供原生 mutex, 保持默认 0。
 
     menu "TCP/IP Core Thread"
         # 仅 RTOS 后端可见: tcpip 内核线程需要"可阻塞切换"的真线程语义
-        depends on !SYS && !OSAL_NULL
+        depends on !SYS && !OS_BARE
 
         config TCPIP_THREAD_NAME
             string "tcpip thread name"
@@ -1708,9 +1401,9 @@ menu "lwIP (TCP/IP Stack)"
             default 6
             range 0 31
             help
-              优先级数值含义随 OSAL 后端翻转, 切后端时须重新评估:
+              优先级数值含义随 OS 后端翻转, 切后端时须重新评估:
               FreeRTOS 数大优先高; RT-Thread 数小优先高;
-              ThreadX / uC-OS 数小优先高。裸机 (OSAL_NULL) 下本项不可见。
+              ThreadX / uC-OS 数小优先高。裸机 (OS_BARE) 下本项不可见。
 
         config TCPIP_MBOX_SIZE
             int "tcpip core mailbox size"
@@ -1720,7 +1413,7 @@ menu "lwIP (TCP/IP Stack)"
 
     menu "Default Receive Mailbox Sizes"
         # 仅 RTOS 后端可见: netconn/socket 接收邮箱依赖阻塞式 mbox
-        depends on !SYS && !OSAL_NULL
+        depends on !SYS && !OS_BARE
 
         config DEFAULT_RAW_RECVMBOX_SIZE
             int "RAW recv mbox size"
@@ -2136,7 +1829,7 @@ menu "lwIP (TCP/IP Stack)"
 
     menu "Socket / Netconn API"
         # 仅 RTOS 后端可见: netconn/socket API 阻塞语义依赖真线程
-        depends on !SYS && !OSAL_NULL
+        depends on !SYS && !OS_BARE
 
         config LWIP_NETCONN
             bool "Netconn API"
@@ -2187,7 +1880,7 @@ menu "lwIP (TCP/IP Stack)"
 
     menu "Socket/Netconn Memory Pools"
         # 仅 RTOS 后端可见: 与 Socket/Netconn API 同生命周期
-        depends on !SYS && !OSAL_NULL
+        depends on !SYS && !OS_BARE
 
         config MEMP_NUM_NETCONN
             int "Number of netconns"

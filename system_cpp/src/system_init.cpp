@@ -23,7 +23,7 @@
 
 #include "compiler_compat_poison.h"
 
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
 extern "C" void x_scheduler_poll(void);
 #endif
 #ifdef CONFIG_USB
@@ -177,7 +177,7 @@ void mini_tree::system_start_tasks(void)
     /*
      * ─── 用户任务创建钩子点 ───
      * 在 system_start_tasks() 之后、启动调度器之前:
-     *   osal_task_create_handle(...);   // 统一走 OSAL, 勿直接调内核 API
+     *   mini_task_create_handle(...);   // 统一走 mini_backend, 勿直接调内核 API
      */
 
     SYS_LOGI(k_tag, "=== mini_tree Phase 2 complete ===");
@@ -204,7 +204,7 @@ extern "C" void mini_tree_system_loop(void)
 #ifdef CONFIG_USB
     usb_bus_task(); /**< TinyUSB 事件轮询 (枚举 / CDC 收发推进) */
 #endif
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
     x_scheduler_poll(); /**< 裸机调度器轮询 (coop/preempt 各实现同名函数) */
 #endif
 }

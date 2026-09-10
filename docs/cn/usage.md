@@ -33,7 +33,7 @@
 | **硬件直投** | DTSI 宏值进入配置结构体，HAL 零翻译 | HAL 头字段注释 |
 | **Bus poison** | 未定义 `*_BUS_IMPL` 时禁止调 `hal_*` | `bus/*/*_bus.h` |
 | **VFS（本仓库）** | 设备 `file_operations` 层，**不是** Linux 内核 VFS | `vfs/*` |
-| **OSAL** | 操作系统抽象四后端：裸机 / mini-os（自研）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 | `osal/` |
+| **统一接口** | 操作系统抽象四后端：裸机 / mini-os（自研）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 | `core/` |
 | **VIRQ** | 虚拟中断号 + 上/下半部 | `interrupt/` |
 | **status / MINI_ERR_*** | 统一错误码 | `core/include/status.h` |
 | **积木 / Brick** | 可选开源能力块（GUI/网络/FS…） | [ecosystem.md](ecosystem.md)；`mini_tree_link_*` |
@@ -49,7 +49,7 @@
 1. [getting_started.md](getting_started.md) — 配置与 CMake
 2. [device_tree_porting.md](device_tree_porting.md) — HAL + DTS 清单
 3. [driver_guide.md](driver_guide.md) — compatible / 属性契约
-4. [osal_switching.md](osal_switching.md) — 选定 RTOS
+4. [backend_switching.md](backend_switching.md) — 选定 RTOS
 5. [faq.md](faq.md) · [problem_summary.md](problem_summary.md)
 
 ### 路径 B — 应用开发（写业务）
@@ -74,7 +74,7 @@
 | :--- | :--- | :---: |
 | `docs/` | 专题文档（入口见 [README.md](README.md)） | 否 |
 | `board` / `vfs` / `bus` / `hal` | 设备模型与外设栈 | HAL 实现 **否**（仅 weak） |
-| `core` / `osal` / `interrupt` / `system_*` | 运行时基础设施 | OSAL 后端可选依赖 `lib/` 内核 |
+| `core` / `interrupt` / `system_*` | 运行时基础设施 | OS 后端可选依赖 `lib/` 内核 |
 | `tools` | dtc-lite、genconfig、gen_compile_db、menuconfig | 否 |
 | `ide/stubs` | 无构建时的 clangd 占位头 | 否 |
 | `lib/` | vendor：mini-os / FreeRTOS / RT-Thread / ETL；TinyUSB / lwIP 为配置期 Fetch，其余链接期 | 开源积木，见 [ecosystem.md](ecosystem.md) |
@@ -89,7 +89,7 @@
 | :--- | :--- |
 | 上手 | [getting_started](getting_started.md) · [faq](faq.md) · [keil_integration](keil_integration.md) |
 | 生态 | [ecosystem](ecosystem.md)（积木 / Fetch） · [architecture](architecture.md) |
-| 移植 | [device_tree_porting](device_tree_porting.md) · [driver_guide](driver_guide.md) · [usb_tusb_port](usb_tusb_port.md) · [amp](amp.md) · [osal_switching](osal_switching.md) |
+| 移植 | [device_tree_porting](device_tree_porting.md) · [driver_guide](driver_guide.md) · [usb_tusb_port](usb_tusb_port.md) · [amp](amp.md) · [backend_switching](backend_switching.md) |
 | 编码 | [service_spec](service_spec.md) · [peripherals](peripherals.md) · [runtime_services](runtime_services.md) · [can_hook](can_hook.md) · [fast_path](fast_path.md) · [api_compatibility](api_compatibility.md) |
 | 诊断 | [debug_monitor](debug_monitor.md) · [problem_summary](problem_summary.md) |
 | 选型 | [design_decisions](design_decisions.md) · [references](references.md) |

@@ -21,7 +21,7 @@
 #include "device.h"
 #include "hal_i2s.h"
 #include "interrupt.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -47,7 +47,7 @@ struct i2s_bus_client
 
 static struct i2s_bus_host   s_hosts[I2S_BUS_HOST_MAX];
 static uint8_t               s_host_used[I2S_BUS_HOST_MAX];
-static osal_pool_t           s_host_pool;
+static mini_slot_t           s_host_pool;
 static struct i2s_bus_client s_clients[DEV_ID_COUNT];
 static const char*           k_tag = "i2s_bus";
 
@@ -56,7 +56,7 @@ static const char*           k_tag = "i2s_bus";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void i2s_bus_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_host_pool, s_host_used, I2S_BUS_HOST_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_host_pool, s_host_used, I2S_BUS_HOST_MAX));
 }
 
 /**
@@ -68,7 +68,7 @@ static struct i2s_bus_host* host_from_dev(struct device* pdev)
 {
     int index;
     for (index = 0; index < I2S_BUS_HOST_MAX; index++)
-        if (osal_pool_is_used(&s_host_pool, index) && s_hosts[index].pdev == pdev)
+        if (mini_slot_is_used(&s_host_pool, index) && s_hosts[index].pdev == pdev)
             return &s_hosts[index];
     return NULL;
 }
@@ -116,7 +116,7 @@ static int i2s_host_init_impl(struct device* pdev, const void* cfg)
         return MINI_ERR_INVAL;
     if (host_from_dev(pdev))
         return MINI_OK;
-    idx = osal_pool_claim(&s_host_pool);
+    idx = mini_slot_claim(&s_host_pool);
     if (idx < 0)
         return MINI_ERR_NOMEM;
     host = &s_hosts[idx];
@@ -126,14 +126,14 @@ static int i2s_host_init_impl(struct device* pdev, const void* cfg)
     ret = hal_i2s_bus_host_init(&host->hal_host, idx, host_cfg);
     if (ret != MINI_OK)
     {
-        MINI_IGNORE_RESULT(osal_pool_release(&s_host_pool, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_host_pool, idx));
         return ret;
     }
     ret = bus_controller_bind_full(pdev, BUS_TYPE_I2S, &s_ops, host);
     if (ret != MINI_OK)
     {
         MINI_IGNORE_RESULT(hal_i2s_bus_host_deinit(&host->hal_host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_host_pool, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_host_pool, idx));
         return ret;
     }
     SYS_LOGI(k_tag, "host init OK: %s", device_get_name(pdev));
@@ -162,7 +162,7 @@ static int i2s_host_deinit_impl(struct device* pdev)
     if (ret == MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_host_pool, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_host_pool, idx));
     }
     return ret;
 }

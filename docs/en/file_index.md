@@ -64,7 +64,7 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 
 ---
 
-## core / osal / interrupt / system
+## core / interrupt / system
 
 | Path | Description |
 | :--- | :--- |
@@ -72,13 +72,12 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 | `core/include/compiler_compat.h` | portable attributes & mem API |
 | `core/include/compiler_compat_poison.h` | poison layer |
 | `core/include/event_bus.h` · `event_bus.hpp` | event bus |
-| `core/include/buffer_pool.h` | buffer pool |
 | `core/include/system_log.h` · `production_log.h` | logging |
 | `core/src/*.c` | implementations above |
-| `osal/include/osal.h` | OSAL master header |
-| `osal/include/osal_null.h` | bare-metal helper header + C++ task overload declaration |
-| `osal/src/osal_{null,mini_os,freertos,rtthread}.c` | four backends |
-| `osal/src/osal_task.cpp` | bare-metal C++ task wrapper |
+| `core/include/mini_backend.h` | the unified interface master header |
+| `core/include/mini_backend.h` | bare-metal helper header + C++ task overload declaration |
+| `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` | four backends |
+| `（裸机任务走 xtask, C++ 封装已移除）` | bare-metal C++ task wrapper |
 | `interrupt/interrupt.{c,h}` | VIRQ |
 | `system_c/` · `system_cpp/` | init, wdt, scrubber, safe_state, task_manager, cmd (C or C++ via Kconfig) |
 | `time_slice/task/xtask*.{c,h}` | bare-metal scheduler |

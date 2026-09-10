@@ -6,7 +6,7 @@
  *@details
  *   @note 上半部 (ISR): top_half 回调 + interrupt_virtual_dispatch 内自动 submit
  *   @note 下半部 (主循环): interrupt_bottom_half_poll() → bottom_half_run_pending() 执行回调
- *   @note 裸机路径 (CONFIG_OSAL_NULL): 主循环主动 poll
+ *   @note 裸机路径 (CONFIG_OS_BARE): 主循环主动 poll
  *   @note RTOS 路径: bottom_half_task 任务 sem 唤醒 (条件编译保留)
  *   @warning ISR 内禁止: printf / 上锁 / 长时间阻塞; 重活必须放下半部
  */
@@ -16,7 +16,8 @@
 
 #include "buffer.h"
 #include "compiler_compat.h"
-#include "osal.h"
+#include "hal_amp.h"
+#include "mini_backend.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -199,7 +200,7 @@ MINI_STATIC_ASSERT((BOTTOM_HALF_QUEUE_DEPTH >= 2U) && ((BOTTOM_HALF_QUEUE_DEPTH 
 /**
  * @brief 判断当前是否在中断上下文
  */
-MINI_STATIC_INLINE bool bottom_half_in_isr(void) { return osal_in_isr() != 0; }
+MINI_STATIC_INLINE bool bottom_half_in_isr(void) { return hal_is_in_isr() != 0; }
 
 /**
  * @brief 补跑入队 (内部使用)
@@ -305,7 +306,7 @@ void bottom_half_poller_run(struct bottom_half_poller* poller);
 /* -------------------------------------------------------------------------- */
 /*                              下半部 RTOS 任务适配 (可选) */
 /* -------------------------------------------------------------------------- */
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
 /**
  * @brief 下半部任务适配结构 (RTOS 用)
  * @note  在 fifo_spsc 上叠加二值信号量, ISR 入队后 post 唤醒专用下半部任务
@@ -314,7 +315,7 @@ struct bottom_half_task
 {
     struct fifo_spsc fifo;                          /**< 工作项 FIFO */
     fifo_data_type   ring[BOTTOM_HALF_QUEUE_DEPTH]; /**< FIFO 环形缓冲 */
-    struct osal_sem* sem;                           /**< 二值信号量 (唤醒下半部任务) */
+    mini_sem_t* sem;                                 /**< 二值信号量 (唤醒下半部任务) */
 };
 
 /**
@@ -323,7 +324,7 @@ struct bottom_half_task
  * @param[in] sem 二值信号量 (ISR 入队后用于唤醒)
  * @return MINI_OK 成功; MINI_ERR_INVAL 参数非法或 FIFO 初始化失败
  */
-MINI_STATIC_INLINE int bottom_half_task_init(struct bottom_half_task* task, struct osal_sem* sem)
+MINI_STATIC_INLINE int bottom_half_task_init(struct bottom_half_task* task, mini_sem_t* sem)
 {
     if (!task || !sem)
         return MINI_ERR_INVAL;
@@ -349,7 +350,7 @@ MINI_STATIC_INLINE int bottom_half_task_submit_from_isr(struct bottom_half_task*
     if (ret != MINI_OK)
         return ret;
 
-    (void)osal_sem_post_from_isr(task->sem, px_yield_required);
+    (void)mini_sem_post_from_isr(task->sem, px_yield_required);
     return MINI_OK;
 }
 
@@ -371,7 +372,7 @@ MINI_STATIC_INLINE int bottom_half_task_submit(struct bottom_half_task* task, st
     if (ret != MINI_OK)
         return ret;
 
-    (void)osal_sem_post(task->sem);
+    (void)mini_sem_post(task->sem);
     return MINI_OK;
 }
 
@@ -388,7 +389,7 @@ MINI_STATIC_INLINE void bottom_half_task_entry(void* arg)
 
     for (;;)
     {
-        if (osal_sem_wait(task->sem, OSAL_WAIT_FOREVER) != OSAL_OK)
+        if (mini_sem_wait(task->sem, MINI_WAIT_FOREVER) != MINI_OK)
             continue;
         bottom_half_run_pending(&task->fifo);
     }
@@ -406,10 +407,11 @@ MINI_STATIC_INLINE int bottom_half_task_start(struct bottom_half_task* task, con
 {
     if (!task)
         return MINI_ERR_INVAL;
-    return osal_task_create(name ? name : BOTTOM_HALF_TASK_NAME, stack_size ? stack_size : BOTTOM_HALF_TASK_STACK_SIZE, priority,
-                            bottom_half_task_entry, task, 0);
+    mini_task_handle_t handle = NULL;
+    return mini_task_create_handle(name ? name : BOTTOM_HALF_TASK_NAME, stack_size ? stack_size : BOTTOM_HALF_TASK_STACK_SIZE, priority,
+                                   bottom_half_task_entry, task, 0, &handle);
 }
-#endif /* CONFIG_OSAL_NULL */
+#endif /* CONFIG_OS_BARE */
 
 /* -------------------------------------------------------------------------- */
 /*                              VIRQ + 下半部一体化 API */

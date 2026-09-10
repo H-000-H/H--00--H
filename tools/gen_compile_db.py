@@ -34,7 +34,6 @@ _OUTPUT = _ROOT / "compile_commands.json"
 _SCAN_DIRS = [
     "core",
     "board",
-    "osal",
     "system_c",
     "system_cpp",
     "hal",
@@ -78,7 +77,7 @@ def _read_dotconfig() -> list[str]:
 
     让 clangd 随 .config 自动切换：如 CONFIG_XTASK_PREEMPT=y 时
     xtask_preempt.c 被激活、xtask_coop.c 被屏蔽，无需手工改 compile_flags.txt。
-    compile_flags.txt 里已显式给出的宏（如 CONFIG_OSAL_NULL）不会被重复注入。
+    compile_flags.txt 里已显式给出的宏不会被重复注入。
     """
     dot = _ROOT / ".config"
     if not dot.exists():

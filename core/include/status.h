@@ -5,7 +5,7 @@
  *@author H-000-H
  *@details
  *   status.h — 栈公共状态码与指针错误编码 (层无关)
- *   HAL / bus / VFS / OSAL 共用。HAL 不得依赖 VFS.h；需要错误码时包含本头。
+ *   HAL / bus / VFS / 统一接口共用。HAL 不得依赖 VFS.h；需要错误码时包含本头。
  *   VFS.h 为兼容包装，转发到本文件。
  */
 
@@ -46,19 +46,6 @@
 #define MINI_ERR_NOTSUPP (-ENOSYS)      /* 操作不支持/未实现 */
 #define MINI_IRQ_ENTRY_BOTTOM (0X01U)   /* 中断下部入口标识 */
 #define MINI_IRQ_ENTRY_NOBOTTOM (0X00U) /* 中断上部入口标识 */
-
-/**
- * @brief OSAL 错误码 — 语义与公共状态码对齐，数值相同
- */
-#define OSAL_OK MINI_OK
-#define OSAL_ERR_INVAL MINI_ERR_INVAL
-#define OSAL_ERR_NOMEM MINI_ERR_NOMEM
-#define OSAL_ERR_IO MINI_ERR_IO
-#define OSAL_ERR_BUSY MINI_ERR_BUSY
-#define OSAL_ERR_TIMEOUT MINI_ERR_TIMEOUT
-#define OSAL_ERR_NODEV MINI_ERR_NODEV
-#define OSAL_ERR_NOTSUPP MINI_ERR_NOTSUPP
-#define OSAL_ERR_ISR (-EPERM) /* 中断上下文非法调用 */
 
 /* 指针的特殊处理 */
 extern const char ERR_SECTION_BASE;

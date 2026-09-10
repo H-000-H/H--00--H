@@ -27,9 +27,9 @@
 | :--- | :--- |
 | `device.h` | 查找设备、open/read/write/ioctl |
 | `status.h` | `MINI_OK` / `MINI_ERR_*` |
-| `osal.h` | 任务、锁、队列、延时、日志级别配合 |
+| `mini_backend.h` | 任务、锁、队列、延时、日志级别配合 |
 | `event_bus.h` / `event_bus.hpp` | 发布订阅 |
-| `buffer_pool.h` · `algorithm/buffer` | 缓冲 |
+| `algorithm/buffer` | 缓冲 |
 | `system_log.h` | `SYS_LOGI/W/E` |
 | 业务自身头 | — |
 
@@ -40,7 +40,7 @@
 | 禁止 | 原因 |
 | :--- | :--- |
 | `hal_*.h`（业务里） | 破坏分层；应走 device/vfs |
-| `FreeRTOS.h` / `rtthread.h`（业务里） | 应走 OSAL，便于切后端 |
+| `FreeRTOS.h` / `rtthread.h`（业务里） | 应走 统一接口，便于切后端 |
 | 厂商寄存器头 | 不可移植 |
 | 随意 `malloc` / `printf` / `memset` | 可能被 `compiler_compat_poison` 毒杀；用 `COMPAT_MEM_*` / 池 |
 
@@ -67,18 +67,18 @@ return ret;
 
 - HAL/bus 层 API（`hal_*`/`*_bus_*`）：`int` 返回值，**默认禁止忽略**（`CONFIG_COMPILER_WARN_UNUSED_RESULT=y`），以提升内部层可靠性；确需忽略用 `MINI_IGNORE_RESULT()`。例外：语义上无失败路径的 fire-and-forget 动作（如 ISR 内的状态标记、noreturn 入口）可保持 `void`。
 - device/VFS 层 API（`device_open/read/write/ioctl` 等）：`int` 返回值，**默认可忽略**（`DEVICE_WARN_UNUSED_RESULT` 默认关闭）；需要严格检查时开启 Kconfig `DEVICE_WARN_UNUSED_RESULT`，开启后**禁止**忽略。
-- 超时用毫秒；`OSAL_WAIT_FOREVER` 仅在明确可接受阻塞处使用。
+- 超时用毫秒；`MINI_WAIT_FOREVER` 仅在明确可接受阻塞处使用。
 - ioctl 的 `cmd` 与参数布局由各 `vfs-*.h` 定义；汇总见 [peripherals.md](peripherals.md)。
 
 ---
 
 ## 4. 任务与同步
 
-- 创建任务：`osal_task_create` / `osal_task_create_handle`（不要直接 `xTaskCreate`）。
-  裸机例外：C API 恒返回 `OSAL_ERR_NOTSUPP`，任务创建走 `osal_null.h` 的 C++ 重载
-  `osal_task_create`（`CONFIG_OSAL_NULL_TASK_CPP`，默认开启）或直接 `xscheduler_task_create`。
+- 创建任务：`mini_task_create` / `mini_task_create_handle`（不要直接 `xTaskCreate`）。
+  裸机例外：C API 恒返回 `MINI_ERR_NOTSUPP`，任务创建走 `mini_backend.h` 的 C++ 重载
+  `mini_task_create`（`CONFIG_XTASK_PREEMPT`，默认开启）或直接 `xscheduler_task_create`。
   **抢占式 (`CONFIG_XTASK_PREEMPT=y`) 时**: C++ 重载仍提供, 但签名切换为带 `priority` 的分支（`stack_size` 复用为周期）; 也可直接走 `xscheduler_task_create` 原生 API (`xtask.h` 共用).
-- 注意 **优先级数值语义随 OSAL 后端变化**（见 [osal_switching.md](osal_switching.md)）。
+- 注意 **优先级数值语义随 OS 后端变化**（见 [backend_switching.md](backend_switching.md)）。
 - 设备锁由 `device_*` 包装持有；业务勿对同一设备再叠一层易死锁的锁顺序。
 - ISR 里只做短工作；其余投递 EventBus / 下半部 / 任务。
 
@@ -100,12 +100,12 @@ return ret;
 - [ ] 业务 `.c` 无 `hal_` / 厂商 / 原生 RTOS 头
 - [ ] 所有 `device_*` 返回值有处理
 - [ ] 无在 ISR 打日志或拿 mutex
-- [ ] 切 OSAL 后重测优先级与栈
+- [ ] 切 统一接口 后重测优先级与栈
 
 ---
 
 ## 相关文档
 
-- [fast_path.md](fast_path.md) · [osal_switching.md](osal_switching.md)
+- [fast_path.md](fast_path.md) · [backend_switching.md](backend_switching.md)
 - [architecture.md](architecture.md)
 - [app_cpp_guide.md](app_cpp_guide.md)（上层 C++ 限制与推荐）

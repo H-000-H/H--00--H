@@ -14,7 +14,7 @@
 
 #include "compiler_compat.h"
 #include "lwip/err.h"
-#include "osal.h"
+#include "mini_time.h"
 #include "system_log.h"
 #include <string.h>
 
@@ -42,7 +42,7 @@ static MQTTQoS_t mqtt_qos_from_u8(uint8_t qos)
  * @brief coreMQTT 时间源 (毫秒)
  * @return uint32_t 当前时间戳
  */
-static uint32_t mqtt_get_time_ms(void) { return osal_time_ms(); }
+static uint32_t mqtt_get_time_ms(void) { return mini_time_ms(); }
 
 /* -------------------------------------------------------------------------- */
 /* coreMQTT 事件回调                                                          */
@@ -193,7 +193,7 @@ int mqtt_client_do_connect(struct mqtt_client_context* context)
     context->connect_requested = true;
     context->connack_pending = false;
     context->is_mqtt_connected = false;
-    context->tcp_connect_start_ms = osal_time_ms();
+    context->tcp_connect_start_ms = mini_time_ms();
 
     SYS_LOGI(s_kTag, "connecting to %s:%u...", context->broker_ip, context->port);
     return NET_OK;
@@ -374,7 +374,7 @@ int mqtt_client_process(struct mqtt_client_context* context)
             MINI_IGNORE_RESULT(mqtt_handshake(context));
         }
         else if (network_transport_link_failed(&context->network_context) ||
-                 ((osal_time_ms() - context->tcp_connect_start_ms) >= MQTT_TCP_CONNECT_TIMEOUT_MS))
+                 ((mini_time_ms() - context->tcp_connect_start_ms) >= MQTT_TCP_CONNECT_TIMEOUT_MS))
         {
             /* 底层建连失败 (err 回调已置空控制块) 或超时 */
             SYS_LOGE(s_kTag, "link connect failed/timeout");

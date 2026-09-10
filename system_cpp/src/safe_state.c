@@ -14,7 +14,8 @@
 
 #include "hal_amp.h"
 #include "hal_platform_safety.h"
-#include "osal.h"
+#include "mini_backend.h"
+#include "mini_critical.h"
 #include <stdint.h>
 
 #include "compiler_compat_poison.h"
@@ -60,9 +61,9 @@ void enter_safe_state(const char* reason)
     /* 平台具体硬件闭锁 (PWM/I2S/SPI 停止, LED, 蜂鸣器) */
     MINI_IGNORE_RESULT(hal_platform_critical_hardware_lock());
 
-    /* 冻结 OS (单向不可恢复) */
-    osal_sched_freeze();
-    osal_int_freeze();
+    /* 冻结 OS (单向不可恢复): 先挂起调度器, 再关中断; 两者都不可恢复 */
+    mini_sched_freeze();
+    mini_irq_disable();
 
     while (1)
         __asm__ volatile("nop");

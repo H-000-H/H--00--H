@@ -107,13 +107,13 @@ Use ETL fixed-capacity containers in the upper layer (no heap, compile-time-know
 - **No `goto` in application layer** — breaks structured control flow; use function拆分 and state machines
 - **No `new`/`delete`** — uncertain heap, fragmentation; use static/fixed-capacity ETL and object pools
 - **No `malloc`/`free`/`realloc`** — same heap issues; all static or pooled
-- **No direct `hal_*` or vendor SDK calls in application layer** — service_spec: only device/VFS/EventBus/OSAL
+- **No direct `hal_*` or vendor SDK calls in application layer** — service_spec: only device/VFS/EventBus/the unified interface
 - **No mutex/malloc/print/heavy logic in ISR** — fast_path red line, deadlock and jitter prone
 - **No ignoring `device_*` return values once `DEVICE_WARN_UNUSED_RESULT` is enabled** — off by default for a relaxed app style; when enabled, ignoring `device_open/read/write/ioctl` warns. Internal HAL/bus `MINI_WARN_UNUSED_RESULT` stays on by default; use `MINI_IGNORE_RESULT()` if intentionally discarded
 - **No C-style VLA** — runtime-unbounded stack, overflow prone
 - **No relying on undefined behavior** — uninitialized/out-of-bounds is hard to reproduce
 - **No non-inline redefinition entities in headers** — ODR and code bloat
-- **No direct `xTaskCreate` etc. kernel API in business** — use `osal_task_*` uniformly, eases OSAL backend switch
+- **No direct `xTaskCreate` etc. kernel API in business** — use `mini_task_*` uniformly, eases OS backend switch
 - **No scattered magic numbers** — use Kconfig/config.h or named constants
 
 ---

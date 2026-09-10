@@ -1,11 +1,11 @@
 # mini-os 内核（lib/mini-os）
 
-> mini_tree 自研的最小实时内核（Cortex-M 专用，freestanding、无 libc 依赖），也是 OSAL 四后端中体积最小的 RTOS 后端。本文介绍其调度器、时间轮、同步原语、内存管理与移植层，以及它与 mini_tree 的集成接线。
+> mini_tree 自研的最小实时内核（Cortex-M 专用，freestanding、无 libc 依赖），也是 OS 四后端中体积最小的 RTOS 后端。本文介绍其调度器、时间轮、同步原语、内存管理与移植层，以及它与 mini_tree 的集成接线。
 
 | 项 | 内容 |
 | :--- | :--- |
 | **读者** | 需要理解/调试内核行为、做板级接线或内核裁剪的开发者 |
-| **前置** | [architecture.md](architecture.md)（分层）、[osal_switching.md](osal_switching.md)（后端切换）、[getting_started.md](getting_started.md)（Kconfig 双轨） |
+| **前置** | [architecture.md](architecture.md)（分层）、[backend_switching.md](backend_switching.md)（后端切换）、[getting_started.md](getting_started.md)（Kconfig 双轨） |
 | **源码** | `lib/mini-os/`（`src/` 内核 · `inc/` 头 · `arch/arm/cortex-m/port/` 移植层） |
 | **License** | Apache-2.0（设计参考 FreeRTOS / RT-Thread / Zephyr / Linux） |
 
@@ -30,7 +30,7 @@
 
 mini-os 是仓库内自研的最小 RTOS 内核，设计目标：
 
-- **最小体积**：OSAL 四后端中 text/bss 最小（见 [memory_footprint.md](memory_footprint.md) §4）；
+- **最小体积**：OS 四后端中 text/bss 最小（见 [memory_footprint.md](memory_footprint.md) §4）；
 - **freestanding**：不依赖任何 libc（只用 `stddef.h` 等自足头文件），堆为自有实现；
 - **Cortex-M 专用**：port 覆盖 M0/M0+/M3/M4/M7（RISC-V port 为空壳，ESP32 为 Xtensa 不可用）；
 - **GCC/Clang 工具链**：内核使用 GNU 扩展（`__attribute__((constructor))` 等），Keil ARMCC 不能直接使用。
@@ -74,7 +74,7 @@ mini-os 是仓库内自研的最小 RTOS 内核，设计目标：
 | SysTick | `0xFE` | tick 驱动（时间轮 / 时间片 / 定时器轮） |
 
 - ISR 内的唤醒**不主动切上下文**：`mini_os_schedule_yield_isr()` 内部自查就绪位图，仅当有更高优先级就绪才置位 PendSV；
-- `*_isr` 变体 API（`mini_os_semaphore_post_isr` 等）均遵守此约定，OSAL 的 `osal_yield_from_isr()` 即转发该调用。
+- `*_isr` 变体 API（`mini_os_semaphore_post_isr` 等）均遵守此约定，统一接口 的 `mini_yield_from_isr()` 即转发该调用。
 
 ### 2.4 关键线程与构造函数优先级
 
@@ -114,7 +114,7 @@ mini-os 的 PI 是 **per-thread 跟踪** 模型：
 ### 3.3 事件组（event.c，可选）
 
 - 32 位标志，OR / WHOLE（全部置位）等待语义，可配自动清零；
-- 开关 `MINI_OS_EVENT`（自身默认关，但 `OSAL_EVENT`（默认 y）会 select 它，见 §7）；
+- 开关 `MINI_OS_EVENT`（自身默认关，但 `（已移除）`（默认 y）会 select 它，见 §7）；
 - 关闭时 `event.h`/`event.c` 编译为空，且 `event.c` 直接从编译单元列表摘除（连空对象都不产生）。
 
 ---
@@ -147,9 +147,9 @@ mini-os 的 PI 是 **per-thread 跟踪** 模型：
 - **堆来源**：链接脚本 `lib/mini-os/mini-os-heap.ld` 提供 `__mini_os_heap_start` / `__mini_os_heap_end`，堆位于 bss 之后、MSP 栈之前——**不占 bss**（对 [memory_footprint.md](memory_footprint.md) §4 的 bss 口径比较很重要）；
 - **可选 slab**：定长类 16/32/64/128/256（`MINI_OS_SLAB_LONG` 再加 512），页大小 2 KiB（2 的幂 ≤ 64 KiB）；页可从堆按 `1/MINI_OS_SLAB_PROPORTION`（默认 1/4）划出，或用 `MINI_OS_SLAB_STATIC` 指定独立静态区；超出最大类的请求直走 free list。
 
-> 与 mini_tree 其他后端不同：`osal_calloc/osal_free`（mini-os 后端）走 mini-os 自有堆而非 libc，因此 RT-Thread/FreeRTOS 后端的 `s_rtt_heap`/`ucHeap` 式 bss 大数组在这里不存在。
+> 与 mini_tree 其他后端不同：`mini_calloc/mini_free`（mini-os 后端）走 mini-os 自有堆而非 libc，因此 RT-Thread/FreeRTOS 后端的 `s_rtt_heap`/`ucHeap` 式 bss 大数组在这里不存在。
 >
-> **内存模块可单独复用（裸机）**：`memory.c` 不依赖调度器/port，可单文件编入裸机固件 —— 开启 `CONFIG_OSAL_NULL_MINI_OS_MEM`（默认关）后，裸机后端的 `osal_malloc/osal_calloc/osal_free` 从 libc 堆切换为 mini-os 堆；首次分配时惰性接管堆区（`mini_os_heap_ensure_init()`，幂等），无需启动遍历 `.init_array`。板级链接脚本需提供 `__mini_os_heap_start/__mini_os_heap_end`（可 `INCLUDE mini-os-heap.ld`）。空闲链表无锁（与 libc malloc 同），ISR 内禁止调用。
+> **内存模块可单独复用（裸机）**：`memory.c` 不依赖调度器/port，可单文件编入裸机固件 —— 开启 `（已移除: 内存统一走 libc/内核堆）`（默认关）后，裸机后端的 `mini_malloc/mini_calloc/mini_free` 从 libc 堆切换为 mini-os 堆；首次分配时惰性接管堆区（`mini_os_heap_ensure_init()`，幂等），无需启动遍历 `.init_array`。板级链接脚本需提供 `__mini_os_heap_start/__mini_os_heap_end`（可 `INCLUDE mini-os-heap.ld`）。空闲链表无锁（与 libc malloc 同），ISR 内禁止调用。
 
 ---
 
@@ -182,7 +182,7 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 
 ### 6.4 临界区
 
-两种方式（编译期选择）：PRIMASK 全屏蔽，或 BASEPRI 阈值（只屏蔽不高于 `MINI_OS_IRQ_MAX_SYSCALL_PRIORITY` 的中断）。OSAL 槽位池临界区用的 `mini_os_irq_save/restore` 可嵌套。
+两种方式（编译期选择）：PRIMASK 全屏蔽，或 BASEPRI 阈值（只屏蔽不高于 `MINI_OS_IRQ_MAX_SYSCALL_PRIORITY` 的中断）。统一接口槽位池临界区用的 `mini_os_irq_save/restore` 可嵌套。
 
 ---
 
@@ -196,7 +196,7 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 
 > **注意**：特性开关恒定义为 `1`/`0`，判断必须用 `#if` 而非 `#ifdef`（`#ifdef` 对关闭的选项也为真）。
 
-### 7.1 Kconfig 暴露面（`Kconfig.mini_tree`，均 `depends on OSAL_MINI_OS`）
+### 7.1 Kconfig 暴露面（`Kconfig.mini_tree`，均 `depends on OS_MINI_OS`）
 
 | 选项 | 类型 / 默认 | 说明 |
 | :--- | :--- | :--- |
@@ -208,13 +208,13 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 | `MINI_OS_DEFAULT_IDLE_STACK_SIZE` | int / 256 | idle 线程栈 |
 | `MINI_OS_TIMER_THREAD_STACK_SIZE` | int / 512 | SOFT 定时器服务线程栈（≥最小栈、8 的倍数） |
 | `MINI_OS_TIME_SLICE` | bool / n | 同优先级时间片轮转（默认严格优先级） |
-| `MINI_OS_EVENT` | bool / n | 32 位事件组（`OSAL_EVENT` 默认 select 它） |
+| `MINI_OS_EVENT` | bool / n | 32 位事件组（`（已移除）` 默认 select 它） |
 | `MINI_OS_THREAD_DETACH` | bool / n | detach/join（绑定同一开关，每 TCB 增回收字段） |
 | `MINI_OS_FIND_BY_NAME` | bool / n | 线程/信号量/互斥锁按名注册表 |
 | `MINI_OS_LONG_TIME` | bool / n | 64 位 tick（附加回绕计数器） |
 | `MINI_OS_STACK_OVERFLOW_CHECK` | bool / n | MSP 栈哨兵（需 mini-os-heap.ld） |
 | `MINI_OS_USE_FPU` | bool / y | FPU 上下文保存（仅 CM4F/CM7 可见，硬浮点下不应关） |
-| `MINI_OS_SPINLOCK`(+`_ATOMIC`/`_YIELD`/`_NUM`) | bool / y | header-only 自旋锁（关闭则 osal 退化为关中断兜底）；原子模式仅 SMP |
+| `MINI_OS_SPINLOCK`(+`_ATOMIC`/`_YIELD`/`_NUM`) | bool / y | header-only 自旋锁（关闭则退化为关中断兜底）；原子模式仅 SMP |
 | `ARCH` | (无 prompt) | mini-os 架构 ID（0=M0/M0+ 1=M3 2=M4 3=M7），由 `PLATFORM_ARM_*` 自动派生，**不应手工设置** |
 
 ---
@@ -223,11 +223,11 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 
 ### 8.1 选择后端
 
-`CONFIG_OSAL_MINI_OS=y`（`make menuconfig` 或手改 `.config` 后重配）。约束：
+`CONFIG_OS_MINI_OS=y`（`make menuconfig` 或手改 `.config` 后重配）。约束：
 
 - `depends on !PLATFORM_RISCV && !PLATFORM_ESP32` —— 仅 Cortex-M；
 - `select USB_TUSB_OS_NONE` —— TinyUSB 不跑在 mini-os 上（USB 栈暂无 mini-os 后端）；
-- `OSAL_EVENT`（默认 y）自动 select `MINI_OS_EVENT`。
+- `（已移除）`（默认 y）自动 select `MINI_OS_EVENT`。
 
 ### 8.2 板级接线（必须）
 
@@ -238,20 +238,20 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 | 链接脚本 | `#include` `lib/mini-os/mini-os-heap.ld`，提供 `__mini_os_heap_start` / `__mini_os_heap_end` |
 | 启动流程 | 必须遍历 `.init_array`（GCC/Clang 默认满足）—— 内核依赖构造函数自初始化（堆/注册表/idle/哨兵） |
 
-### 8.3 OSAL 映射要点（`osal/src/osal_mini_os.c`）
+### 8.3 后端映射要点（`core/src/mini_backend_mini_os.c`）
 
 | 主题 | 语义 |
 | :--- | :--- |
-| 优先级 | mini-os 数字越小越优先（同 RT-Thread，**与 FreeRTOS 相反**），OSAL 约定每后端用所属内核原生语义 |
-| 错误码 | `MINI_OS_ERR_*` 在可见 `config.h`/`status.h` 时与 `OSAL_ERR_*` 数值一致，零开销直通；仅 `MINI_OS_ERR_AGAIN` 映射为 `OSAL_ERR_TIMEOUT` |
-| ISR 模式 | `*_isr` 不主动切换；`osal_yield_from_isr()` 转发 `mini_os_schedule_yield_isr()` |
-| 对象池 | 互斥锁/信号量静态内嵌内核对象 + `osal_pool` 槽位池，池临界区用 `mini_os_irq_save/restore` |
-| 调度启动 | `osal_scheduler_start()` 先惰性引导内核（`schedule_init` + idle 线程 + SysTick）再启动调度器 |
-| 调度冻结 | mini-os 无全局挂起 API，`osal_sched_freeze()` 退化为关中断（同 `osal_null` 单向冻结语义） |
+| 优先级 | mini-os 数字越小越优先（同 RT-Thread，**与 FreeRTOS 相反**），统一接口约定每后端用所属内核原生语义 |
+| 错误码 | `MINI_OS_ERR_*` 在可见 `config.h`/`status.h` 时与 `MINI_ERR_*` 数值一致，零开销直通；仅 `MINI_OS_ERR_AGAIN` 映射为 `MINI_ERR_TIMEOUT` |
+| ISR 模式 | `*_isr` 不主动切换；`mini_yield_from_isr()` 转发 `mini_os_schedule_yield_isr()` |
+| 对象池 | 互斥锁/信号量静态内嵌内核对象 + `mini_slot` 槽位池，池临界区用 `mini_os_irq_save/restore` |
+| 调度启动 | `mini_scheduler_start()` 先惰性引导内核（`schedule_init` + idle 线程 + SysTick）再启动调度器 |
+| 调度冻结 | mini-os 无全局挂起 API，`（已移除）()` 退化为关中断（同 `mini_backend_bare` 单向冻结语义） |
 
 ### 8.4 构建方式
 
-根构建经 `lib/CMakeLists.txt` 在 `OSAL_BACKEND=MINI_OS` 分支 `add_subdirectory(lib/mini-os)`；mini-os 自己的 CMakeLists 声明 `project(... C ASM)`（这也是仓库内唯一不依赖根工程启用 ASM 的内核库，对比：rtthread 曾因缺 `enable_language(ASM)` 丢弃 `context_gcc.S`，已修复）。事件组源文件按 `.config` 的 `CONFIG_MINI_OS_EVENT`/`CONFIG_OSAL_EVENT` 条件编入，关闭时连对象文件都不产生。
+根构建经 `lib/CMakeLists.txt` 在 `OS_BACKEND=MINI_OS` 分支 `add_subdirectory(lib/mini-os)`；mini-os 自己的 CMakeLists 声明 `project(... C ASM)`（这也是仓库内唯一不依赖根工程启用 ASM 的内核库，对比：rtthread 曾因缺 `enable_language(ASM)` 丢弃 `context_gcc.S`，已修复）。事件组源文件按 `.config` 的 `CONFIG_MINI_OS_EVENT`/`CONFIG_MINI_OS_EVENT` 条件编入，关闭时连对象文件都不产生。
 
 ---
 
@@ -287,7 +287,7 @@ cmake --build --preset Debug
 ## 相关文档
 
 - [memory_footprint.md](memory_footprint.md) —— 四后端内存基准（§4）
-- [osal_switching.md](osal_switching.md) —— OSAL 后端切换与语义差异
+- [backend_switching.md](backend_switching.md) —— OS 后端切换与语义差异
 - [fast_path.md](fast_path.md) —— HARD 定时器 / ISR 回调红线
 - [patterns.md](patterns.md) —— mini_tree 关键机制（xtask/时间片等裸机侧对照）
 - `lib/mini-os/README.md` —— 内核官方特性清单与三层配置说明

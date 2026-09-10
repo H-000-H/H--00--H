@@ -112,7 +112,6 @@ target_include_directories(board
 
 target_link_libraries(board
     PUBLIC
-        osal
         core
 )
 

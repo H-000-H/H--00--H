@@ -1,18 +1,18 @@
 # mini_tree
 
 > 平台无关的嵌入式中间件
-> 采用 Linux 风格设备树与驱动模型，统一裸机 (Bare-Metal)、mini-os、FreeRTOS、RT-Thread 的外设访问接口；零厂商 SDK 绑定 —— 芯片 HAL、引脚复用及板级 DTS 完全由您的平台工程提供。
+> 采用 Linux 风格设备树与驱动模型，为裸机 (Bare-Metal)、mini-os、FreeRTOS、RT-Thread 提供一致的外设访问，OS 层不强制抽象（上层走各内核原生 API）；零厂商 SDK 绑定 —— 芯片 HAL、引脚复用及板级 DTS 完全由您的平台工程提供。
 
 > Platform-agnostic embedded middleware
-> Using a Linux-style Device Tree & Driver Model to unify peripheral access across Bare-Metal, mini-os, FreeRTOS, and RT-Thread; zero vendor SDK lock-in — chip HAL, pinmux, and board DTS are entirely supplied by your platform project.
+> Using a Linux-style Device Tree & Driver Model to provide consistent peripheral access across Bare-Metal, mini-os, FreeRTOS, and RT-Thread; no forced OS abstraction (upper layers use each kernel's native API); zero vendor SDK lock-in — chip HAL, pinmux, and board DTS are entirely supplied by your platform project.
 
 ---
 
 ## 概述 / Overview
 
-mini_tree 是一个平台无关的嵌入式中间件，采用 Linux 风格设备树与驱动模型，统一裸机 (Bare-Metal)、mini-os、FreeRTOS、RT-Thread 的外设访问接口。零厂商 SDK 绑定 —— 芯片 HAL、引脚复用及板级 DTS 完全由您的平台工程提供。
+mini_tree 是一个平台无关的嵌入式中间件，采用 Linux 风格设备树与驱动模型，为裸机 (Bare-Metal)、mini-os、FreeRTOS、RT-Thread 提供一致的外设访问，OS 层不强制抽象（上层走各内核原生 API）。零厂商 SDK 绑定 —— 芯片 HAL、引脚复用及板级 DTS 完全由您的平台工程提供。
 
-mini_tree is a platform-agnostic embedded middleware using a Linux-style Device Tree & Driver Model to unify peripheral access across Bare-Metal, mini-os, FreeRTOS, and RT-Thread. Zero vendor SDK lock-in — chip HAL, pinmux, and board DTS are entirely supplied by your platform project.
+mini_tree is a platform-agnostic embedded middleware using a Linux-style Device Tree & Driver Model to provide consistent peripheral access across Bare-Metal, mini-os, FreeRTOS, and RT-Thread; no forced OS abstraction (upper layers use each kernel's native API). Zero vendor SDK lock-in — chip HAL, pinmux, and board DTS are entirely supplied by your platform project.
 
 ---
 
@@ -52,18 +52,18 @@ mini_tree is a platform-agnostic embedded middleware using a Linux-style Device 
 
 ---
 
-## OSAL — 一套 API，四种后端 / One API, Four Backends
+## 统一后端接口 — 一套 API，四种后端 / Unified Backend Interface — One API, Four Backends
 
 | 后端 / Backend | 模型 / Model | 依赖 / Dependency |
 |:---|:---|:---|
-| `CONFIG_OSAL_NULL` | 协作式时间片 / 抢占式（裸机）/ Cooperative Time-Slice / Preemptive (bare-metal) | 无 / None |
-| `CONFIG_OSAL_MINI_OS` | 抢占式（仅 Cortex-M）/ Preemptive (Cortex-M only) | `lib/mini-os`（自研，freestanding / in-tree, freestanding） |
-| `CONFIG_OSAL_FREERTOS` | 抢占式 / Preemptive | FreeRTOS v11.3.0 |
-| `CONFIG_OSAL_RTTHREAD` | 抢占式 / Preemptive | RT-Thread v5.3.0 |
+| `CONFIG_OS_BARE` | 协作式时间片 / 抢占式（裸机）/ Cooperative Time-Slice / Preemptive (bare-metal) | 无 / None |
+| `CONFIG_OS_MINI_OS` | 抢占式（仅 Cortex-M）/ Preemptive (Cortex-M only) | `lib/mini-os`（自研，freestanding / in-tree, freestanding） |
+| `CONFIG_OS_FREERTOS` | 抢占式 / Preemptive | FreeRTOS v11.3.0 |
+| `CONFIG_OS_RTTHREAD` | 抢占式 / Preemptive | RT-Thread v5.3.0 |
 
-裸机后端 (`CONFIG_OSAL_NULL`) 从 `Kconfig.mini_tree` "裸机调度器" 选择中选取一种调度器（`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`，默认 `XTASK_COOP`）。两种实现共享同一套 `xtask.h` API 表面，且在 CMake (`MINI_TREE_XTASK_*`) 和 `#ifdef` 层面互斥 —— 调用方代码透明切换：
+裸机后端 (`CONFIG_OS_BARE`) 从 `Kconfig.mini_tree` "裸机调度器" 选择中选取一种调度器（`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`，默认 `XTASK_COOP`）。两种实现共享同一套 `xtask.h` API 表面，且在 CMake (`MINI_TREE_XTASK_*`) 和 `#ifdef` 层面互斥 —— 调用方代码透明切换：
 
-The bare-metal backend (`CONFIG_OSAL_NULL`) picks one scheduler from the `Kconfig.mini_tree` "bare-metal scheduler" choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`, default `XTASK_COOP`). Both implementations share the same `xtask.h` API surface and are mutually exclusive at both CMake (`MINI_TREE_XTASK_*`) and `#ifdef` level — caller code switches transparently:
+The bare-metal backend (`CONFIG_OS_BARE`) picks one scheduler from the `Kconfig.mini_tree` "bare-metal scheduler" choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`, default `XTASK_COOP`). Both implementations share the same `xtask.h` API surface and are mutually exclusive at both CMake (`MINI_TREE_XTASK_*`) and `#ifdef` level — caller code switches transparently:
 
 - `XTASK_NONE` — 无调度器；自行编写 `while(1)` 循环 / no scheduler; write your own `while(1)` loop
 - `xtask_coop.c`（协作式 / 轮转，默认）/ (cooperative / round-robin, default) — `XTASK_COOP`
@@ -75,7 +75,7 @@ The bare-metal backend (`CONFIG_OSAL_NULL`) picks one scheduler from the `Kconfi
 
 - **EventBus** — 范围订阅，ISR 安全投递，启动后密封。/ Range subscription, ISR-safe post, seal-after-boot.
 - **VIRQ** — 虚拟中断块，上半部 / 下半部（SPSC 延迟队列）。/ Virtual IRQ blocks, top-half / bottom-half (SPSC deferred queue).
-- **BufferPool** — 池化静态分配器；环形 FIFO 与双缓冲。/ Pooled static allocator; ring FIFO & double buffer.
+- **Buffer（fifo_spsc / double_buffer）** — 无锁 SPSC 环形 FIFO 与双缓冲。/ Lock-free SPSC ring FIFO & double buffer.
 - **Safe State** — 关机回调、看门狗、Flash 校验器（可选积木）。/ Shutdown callbacks, watchdogs, flash scrubber (optional brick).
 - **Production Log** — 黑匣子故障记录，用于现场诊断。/ Black-box fault recording for field diagnostics.
 

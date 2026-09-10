@@ -2,7 +2,7 @@
 /*
  * task_manager.cpp — TaskManager 任务创建实现
  *
- * 调用 osal_task_create_handle 创建任务, 失败返回 nullptr
+ * 调用 mini_task_create_handle 创建任务, 失败返回 nullptr
  * 任务创建成功后自动 system_wdt_subscribe 订阅 TWDT
  * 暴露 C 链接 task_manager_create / task_manager_create_task 供纯 C 调用
  */
@@ -16,7 +16,7 @@
 
 static constexpr const char* k_tag = "TaskManager";
 
-osal_task_handle_t TaskManager::create(const struct board_task_config& config, TaskEntry entry,
+mini_task_handle_t TaskManager::create(const struct board_task_config& config, TaskEntry entry,
                                        void* param)
 {
     if (entry == nullptr)
@@ -25,8 +25,8 @@ osal_task_handle_t TaskManager::create(const struct board_task_config& config, T
         return nullptr;
     }
 
-    osal_task_handle_t handle = nullptr;
-    int ret = osal_task_create_handle(config.name, config.stack_size, config.priority, entry, param,
+    mini_task_handle_t handle = nullptr;
+    int ret = mini_task_create_handle(config.name, config.stack_size, config.priority, entry, param,
                                       config.core_id, &handle);
     if (ret != 0)
     {
@@ -40,7 +40,7 @@ osal_task_handle_t TaskManager::create(const struct board_task_config& config, T
     return handle;
 }
 
-osal_task_handle_t TaskManager::create_task(const char* name, uint32_t stack_size,
+mini_task_handle_t TaskManager::create_task(const char* name, uint32_t stack_size,
                                             uint32_t priority, TaskEntry entry, void* param,
                                             int core_id)
 {
@@ -52,7 +52,7 @@ osal_task_handle_t TaskManager::create_task(const char* name, uint32_t stack_siz
     return create(cfg, entry, param);
 }
 
-extern "C" osal_task_handle_t task_manager_create(const struct board_task_config* config,
+extern "C" mini_task_handle_t task_manager_create(const struct board_task_config* config,
                                                   void (*entry)(void*), void* param)
 {
     if (!config || !entry)
@@ -60,7 +60,7 @@ extern "C" osal_task_handle_t task_manager_create(const struct board_task_config
     return TaskManager::create(*config, entry, param);
 }
 
-extern "C" osal_task_handle_t task_manager_create_task(const char* name, uint32_t stack_size,
+extern "C" mini_task_handle_t task_manager_create_task(const char* name, uint32_t stack_size,
                                                        uint32_t priority, void (*entry)(void*),
                                                        void* param, int core_id)
 {

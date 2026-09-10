@@ -14,19 +14,24 @@
  *   mini_tree_pre_os_init();
  *   board_register_all_drivers();
  *   mini_tree_start_tasks();
- * #ifdef CONFIG_OSAL_NULL
+ * #ifdef CONFIG_OS_BARE
  *   xscheduler_start();
  *   system_init_complete();
  *   while (1) { mini_tree_system_loop(); }   // 裸机
- * #elif defined(CONFIG_OSAL_FREERTOS)
+ * #elif defined(CONFIG_OS_FREERTOS)
  *   system_init_complete();
  *   vTaskStartScheduler();                   // FreeRTOS
- * #elif defined(CONFIG_OSAL_RTTHREAD)
+ * #elif defined(CONFIG_OS_RTTHREAD)
  *   system_init_complete();
  *   rt_system_scheduler_start();             // RT-Thread
  * #endif
  *
- * 业务任务请走 osal_task_create / osal_task_create_handle.
+ * 业务任务请走 mini_task_create_handle (裸机下返回 MINI_ERR_NOTSUPP:
+ * 裸机任务由 xtask 的 x_scheduler_task_create 承担, 是周期回调模型而非线程入口).
+ *
+ * 注: 上面的启动时序里 mini-os 后端是
+ *   mini_scheduler_start();   // OS 后端启动内核调度器
+ * (OS 后端独有; 裸机仍用 xscheduler_start()).
  */
 
 #ifdef __cplusplus

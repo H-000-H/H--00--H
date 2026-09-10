@@ -6,7 +6,7 @@
 | :--- | :--- |
 | **Audience** | Engineers writing drivers, applications, or modifying the middleware |
 | **Prerequisites** | Read [architecture.md](architecture.md) (layering and boot sequence) |
-| **Related** | [fast_path.md](fast_path.md) (red lines) · [osal_switching.md](osal_switching.md) (OSAL backend switching) · [driver_guide.md](driver_guide.md) (driver authoring) · [runtime_services.md](runtime_services.md) |
+| **Related** | [fast_path.md](fast_path.md) (red lines) · [backend_switching.md](backend_switching.md) (OS backend switching) · [driver_guide.md](driver_guide.md) (driver authoring) · [runtime_services.md](runtime_services.md) |
 
 ---
 
@@ -40,11 +40,11 @@
 | `170` | `interrupt/interrupt.c` | Global bottom-half poller (FIFO + pending_drain) |
 | `161` | `time_slice/task/xtask_preempt.c` | N+1 preemptive scheduler (grouped priority + CLZ lookup, delayable/sleepable/preemptible, precise WFI when idle) |
 | `160` | `time_slice/task/xtask_coop.c` | Cooperative scheduler `g_scheduler` (default) |
-| `152` | `osal/src/osal_null.c` | Bare-metal queue pool |
-| `151` | `osal/src/osal_null.c` | Bare-metal semaphore pool |
-| `150` | `osal/src/osal_null.c` | Bare-metal mutex pool |
+| `152` | `core/src/mini_backend_bare.c` | Bare-metal queue pool |
+| `151` | `core/src/mini_backend_bare.c` | Bare-metal semaphore pool |
+| `150` | `core/src/mini_backend_bare.c` | Bare-metal mutex pool |
 
-**Design intent**: pools, tables, and queues are ready before any business code touches them; the "larger number runs earlier" rule gives a natural dependency order (poller > scheduler > OSAL pools).
+**Design intent**: pools, tables, and queues are ready before any business code touches them; the "larger number runs earlier" rule gives a natural dependency order (poller > scheduler > the unified interface pools).
 
 ### Common Pitfalls
 
@@ -71,15 +71,15 @@ The C++ side (`mini_tree::system_pre_os_init()` / `system_start_tasks()`) mirror
 
 ### Why the Order Is Fixed
 
-1. **`device_tree_init` must precede every device access**: the runtime instance tables (`device` / recursive mutex pool / `dev_lifecycle`) are static arrays, but each lock must be created via `osal_mutex_create_static_recursive`; nothing may touch `device_*` before that.
+1. **`device_tree_init` must precede every device access**: the runtime instance tables (`device` / recursive mutex pool / `dev_lifecycle`) are static arrays, but each lock must be created via `mini_mutex_create_static_recursive`; nothing may touch `device_*` before that.
 2. **Stage 1 must disable global interrupts**: during probe, `device_open` genuinely enables peripheral interrupts (NVIC), while VIRQ tables / bottom-half work may not be fully registered yet. Interrupts stay off until every ISR dependency is ready; `system_init_complete()` releases them uniformly.
 3. **EventBus must exist first**: failed probe paths call `device_ops_unregister` → `event_bus_post(EVENT_SYS_DEVICE_REMOVED, ...)`; the event queue must already exist.
-4. **Probe is in stage 2, not stage 1**: probe opens devices, logs, and on failure triggers `OSAL_PANIC` per criticality (needs `printf_output` and safe_state ready); those dependencies are only complete at the end of stage 1.
+4. **Probe is in stage 2, not stage 1**: probe opens devices, logs, and on failure triggers `MINI_PANIC` per criticality (needs `printf_output` and safe_state ready); those dependencies are only complete at the end of stage 1.
 5. **Interrupts enable before the scheduler starts**: on RTOS paths, interrupts are re-enabled before `vTaskStartScheduler` so that interrupts firing at scheduler startup have a task context to land in.
 
 ### Common Pitfalls
 
-- Calling `osal_delay_ms` between stages 1-2 (while global interrupts are off) depends on the tick interrupt and will hang - the `osal_null` backend has a tick-hang detector (§4), but RTOS backends do not.
+- Calling `mini_delay_ms` between stages 1-2 (while global interrupts are off) depends on the tick interrupt and will hang - the `mini_backend_bare` backend has a tick-hang detector (§4), but RTOS backends do not.
 - Do not probe devices inside stage 1: the logging/safety subsystems that `board_driver_probe_all` relies on are not initialized yet.
 
 ---
@@ -111,7 +111,7 @@ Key points:
 
 - **Zero strcmp at runtime**: the compatible string maps to a function pointer at compile time; runtime only looks up the table.
 - **3-pass deferred probe**: `board_driver_probe_all` runs at most 3 passes; a driver returning `MINI_ERR_DEFER` (phandle dependency not ready) is retried next pass; if `deferred` stops shrinking it is a **stall**, and the stuck devices are permanently set to `DEVICE_STATUS_DISABLED`.
-- **Failure grading** (`handle_probe_failure`): `DEVICE_CRIT_FATAL` → `OSAL_PANIC` safe shutdown; `DEVICE_CRIT_WARNING` → warn; `DEVICE_CRIT_IGNORE` → silent. Devices depending on a failed one are cascaded-disabled via `disable_dependents`.
+- **Failure grading** (`handle_probe_failure`): `DEVICE_CRIT_FATAL` → `MINI_PANIC` safe shutdown; `DEVICE_CRIT_WARNING` → warn; `DEVICE_CRIT_IGNORE` → silent. Devices depending on a failed one are cascaded-disabled via `disable_dependents`.
 - Drivers for unnamed nodes are silently disabled; named nodes without a driver are graded by criticality.
 
 ### Why Compile-Time Rather Than Runtime
@@ -132,7 +132,7 @@ Key points:
 
 ### Mechanism
 
-On the bare-metal backend (`CONFIG_OSAL_NULL`), the whole system has exactly one time source: `x_scheduler.tick_count`. `xscheduler_start()` selects the tick source in two levels — "chosen override first, else SysTick by default":
+On the bare-metal backend (`CONFIG_OS_BARE`), the whole system has exactly one time source: `x_scheduler.tick_count`. `xscheduler_start()` selects the tick source in two levels — "chosen override first, else SysTick by default":
 
 ```text
 ① DTS explicitly sets chosen TIM (CHOSEN_SCHEDULER_TIM) → explicit override, generic TIM + VIRQ
@@ -144,7 +144,7 @@ On the bare-metal backend (`CONFIG_OSAL_NULL`), the whole system has exactly one
   → SysTick_Handler → hal_systick_irq_handler() + x_scheduler_tick(+tick_delay)  ← ISR only, nothing else
 
 Non-ARM (RISC-V) has no SysTick; hal_systick_init returns NOTSUPP, so RISC-V boards must set chosen in DTS.
-→ osal_time_ms() reads g_scheduler.tick_count directly                 ← one global clock
+→ mini_time_ms() reads g_scheduler.tick_count directly                 ← one global clock
 ```
 
 Task model (`time_slice/task/xtask.h`):
@@ -157,8 +157,8 @@ Task model (`time_slice/task/xtask.h`):
 
 - **Fixed time base, no drift**: `next_running = now + period` means callback execution time is not counted into the next period - no cumulative drift.
 - **`is_running` is a re-entry guard, not an enable switch**: the comment states "only enters when not running", preventing a task re-entering from within its own callback; it is reset whether or not the task expired, so an un-expired branch cannot leave the task stuck as running.
-- **Single global time base**: bare-metal `osal_time_ms()`, `osal_delay_ms()`, scheduler ticks, and bottom-half polling all share `g_scheduler.tick_count`; after switching to an RTOS, `osal_time_ms()` swaps to the RTOS tick with zero application changes.
-- **Bare-metal delay has a deadlock backstop**: `osal_delay_ms` uses WFI busy-wait plus a tick-hang detector (breaks out after 10000 consecutive ticks without progress), preventing a hard deadlock if the time base never starts.
+- **Single global time base**: bare-metal `mini_time_ms()`, `mini_delay_ms()`, scheduler ticks, and bottom-half polling all share `g_scheduler.tick_count`; after switching to an RTOS, `mini_time_ms()` swaps to the RTOS tick with zero application changes.
+- **Bare-metal delay has a deadlock backstop**: `mini_delay_ms` uses WFI busy-wait plus a tick-hang detector (breaks out after 10000 consecutive ticks without progress), preventing a hard deadlock if the time base never starts.
 
 ### Task Periods and Time Budget
 
@@ -175,7 +175,7 @@ Under cooperative scheduling all callbacks run **serially**, so this must hold:
 | 20 ms | ≤ 5 ms | state-machine advancement, protocol polling |
 | 100 ms | ≤ 20 ms | slow peripheral scans, watchdog feeding |
 
-When over budget, prefer in order: shorten blocking inside the callback (use a state machine, §8) → split tasks → move to `CONFIG_OSAL_FREERTOS` preemption (see `osal_switching.md`) or the bare-metal preemptive `xtask_preempt.c` (`XTASK_PREEMPT`, N+1 multi-priority, finished & compilable).
+When over budget, prefer in order: shorten blocking inside the callback (use a state machine, §8) → split tasks → move to `CONFIG_OS_FREERTOS` preemption (see `backend_switching.md`) or the bare-metal preemptive `xtask_preempt.c` (`XTASK_PREEMPT`, N+1 multi-priority, finished & compilable).
 
 ### protothread coroutine delays (PT_DELAY)
 
@@ -210,14 +210,14 @@ static x_task s_led_task;
 ```
 
 Key points:
-- Do **not** use `osal_delay_ms` (busy-wait, blocks the whole system) inside a callback; use `PT_DELAY(task, ms)` to yield instead.
+- Do **not** use `mini_delay_ms` (busy-wait, blocks the whole system) inside a callback; use `PT_DELAY(task, ms)` to yield instead.
 - `PT_WAIT_UNTIL(task, cond)` / `PT_YIELD(task)` provide conditional waits / per-frame yields.
 - Both schedulers (coop/preempt) check `pt_line` after the callback returns: non-zero means the coroutine is suspended and the deadline set by `PT_DELAY` is kept; zero means the next round advances by `period`.
 - Backward compatible: plain callbacks without PT macros behave exactly as before.
 
 ### Common Pitfalls
 
-- Calling `osal_delay_ms` (busy-wait) inside a callback stalls all periodic tasks; only allowed during initialization or for short timing; use `PT_DELAY` for in-callback delays (see the protothread section above).
+- Calling `mini_delay_ms` (busy-wait) inside a callback stalls all periodic tasks; only allowed during initialization or for short timing; use `PT_DELAY` for in-callback delays (see the protothread section above).
 - Callbacks must return quickly; no `while(1)` loops inside.
 - `xscheduler_start()` must be called after `mini_tree_start_tasks()` (the comment states: VFS devices must be probed).
 
@@ -255,8 +255,8 @@ Two consumer adapters:
 
 | Path | Structure | Wake-up |
 | :--- | :--- | :--- |
-| Bare-metal (`CONFIG_OSAL_NULL`) | `bottom_half_poller`: fifo + `pending_drain` flag | main loop `interrupt_bottom_half_poll()`; ISR sets the flag, the main loop clears it before `run_pending` so a new ISR re-sets it - no lost wake-ups |
-| RTOS | `bottom_half_task`: fifo + binary semaphore | dedicated task blocks on `osal_sem_wait`, ISR posts `post_from_isr` |
+| Bare-metal (`CONFIG_OS_BARE`) | `bottom_half_poller`: fifo + `pending_drain` flag | main loop `interrupt_bottom_half_poll()`; ISR sets the flag, the main loop clears it before `run_pending` so a new ISR re-sets it - no lost wake-ups |
+| RTOS | `bottom_half_task`: fifo + binary semaphore | dedicated task blocks on `mini_sem_wait`, ISR posts `post_from_isr` |
 
 ### The Full Pattern (how to do long work in ISRs)
 
@@ -277,7 +277,7 @@ Main loop / bottom_half_task (bottom half, may be heavy)
 
 ### Common Pitfalls
 
-- No `osal_mutex_lock` inside ISRs (returns `OSAL_ERR_ISR`); use `osal_spinlock` for critical sections.
+- No `mini_mutex_lock` inside ISRs (returns `MINI_ERR_ISR`); use `mini_critical` for critical sections.
 - `bottom_half_run_pending` must be called in thread context; calling it inside an ISR returns immediately.
 - A full FIFO makes submit return false and the work is dropped - size `BOTTOM_HALF_QUEUE_DEPTH` (power of two) against the worst-case interrupt rate.
 
@@ -317,7 +317,7 @@ Read/write separation with swap switching: **DMA capture runs in parallel with C
 
 ### Common Pitfalls
 
-- **Violating SPSC is undefined behavior**: multiple producers lose data / break ordering; multiple consumers double-consume. For multi-producer/multi-consumer use OSAL queues (locked).
+- **Violating SPSC is undefined behavior**: multiple producers lose data / break ordering; multiple consumers double-consume. For multi-producer/multi-consumer use the unified interface queues (locked).
 - `fifo_init` requires `size` to be a power of two (`(size & (size-1)) != 0` is rejected); wrong values return `BUFF_ERR_INVAL`.
 - `fifo_data_type` is `uintptr_t`: it can hold 16-bit ADC samples or bottom-half work pointers (`interrupt.h` reuses it exactly that way).
 - All buffer-family APIs return `BUFF_*` error codes (a self-contained set wrapping errno: `BUFF_OK` / `BUFF_ERR_INVAL` / `BUFF_ERR_FULL` / `BUFF_ERR_EMPTY`); length results come back through pointer arguments.
@@ -339,7 +339,7 @@ state       UNINITIALIZED → LIVE → REMOVING → (RESET)
 
 - `open_begin` / `io_begin`: CAS loop increments; rejects immediately on `-1` (teardown locked) or non-`LIVE`.
 - `remove_drain` (teardown drain, two-phase CAS):
-  1. CAS `opens` 0→`-1` (`DEV_LC_LOCKED`); on failure (an open is still in flight) retry after `osal_delay_ms(1)` until it settles at zero;
+  1. CAS `opens` 0→`-1` (`DEV_LC_LOCKED`); on failure (an open is still in flight) retry after `mini_delay_ms(1)` until it settles at zero;
   2. **once locked, `opens` stays `-1` and is never rolled back**; under the `state == REMOVING` gate, keep CAS-ing `io_active` 0→`-1` until it drains (failure only retries io_active).
 - Design intent (source comment): state-machine gating (`state == REMOVING` is a precondition for entering drain; meanwhile both `open_begin`/`io_begin` check `state == LIVE`, so new counts do not arrive) + monotonic lock (opens never rolls back to 0, avoiding the transient-exposure window) + memory ordering (ACQUIRE/RELEASE/ACQ_REL) + no-ABA consideration (`-1` is only reset by `remove_finish`; monotonic operations usually do not reproduce the same value). When drain exits, both counters are stably `-1`, and concurrent open/io seeing `-1` are rejected. This logic relies on code review and is not formally verified.
 
@@ -348,7 +348,7 @@ state       UNINITIALIZED → LIVE → REMOVING → (RESET)
 ```c
 dev_lc_remove_start(device_lc(pdev));      // state → REMOVING
 device_ops_unregister(pdev);               // REMOVED + broadcast EVENT_SYS_DEVICE_REMOVED + clear ops under lock (TOCTOU guard)
-dev_lc_remove_drain(device_lc(pdev), OSAL_WAIT_FOREVER);  // atomic polling, no lock held
+dev_lc_remove_drain(device_lc(pdev), MINI_WAIT_FOREVER);  // atomic polling, no lock held
 ... teardown ...
 dev_lc_remove_finish(device_lc(pdev));     // RESET
 ```
@@ -360,7 +360,7 @@ dev_lc_remove_finish(device_lc(pdev));     // RESET
 
 ### Common Pitfalls
 
-- `remove_drain` returns `MINI_ERR_TIMEOUT` on timeout; with `OSAL_WAIT_FOREVER` a never-released open waits forever - business code must pair open/io.
+- `remove_drain` returns `MINI_ERR_TIMEOUT` on timeout; with `MINI_WAIT_FOREVER` a never-released open waits forever - business code must pair open/io.
 - `dev_lc_open_begin` return semantics: 1 on first open, 0 on repeated open, negative error on failure - do not treat "repeated open" as an error.
 
 ---
@@ -369,7 +369,7 @@ dev_lc_remove_finish(device_lc(pdev));     // RESET
 
 ### Background
 
-On the bare-metal backend (`CONFIG_OSAL_NULL`), `osal_task_create` returns `OSAL_ERR_NOTSUPP` - **bare metal has no OS tasks**. The `osal_null.c` header comment is explicit:
+On the bare-metal backend (`CONFIG_OS_BARE`), `mini_task_create` returns `MINI_ERR_NOTSUPP` - **bare metal has no OS tasks**. The `mini_backend_bare.c` header comment is explicit:
 
 > Complex tasks must use state machines and task switching (just use an OS for daily work unless memory-constrained or requiring extremely high efficiency).
 
@@ -393,10 +393,10 @@ void my_task_cb(x_task* t)          /* registered to xtask, period 5 ms */
     {
     case S_IDLE:
         st = S_WAIT_DELAY;
-        t_start = osal_time_ms();
+        t_start = mini_time_ms();
         break;
     case S_WAIT_DELAY:
-        if ((osal_time_ms() - t_start) >= 500U)   /* unsigned subtract, wrap-safe */
+        if ((mini_time_ms() - t_start) >= 500U)   /* unsigned subtract, wrap-safe */
             st = S_DONE;
         break;
     case S_DONE:
@@ -409,17 +409,17 @@ void my_task_cb(x_task* t)          /* registered to xtask, period 5 ms */
 
 Key points:
 
-- **Use `osal_time_ms()` timestamps and poll**; do not block with `osal_delay_ms` - the callback never blocks and other periodic tasks are unaffected.
+- **Use `mini_time_ms()` timestamps and poll**; do not block with `mini_delay_ms` - the callback never blocks and other periodic tasks are unaffected.
 - `(now - start)` uses unsigned subtraction, **handling uint32 wrap naturally** (no breakage after 49.7 days).
 - Break complex tasks into multiple states, advancing a little each period; this also satisfies the §4 time budget.
 
 ### Difference on RTOS Backends
 
-After switching to `CONFIG_OSAL_FREERTOS` / `RTTHREAD`, `osal_delay_ms` is **real sleep** (task suspended, CPU released) and blocking is fine; the same state-machine code runs on both bare metal and RTOS - a portable lowest-common-denominator style.
+After switching to `CONFIG_OS_FREERTOS` / `RTTHREAD`, `mini_delay_ms` is **real sleep** (task suspended, CPU released) and blocking is fine; the same state-machine code runs on both bare metal and RTOS - a portable lowest-common-denominator style.
 
 ### Common Pitfalls
 
-- Busy-waiting `osal_delay_ms` inside an ISR or tick callback on bare metal - stalls the whole time base.
+- Busy-waiting `mini_delay_ms` inside an ISR or tick callback on bare metal - stalls the whole time base.
 - Forgetting to reset the state at the terminal state - the task runs once and then spins forever.
 - Do not use `volatile` for state variables - periodic tasks run serially on the same thread; plain `static` is enough.
 
@@ -428,5 +428,5 @@ After switching to `CONFIG_OSAL_FREERTOS` / `RTTHREAD`, `osal_delay_ms` is **rea
 ## Related Documents
 
 - [architecture.md](architecture.md) (layering and boot sequence) · [fast_path.md](fast_path.md) (ISR/hot-path red lines)
-- [osal_switching.md](osal_switching.md) (OSAL backend switching) · [driver_guide.md](driver_guide.md) (driver authoring and remove lifecycle)
-- [runtime_services.md](runtime_services.md) (EventBus / VIRQ / BufferPool) · [design_decisions.md](design_decisions.md) (design rationale)
+- [backend_switching.md](backend_switching.md) (OS backend switching) · [driver_guide.md](driver_guide.md) (driver authoring and remove lifecycle)
+- [runtime_services.md](runtime_services.md) (EventBus / VIRQ / Buffer) · [design_decisions.md](design_decisions.md) (design rationale)

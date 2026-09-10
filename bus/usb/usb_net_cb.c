@@ -13,8 +13,8 @@
  *      - 接收缓冲静态分配且 4 字节对齐, 帧宽 sizeof(帧) 为 4 的倍数, 逐槽对齐成立。
  *   3. 回调传参：
  *      - 利用 tud_network_xmit 传递上下文参数，消除全局状态耦合。
- *   注意: 本文件不 include system_log.h, 避免引入 mini_tree 的 osal.h
- *   与 TinyUSB 的 osal/osal.h (guard 不同名) 在同一编译单元冲突。
+ *   注意: 本文件不 include system_log.h (保持与 TinyUSB 头的编译单元隔离,
+ *   TinyUSB 自带 osal.h, 曾与本仓同名头冲突)。
  */
 #include "buffer.h"
 #include "class/net/net_device.h"
@@ -27,8 +27,9 @@
 #include <stdint.h>
 #include <string.h>
 
-extern uint32_t osal_time_ms(void);
-extern void     osal_delay_ms(uint32_t ms);
+/* 时间接口: 本文件刻意不 include system_log.h (见文件头说明),
+ * 故直接引用与后端无关的 mini_time.h。 */
+#include "mini_time.h"
 
 /** @brief 接收队列深度 必须为 2 的幂次 */
 #ifndef CONFIG_USB_NET_DEPTH
@@ -117,17 +118,17 @@ int usb_net_frame_push_tx(const void* frame, size_t len)
     if (!frame || len == 0U || len > (size_t)CFG_TUD_NET_MTU)
         return MINI_ERR_INVAL;
 
-    start_time = osal_time_ms();
+    start_time = mini_time_ms();
 
     /* 等待 USB 枚举就绪且硬件端点可发 */
     while (!tud_ready() || !tud_network_can_xmit((uint16_t)len))
     {
-        if ((osal_time_ms() - start_time) > USB_NET_TX_TIMEOUT_MS)
+        if ((mini_time_ms() - start_time) > USB_NET_TX_TIMEOUT_MS)
             return MINI_ERR_TIMEOUT;
 #if defined(NO_SYS) && (NO_SYS == 1)
         usb_tusb_task();
 #else
-        osal_delay_ms(1);
+        mini_delay_ms(1);
 #endif
     }
     /* 发送到缓存并通过参数直接传递至回调函数 */

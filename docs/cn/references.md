@@ -19,13 +19,13 @@
 
 ---
 
-## 2. RTOS 与 OSAL
+## 2. RTOS 与统一接口
 
 | 资源 | 说明 |
 | :--- | :--- |
-| FreeRTOS 官方文档 | `CONFIG_OSAL_FREERTOS` 后端参考 |
-| RT-Thread 官方文档 | `CONFIG_OSAL_RTTHREAD` 后端参考 |
-| OSAL 四后端设计 | `osal/src/osal_{null,mini_os,freertos,rtthread}.c` |
+| FreeRTOS 官方文档 | `CONFIG_OS_FREERTOS` 后端参考 |
+| RT-Thread 官方文档 | `CONFIG_OS_RTTHREAD` 后端参考 |
+| OS 四后端设计 | `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` |
 
 ---
 

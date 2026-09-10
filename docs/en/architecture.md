@@ -30,7 +30,7 @@ Layer topology (top-down calls; horizontal bands are base capabilities):
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Application / 平台业务                                       │
-│   device_open/read/write/ioctl · EventBus · osal_task_*     │
+│   device_open/read/write/ioctl · EventBus · mini_task_*     │
 └────────────────────────────┬────────────────────────────────┘
                              │
 ┌────────────────────────────▼────────────────────────────────┐
@@ -55,7 +55,7 @@ Layer topology (top-down calls; horizontal bands are base capabilities):
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Horizontal: core · osal · interrupt · system_c|cpp · time_slice · can_hook · net · ui · tools
+Horizontal: core · interrupt · system_c|cpp · time_slice · can_hook · net · ui · tools
 
 ### 1.1 Inter-Layer Contracts
 
@@ -80,16 +80,16 @@ In the DTSI, `#include <vendor_header>` → expanded by `cpp` → properties bec
 | `vfs/` | drivers bound by compatible | `vfs_spi_probe`, uart/can/usb… |
 | `bus/` | controller host + client sessions | `spi_bus_open`, `can_bus_transmit` |
 | `hal/` | abstract register operations | `hal_gpio_fast_set_level`, `hal_uart_write` |
-| `core/` | error codes, compat macros, events, buffer pools, logging | `MINI_ERR_*`, `event_bus_*` |
-| `osal/` | locks, queues, tasks, time | `osal_mutex_lock` |
+| `core/` | error codes, compat macros, events, logging | `MINI_ERR_*`, `event_bus_*` |
+| `core/` | locks, queues, tasks, time | `mini_mutex_lock` |
 | `interrupt/` | VIRQ, top/bottom halves | `interrupt_virtual_dispatch` |
 | `system_c` / `system_cpp` | startup, WDT, scrubber, safe_state | `mini_tree_pre_os_init` / `mini_tree::system_pre_os_init` |
-| `time_slice/` | bare-metal scheduling — selected by the `Kconfig.mini_tree` tri-state choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`); cooperative (`xtask_coop.c`, default) and preemptive (`xtask_preempt.c`, N+1 multi-priority) are mutually exclusive, sharing `xtask.h` API; dual-gated by CMake (`MINI_TREE_XTASK_*`) + `#ifdef`; only used under `OSAL_NULL` | `x_scheduler` / `x_task` |
+| `time_slice/` | bare-metal scheduling — selected by the `Kconfig.mini_tree` tri-state choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`); cooperative (`xtask_coop.c`, default) and preemptive (`xtask_preempt.c`, N+1 multi-priority) are mutually exclusive, sharing `xtask.h` API; dual-gated by CMake (`MINI_TREE_XTASK_*`) + `#ifdef`; only used under `OS_BARE` | `x_scheduler` / `x_task` |
 | `drivers/<chip>/` | product drivers (39, `{include,src}` layout) | `DRIVER_REGISTER` / ioctl; dtc-lite compile-time probe |
 | `can_hook/` | CAN hook extensions | — |
 | `net/` | Network protocol stack glue (MQTT client / PPP netif / USB netif), via lwIP + coreMQTT etc., hardware access only through device/VFS model | `mqtt_client_*`, `pppif_*`, `usbethif_*` |
 | `ui/` | UI library glue layer (LVGL / u8g2 display bridge), hardware access only through device/VFS model (`DISPLAY_CMD_*`) | `display_lvgl_flush_callback`, `display_u8g2_flush_frame_buffer` |
-| `lib/` + `cmake/*.cmake` | vendored: mini-os / FreeRTOS / RT-Thread / ETL; TinyUSB / lwIP are config-time FetchContent, the rest link-time | OSAL kernels per Kconfig; the rest via `mini_tree_link_*` (see [ecosystem.md](ecosystem.md)) |
+| `lib/` + `cmake/*.cmake` | vendored: mini-os / FreeRTOS / RT-Thread / ETL; TinyUSB / lwIP are config-time FetchContent, the rest link-time | the unified interface kernels per Kconfig; the rest via `mini_tree_link_*` (see [ecosystem.md](ecosystem.md)) |
 
 ### 2.1 Peripheral Coverage (Current)
 
@@ -150,9 +150,9 @@ device_read/write/ioctl
 
 Publish/subscribe in `core`; module switch `CONFIG_EVENT_BUS` (off by default, depends on `SYSTEM`); capacity is set by `CONFIG_EVENT_BUS_QUEUE_LEN` and `CONFIG_EVENT_BUS_MAX_SUBSCRIBERS`.
 
-### 4.3 BufferPool / algorithm
+### 4.3 algorithm / buffer
 
-`buffer_pool` provides pooled blocks; `algorithm/buffer` provides ring/double buffers and similar structures for reuse by drivers and business logic.
+`algorithm/buffer` provides ring/double buffers and similar structures for reuse by drivers and business logic.
 
 ### 4.4 Errors & Pointers
 
@@ -170,7 +170,7 @@ Publish/subscribe in `core`; module switch `CONFIG_EVENT_BUS` (off by default, d
 | scrubber stub | CMake copy | `generated/scrubber/.../system_scrubber_crc_gen.h` |
 | root `compile_flags.txt` | `tools/gen_compile_db.py` | `compile_commands.json` (including header entries) |
 
-Kconfig menus: Platform, Multi-core/AMP, OSAL, Spinlock, System Log, System Runtime (`SYSTEM` master switch + C/CPP backend), Components (USB), Board Features (WDT/Scrubber/…), Runtime Capacity (`EVENT_BUS` master switch + capacity), Compiler, Build.
+Kconfig menus: Platform, Multi-core/AMP, the unified interface, Spinlock, System Log, System Runtime (`SYSTEM` master switch + C/CPP backend), Components (USB), Board Features (WDT/Scrubber/…), Runtime Capacity (`EVENT_BUS` master switch + capacity), Compiler, Build.
 
 Key CMake cache variables: `BOARD_DTS`, `BOARD_DTSI_DIR`, `VENDOR_INC_DIRS`, `VENDOR_DEFINES`.
 
@@ -204,7 +204,7 @@ Key CMake cache variables: `BOARD_DTS`, `BOARD_DTSI_DIR`, `VENDOR_INC_DIRS`, `VE
 | This Repository Provides | The Platform Repository Provides |
 | :--- | :--- |
 | middleware source, weak HAL, placeholder DTS, docs, IDE stubs | `hal_*_<soc>.c`, full dts/dtsi, vendor `-I`, board linker scripts and startup files |
-| four OSAL backend skeletons | clocks, heap, SysTick/RTOS ports (if needed) |
+| four OS backend skeletons | clocks, heap, SysTick/RTOS ports (if needed) |
 
 On the generic CMake path, the platform injects its board via `MINI_TREE_BOARD_PORT` (absolute path) or a sibling `board_port.cmake`; the ESP-IDF path (triggered by `ESP_PLATFORM`, component mode) keeps its full build path in the `main` branch but requires special handling (see [getting_started.md](getting_started.md) §4.2). The validation matrix lives in each `platform/*/mini_tree` project; this shelf does not bind to a specific SoC.
 

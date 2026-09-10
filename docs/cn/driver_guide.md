@@ -182,7 +182,7 @@ ESP 接线细节见 [getting_started.md](getting_started.md) §4.2。
 
 1. `dev_lc_remove_start(device_lc(dev))`
 2. `device_ops_unregister(dev)`
-3. `dev_lc_remove_drain(..., OSAL_WAIT_FOREVER)`
+3. `dev_lc_remove_drain(..., MINI_WAIT_FOREVER)`
 4. 释放硬件 / bus
 5. `dev_lc_remove_finish(...)`
 

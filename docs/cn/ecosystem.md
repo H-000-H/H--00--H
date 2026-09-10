@@ -1,6 +1,6 @@
 # 积木型开源生态
 
-> mini_tree 中间件本体提供设备模型、VFS/Bus/HAL、OSAL 与运行时服务；**不把所有能力塞进核心**。
+> mini_tree 中间件本体提供设备模型、VFS/Bus/HAL、统一接口与运行时服务；**不把所有能力塞进核心**。
 >
 > 能力扩展走 **积木型链接**：需要什么能力，就按需链入对应开源库，用板级 port 补齐配置与硬件胶水。
 >
@@ -37,7 +37,7 @@
 | **开源积木** | 均为开源项目；商用前请复核各库 `LICENSE` |
 | **基础设施 vendor，其余 Fetch** | 控体积；OS/ETL 常驻，全部积木首次链接需联网或预置本地 |
 | **核心保持瘦** | 中间件不绑定厂商 SDK，也不强制带齐 GUI / 文件系统 |
-| **按需链接** | 可选积木默认不编进固件；调用 `mini_tree_link_*`（或 OSAL Kconfig）时才进入镜像 |
+| **按需链接** | 可选积木默认不编进固件；调用 `mini_tree_link_*`（或 OS Kconfig）时才进入镜像 |
 | **ETL 默认进库** | **不是可选积木**：上层 C++ 基础，源码在 `lib/etl`，根 CMake 默认链入 `mini_tree` |
 | **CMake 一块积木一个入口** | 多数库有 `cmake/<name>.cmake`，提供 `mini_tree_link_<name>(target …)` |
 | **板级补 port** | 配置头（如 `lv_conf.h`、`lwipopts.h`）与 diskio/SPI/显示 flush 等由平台提供 |
@@ -52,7 +52,7 @@
 └────────────────────────────┬─────────────────────────────┘
                              │ 设备 / ioctl / EventBus
 ┌────────────────────────────▼─────────────────────────────┐
-│  mini_tree 核心：board · vfs · bus · hal · osal · system │
+│  mini_tree 核心：board · vfs · bus · hal · system │
 └────────────────────────────┬─────────────────────────────┘
                              │ 板级 DTS + 强符号 HAL
 ┌────────────────────────────▼─────────────────────────────┐
@@ -75,10 +75,10 @@
 
 | 库 | 路径 | 版本 | 作用 | 接入方式 |
 | :--- | :--- | :--- | :--- | :--- |
-| mini-os | `lib/mini-os` | 随仓自研 | 最小 RTOS 内核（仅 Cortex-M，freestanding） | `CONFIG_OSAL_MINI_OS` |
-| FreeRTOS | `lib/freeRTOS` | Kernel V11.3.0 | RTOS 内核 | `CONFIG_OSAL_FREERTOS` |
-| RT-Thread | `lib/rtthread` | v5.3.0 | RTOS 内核 | `CONFIG_OSAL_RTTHREAD` |
-| （裸机） | `time_slice/task` | — | 协作式调度 | `CONFIG_OSAL_NULL` |
+| mini-os | `lib/mini-os` | 随仓自研 | 最小 RTOS 内核（仅 Cortex-M，freestanding） | `CONFIG_OS_MINI_OS` |
+| FreeRTOS | `lib/freeRTOS` | Kernel V11.3.0 | RTOS 内核 | `CONFIG_OS_FREERTOS` |
+| RT-Thread | `lib/rtthread` | v5.3.0 | RTOS 内核 | `CONFIG_OS_RTTHREAD` |
+| （裸机） | `time_slice/task` | — | 协作式调度 | `CONFIG_OS_BARE` |
 
 ### 2.2 连接与协议
 
@@ -109,7 +109,7 @@
 
 | 产品形态 | 建议积木 |
 | :--- | :--- |
-| 裸机仪表 / 小屏 | OSAL_NULL + u8g2 或 LVGL（经 `ui/` 胶水层 + `DISPLAY_CMD_*`）+ MultiButton + EasyLogger |
+| 裸机仪表 / 小屏 | OS_BARE + u8g2 或 LVGL（经 `ui/` 胶水层 + `DISPLAY_CMD_*`）+ MultiButton + EasyLogger |
 | 联网传感器 | FreeRTOS/RTT + lwIP + coreMQTT |
 | USB 大容量 / 网卡 | TinyUSB +（可选）FatFs / lwIP |
 

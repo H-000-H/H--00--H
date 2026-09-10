@@ -17,7 +17,8 @@
 #include "driver.h"
 #include "ds18b20_regs.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include "vfs-gpio.h"
@@ -43,7 +44,7 @@ struct ds18b20_device
 
 static struct ds18b20_device           s_ds18b20_pool[DS18B20_POOL_COUNT] MINI_ALIGNED(4);
 static uint8_t                         s_ds18b20_used[DS18B20_POOL_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_ds18b20_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_ds18b20_pool_ctrl MINI_ALIGNED(4);
 static const char* const               k_tag = "ds18b20";
 
 /**
@@ -51,7 +52,7 @@ static const char* const               k_tag = "ds18b20";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void ds18b20_pool_boot_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_ds18b20_pool_ctrl, s_ds18b20_used, DS18B20_POOL_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_ds18b20_pool_ctrl, s_ds18b20_used, DS18B20_POOL_COUNT));
 }
 
 /**
@@ -62,9 +63,9 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void ds18b20_pool_boot
 static struct ds18b20_device* ds18b20_get_drvdata(struct device* pdev) { return (struct ds18b20_device*)device_get_priv(pdev); }
 
 /**
- * @brief 微秒延时（OSAL 转发）
+ * @brief 微秒延时（统一接口转发）
  */
-static void ds18b20_delay_us(uint32_t us) { osal_delay_us(us); }
+static void ds18b20_delay_us(uint32_t us) { mini_delay_us(us); }
 
 /**
  * @brief 单总线复位脉冲：拉低 480us 后释放，检测存在脉冲
@@ -281,7 +282,7 @@ static int ds18b20_cmd_temp(struct ds18b20_device* dev, void* arg, size_t len, u
         return MINI_ERR_IO;
     if (ds18b20_write_byte(dev, DS18B20_OW_CONVERT_T) != MINI_OK)
         return MINI_ERR_IO;
-    osal_delay_ms(DS18B20_CONVERT_MS);
+    mini_delay_ms(DS18B20_CONVERT_MS);
     if (ds18b20_reset(dev) != MINI_OK)
         return MINI_ERR_IO;
     if (ds18b20_write_byte(dev, DS18B20_OW_SKIP_ROM) != MINI_OK)
@@ -344,7 +345,7 @@ static int ds18b20_probe(struct device* pdev)
     int                    pool_idx, ret;
     if (!pdev)
         return MINI_ERR_INVAL;
-    pool_idx = osal_pool_claim(&s_ds18b20_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_ds18b20_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
     dev = &s_ds18b20_pool[pool_idx];
@@ -368,7 +369,7 @@ static int ds18b20_probe(struct device* pdev)
 err:
     pdev->ops = NULL;
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_ds18b20_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_ds18b20_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -391,14 +392,14 @@ static int ds18b20_remove(struct device* pdev)
     idx = (int)(dev - s_ds18b20_pool);
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
     ds18b20_hw_destroy(dev);
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_ds18b20_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_ds18b20_pool_ctrl, idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

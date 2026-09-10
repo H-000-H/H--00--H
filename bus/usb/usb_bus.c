@@ -20,7 +20,8 @@
 #include "compiler_compat.h"
 #include "device.h"
 #include "hal_usb.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include "usb_tusb_port.h"
@@ -46,7 +47,7 @@ struct usb_bus_client
 
 static struct usb_bus_host   s_usb_hosts[USB_BUS_HOST_MAX];
 static uint8_t               s_usb_host_used[USB_BUS_HOST_MAX];
-static osal_pool_t           s_usb_host_pool_ctrl;
+static mini_slot_t           s_usb_host_pool_ctrl;
 static struct usb_bus_client s_usb_clients[DEV_ID_COUNT];
 static struct usb_bus_host*  s_irq_host;
 static const char* const     k_tag = "usb_bus";
@@ -54,7 +55,7 @@ static const char* const     k_tag = "usb_bus";
 /** host 池初始化 (mini_pre_execution 阶段, 供 device 池复用) */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void usb_bus_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_usb_host_pool_ctrl, s_usb_host_used, USB_BUS_HOST_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_usb_host_pool_ctrl, s_usb_host_used, USB_BUS_HOST_MAX));
 }
 
 /**
@@ -65,7 +66,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void usb_bus_pool_init(vo
 static struct usb_bus_host* usb_host_from_device(struct device* pdev)
 {
     for (int index = 0; index < USB_BUS_HOST_MAX; index++)
-        if (osal_pool_is_used(&s_usb_host_pool_ctrl, index) && s_usb_hosts[index].pdev == pdev)
+        if (mini_slot_is_used(&s_usb_host_pool_ctrl, index) && s_usb_hosts[index].pdev == pdev)
             return &s_usb_hosts[index];
     return NULL;
 }
@@ -116,7 +117,7 @@ static int usb_host_init_impl(struct device* pdev, const void* cfg)
     if (usb_host_from_device(pdev))
         return MINI_OK;
 
-    idx = osal_pool_claim(&s_usb_host_pool_ctrl);
+    idx = mini_slot_claim(&s_usb_host_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -154,7 +155,7 @@ static int usb_host_init_impl(struct device* pdev, const void* cfg)
 
 fail_pool:
     MINI_MEM_SET(host, 0, sizeof(*host));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_usb_host_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_usb_host_pool_ctrl, idx));
     return ret;
 }
 
@@ -186,7 +187,7 @@ static int usb_host_deinit_impl(struct device* pdev)
     if (ret == MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_usb_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_usb_host_pool_ctrl, idx));
     }
     return ret;
 }
@@ -337,7 +338,7 @@ int usb_bus_cdc_write(struct device* pdev, const void* buf, size_t len, uint32_t
     if (!usb_tusb_cdc_connected())
         return MINI_ERR_IO;
 
-    start = osal_time_ms();
+    start = mini_time_ms();
     while (done < len)
     {
         uint32_t result = usb_tusb_cdc_write((const uint8_t*)buf + done, (uint32_t)(len - done));
@@ -346,7 +347,7 @@ int usb_bus_cdc_write(struct device* pdev, const void* buf, size_t len, uint32_t
         if (done >= len)
             break;
         usb_tusb_task();
-        if (timeout_ms && (osal_time_ms() - start) >= timeout_ms)
+        if (timeout_ms && (mini_time_ms() - start) >= timeout_ms)
             break;
         if (result == 0)
             break;
@@ -368,7 +369,7 @@ int usb_bus_cdc_read(struct device* pdev, void* buf, size_t len, uint32_t timeou
     if (mode < 0)
         return mode;
 
-    start = osal_time_ms();
+    start = mini_time_ms();
     while (done < len)
     {
         if (usb_tusb_cdc_available())
@@ -383,7 +384,7 @@ int usb_bus_cdc_read(struct device* pdev, void* buf, size_t len, uint32_t timeou
             usb_tusb_task();
             if (timeout_ms == 0)
                 break;
-            if ((osal_time_ms() - start) >= timeout_ms)
+            if ((mini_time_ms() - start) >= timeout_ms)
                 break;
         }
     }
@@ -419,7 +420,7 @@ int usb_bus_ecm_read(struct device* pdev, void* frame, size_t len, uint32_t time
     if (mode < 0)
         return mode;
 
-    start = osal_time_ms();
+    start = mini_time_ms();
     for (;;)
     {
         result = usb_net_frame_pop_rx(frame, len);
@@ -428,7 +429,7 @@ int usb_bus_ecm_read(struct device* pdev, void* frame, size_t len, uint32_t time
         usb_tusb_task();
         if (timeout_ms == 0)
             return MINI_ERR_TIMEOUT;
-        if ((osal_time_ms() - start) >= timeout_ms)
+        if ((mini_time_ms() - start) >= timeout_ms)
             return MINI_ERR_TIMEOUT;
     }
 }

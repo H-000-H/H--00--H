@@ -1,6 +1,6 @@
 # Building-Block Open-Source Ecosystem
 
-> The mini_tree middleware core provides the device model, VFS/Bus/HAL, OSAL and runtime services; it does **not** cram every capability into the core.
+> The mini_tree middleware core provides the device model, VFS/Bus/HAL, the unified interface and runtime services; it does **not** cram every capability into the core.
 >
 > Capability expansion follows a **link-as-a-block** model: link in the needed open-source library on demand, and supply configuration plus hardware glue through a board-level port.
 >
@@ -37,7 +37,7 @@ Optional block paths are listed in the root [`.gitignore`](../.gitignore).
 | **Open-source blocks** | All open source; re-check each library's `LICENSE` before commercial use |
 | **Vendors for infrastructure, Fetch for the rest** | Keeps the tree small; OS/ETL are resident; every block needs network or a local copy at first link |
 | **Core stays lean** | The middleware never binds a vendor SDK, nor forces GUI / filesystems in |
-| **Link on demand** | Optional blocks are not built into firmware by default; they enter the image only when `mini_tree_link_*` (or the OSAL Kconfig) is used |
+| **Link on demand** | Optional blocks are not built into firmware by default; they enter the image only when `mini_tree_link_*` (or the OS Kconfig) is used |
 | **ETL ships by default** | **Not an optional block**: it is the C++ foundation for upper layers, source lives in `lib/etl`, and the root CMake links it into `mini_tree` by default |
 | **One CMake entry per block** | Most libraries have a `cmake/<name>.cmake` exposing `mini_tree_link_<name>(target …)` |
 | **Board supplies the port** | Config headers (e.g. `lv_conf.h`, `lwipopts.h`) and diskio/SPI/display-flush glue come from the platform |
@@ -52,7 +52,7 @@ Optional block paths are listed in the root [`.gitignore`](../.gitignore).
 └────────────────────────────┬─────────────────────────────┘
                              │ device / ioctl / EventBus
 ┌────────────────────────────▼─────────────────────────────┐
-│  mini_tree core: board · vfs · bus · hal · osal · system  │
+│  mini_tree core: board · vfs · bus · hal · system  │
 └────────────────────────────┬─────────────────────────────┘
                              │ board DTS + strong-symbol HAL
 ┌────────────────────────────▼─────────────────────────────┐
@@ -75,10 +75,10 @@ A `lib/...` path is the conventional location; **fetched blocks may exist only i
 
 | Library | Path | Version | Role | Integration |
 | :--- | :--- | :--- | :--- | :--- |
-| mini-os | `lib/mini-os` | in-tree | Minimal RTOS kernel (Cortex-M only, freestanding) | `CONFIG_OSAL_MINI_OS` |
-| FreeRTOS | `lib/freeRTOS` | Kernel V11.3.0 | RTOS kernel | `CONFIG_OSAL_FREERTOS` |
-| RT-Thread | `lib/rtthread` | v5.3.0 | RTOS kernel | `CONFIG_OSAL_RTTHREAD` |
-| (Bare metal) | `time_slice/task` | — | Cooperative scheduling | `CONFIG_OSAL_NULL` |
+| mini-os | `lib/mini-os` | in-tree | Minimal RTOS kernel (Cortex-M only, freestanding) | `CONFIG_OS_MINI_OS` |
+| FreeRTOS | `lib/freeRTOS` | Kernel V11.3.0 | RTOS kernel | `CONFIG_OS_FREERTOS` |
+| RT-Thread | `lib/rtthread` | v5.3.0 | RTOS kernel | `CONFIG_OS_RTTHREAD` |
+| (Bare metal) | `time_slice/task` | — | Cooperative scheduling | `CONFIG_OS_BARE` |
 
 ### 2.2 Connectivity & Protocols
 
@@ -109,7 +109,7 @@ A `lib/...` path is the conventional location; **fetched blocks may exist only i
 
 | Product Form | Suggested Blocks |
 | :--- | :--- |
-| Bare-metal instrument / small display | OSAL_NULL + u8g2 or LVGL (via `ui/` glue layer + `DISPLAY_CMD_*`) + MultiButton + EasyLogger |
+| Bare-metal instrument / small display | OS_BARE + u8g2 or LVGL (via `ui/` glue layer + `DISPLAY_CMD_*`) + MultiButton + EasyLogger |
 | Networked sensor | FreeRTOS/RTT + lwIP + coreMQTT |
 | USB mass storage / NIC | TinyUSB (+ optionally) FatFs / lwIP |
 

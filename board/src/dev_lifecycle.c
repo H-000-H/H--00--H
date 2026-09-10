@@ -24,7 +24,8 @@
 
 #include "dev_lifecycle.h"
 
-#include "osal.h"
+#include "mini_backend.h"
+#include "mini_time.h"
 
 #include "compiler_compat_poison.h"
 
@@ -203,7 +204,7 @@ void dev_lc_remove_start(struct dev_lifecycle* lc)
 /**
  * @brief 排空 open/io 并 CAS 锁定 (teardown drain)
  * @param[in] lc 生命周期对象指针
- * @param[in] timeout_ms 超时 (毫秒, OSAL_WAIT_FOREVER 表示永久等待)
+ * @param[in] timeout_ms 超时 (毫秒, MINI_WAIT_FOREVER 表示永久等待)
  * @return 成功返回 MINI_OK, 超时返回 MINI_ERR_TIMEOUT, 状态非法返回 MINI_ERR_BUSY
  */
 int dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms)
@@ -214,7 +215,7 @@ int dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms)
     if (MINI_ATOMIC_LOAD(&lc->state, MINI_ACQUIRE) != DEV_LC_REMOVING)
         return MINI_ERR_BUSY;
 
-    const uint32_t start_ms = osal_time_ms();
+    const uint32_t start_ms = mini_time_ms();
     for (;;)
     {
         int opens_expected = 0;
@@ -228,19 +229,19 @@ int dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms)
                 if (MINI_ATOMIC_CAS(&lc->io_active, &io_expected, DEV_LC_LOCKED, MINI_ACQ_REL, MINI_RELAXED))
                     return MINI_OK;
 
-                if (timeout_ms != OSAL_WAIT_FOREVER && (osal_time_ms() - start_ms) >= timeout_ms)
+                if (timeout_ms != MINI_WAIT_FOREVER && (mini_time_ms() - start_ms) >= timeout_ms)
                     return MINI_ERR_TIMEOUT;
 
-                osal_delay_ms(1);
+                mini_delay_ms(1);
             }
         }
 
-        if (timeout_ms != OSAL_WAIT_FOREVER)
+        if (timeout_ms != MINI_WAIT_FOREVER)
         {
-            if (osal_time_ms() - start_ms >= timeout_ms)
+            if (mini_time_ms() - start_ms >= timeout_ms)
                 return MINI_ERR_TIMEOUT;
         }
-        osal_delay_ms(1);
+        mini_delay_ms(1);
     }
 }
 

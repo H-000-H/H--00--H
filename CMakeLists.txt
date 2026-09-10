@@ -1,11 +1,10 @@
-# mini_tree (generic CMake build for non-ESP-IDF projects)
+  # mini_tree (generic CMake build for non-ESP-IDF projects)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    # 独立构建：需要声明最低版本与工程名
     cmake_minimum_required(VERSION 3.16)
     project(mini_tree LANGUAGES C CXX)
 endif()
 
-# 策略兼容：本文件可被父工程 include，也可独立构建（CMakePresets.json）
+# 策略兼容：本文件可被父工程 include，也可独立构建
 if(POLICY CMP0003)
     cmake_policy(SET CMP0003 NEW)
 endif()
@@ -14,14 +13,13 @@ if(ESP_PLATFORM)
     # 纯架构：不硬编码某一 MCU。板级通过下列之一注入 BOARD_DTS / dtc -I/-D / 树外扫描：
     #   1) MINI_TREE_BOARD_PORT（绝对路径）
     #   2) 同级 ../board_port.cmake（本 ESP 板工程默认）
-    # 注意: component_get_requirements 为 script 模式，不可用 CONFIGURE_DEPENDS
+    # 注意: component_get_requirements 为 script 模式，不可 CONFIGURE_DEPENDS
     if(DEFINED MINI_TREE_BOARD_PORT AND EXISTS "${MINI_TREE_BOARD_PORT}")
         include("${MINI_TREE_BOARD_PORT}")
     elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../board_port.cmake")
         include("${CMAKE_CURRENT_LIST_DIR}/../board_port.cmake")
     endif()
 
-    # 产品驱动在 mini_tree/drivers/*/（中间件内，与 MCU 无关）
     file(GLOB MINI_TREE_PRODUCT_DRV_SRC_DIRS
         LIST_DIRECTORIES true
         "${CMAKE_CURRENT_LIST_DIR}/drivers/*/src")
@@ -91,7 +89,7 @@ set(KCONFIG_OUT     "${KCONFIG_GEN_DIR}/config.h")
 # 中间件产物是静态库, 不报未定义符号, 要到最后链接 ELF 才炸。
 # genconfig.py 的回写幂等且内容一致时不触碰磁盘, 不会因时间戳抖动
 # 反复触发 CMAKE_CONFIGURE_DEPENDS 重配; 顺带把 config.h 也提前生成好。
-# (构建期的 add_custom_command 仍保留, 负责 .config / Kconfig 变动后重生。)
+# (构建期的 add_custom_command 仍保留, 负责 .config / Kconfig 变动后重新适配。)
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${KCONFIG_GEN_DIR}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/genconfig.py"
@@ -106,11 +104,8 @@ if(NOT _kconfig_sync_rc EQUAL 0)
                         "请确认 Python3 与 kconfiglib 可用 (tools/_vendor 已内置)")
 endif()
 
-file(STRINGS "${KCONFIG_DOT}" CONFIG_OSAL_ENTRY   REGEX "^CONFIG_OSAL_(MINI_OS|FREERTOS|RTTHREAD|THREADX|UCOS_III|UCOS_II|NULL)=y$")
+file(STRINGS "${KCONFIG_DOT}" MINI_OS_ENTRY REGEX "^CONFIG_OS_(MINI_OS|FREERTOS|RTTHREAD|BARE)=y$")
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ENTRY REGEX "^CONFIG_SYSTEM_(C|CPP)=y$")
-
-# System / EventBus 软编码：对齐 Kconfig 语义 — 显式 "=y" 才编入，缺失/未置位一律不编入，
-# 避免 .config 缺符号时误拉依赖。
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ON REGEX "^CONFIG_SYSTEM=y$")
 if(CONFIG_SYSTEM_ON)
     set(MINI_TREE_SYSTEM ON)
@@ -200,43 +195,18 @@ if(MINI_TREE_USB)
     list(APPEND HAL_SRCS "hal/usb/hal_usb.c")
 endif()
 
-if(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_FREERTOS=y")
-    set(OSAL_SRCS "osal/src/osal_freertos.c")
-    set(OSAL_DEFINE CONFIG_OSAL_FREERTOS)
-elseif(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_RTTHREAD=y")
-    set(OSAL_SRCS "osal/src/osal_rtthread.c")
-    set(OSAL_DEFINE CONFIG_OSAL_RTTHREAD)
-elseif(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_MINI_OS=y")
-    set(OSAL_SRCS "osal/src/osal_mini_os.c")
-    set(OSAL_DEFINE CONFIG_OSAL_MINI_OS)
-elseif(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_THREADX=y")
-    set(OSAL_SRCS "osal/src/osal_threadx.c")
-    set(OSAL_DEFINE CONFIG_OSAL_THREADX)
-elseif(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_UCOS_III=y")
-    set(OSAL_SRCS "osal/src/osal_ucos_iii.c")
-    set(OSAL_DEFINE CONFIG_OSAL_UCOS_III)
-elseif(CONFIG_OSAL_ENTRY STREQUAL "CONFIG_OSAL_UCOS_II=y")
-    set(OSAL_SRCS "osal/src/osal_ucos_ii.c")
-    set(OSAL_DEFINE CONFIG_OSAL_UCOS_II)
+if(MINI_OS_ENTRY STREQUAL "CONFIG_OS_FREERTOS=y")
+    set(MINI_OS_DEFINE CONFIG_OS_FREERTOS)
+elseif(MINI_OS_ENTRY STREQUAL "CONFIG_OS_RTTHREAD=y")
+    set(MINI_OS_DEFINE CONFIG_OS_RTTHREAD)
+elseif(MINI_OS_ENTRY STREQUAL "CONFIG_OS_MINI_OS=y")
+    set(MINI_OS_DEFINE CONFIG_OS_MINI_OS)
 else()
-    set(OSAL_SRCS "osal/src/osal_null.c")
-    set(OSAL_DEFINE CONFIG_OSAL_NULL)
+    set(MINI_OS_DEFINE CONFIG_OS_BARE)
 endif()
 
-# C++ 任务创建封装 (osal_task.cpp) — 软编码: 对齐 Kconfig 语义, 显式 "=y" 才编入。
-# 依赖 xtask 原生 API, 需 CONFIG_XTASK。
-file(STRINGS "${KCONFIG_DOT}" CONFIG_OSAL_NULL_TASK_CPP_ON REGEX "^CONFIG_OSAL_NULL_TASK_CPP=y$")
-if(MINI_TREE_XTASK AND CONFIG_OSAL_NULL_TASK_CPP_ON)
-    list(APPEND OSAL_SRCS "osal/src/osal_task.cpp")
-endif()
 
-# 裸机可选: osal_malloc/osal_calloc/osal_free 走 mini-os 内存模块 (Kconfig CONFIG_OSAL_NULL_MINI_OS_MEM, 默认关)。
-# 只编 lib/mini-os/src/memory.c 单文件 (无调度器/port 依赖), 不链整个 mini-os 内核;
-# 堆区由板级链接脚本提供 __mini_os_heap_start/__mini_os_heap_end (可 INCLUDE mini-os-heap.ld)。
-file(STRINGS "${KCONFIG_DOT}" CONFIG_OSAL_NULL_MINI_OS_MEM_ON REGEX "^CONFIG_OSAL_NULL_MINI_OS_MEM=y$")
-if(OSAL_DEFINE STREQUAL "CONFIG_OSAL_NULL" AND CONFIG_OSAL_NULL_MINI_OS_MEM_ON)
-    list(APPEND OSAL_SRCS "lib/mini-os/src/memory.c")
-endif()
+
 
 if(MINI_TREE_SYSTEM)
     if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
@@ -454,7 +424,14 @@ add_custom_command(
 )
 
 set(CORE_SRCS
-    "core/src/buffer_pool.c"
+    "core/src/mini_backend_bare.c"
+    "core/src/mini_backend_freertos.c"
+    "core/src/mini_backend_mini_os.c"
+    "core/src/mini_backend_rtthread.c"
+    "core/src/mini_log.c"
+    "core/src/mini_panic.c"
+    "core/src/mini_slot.c"
+    "core/src/mini_time.c"
     "core/src/production_log.c"
     "core/src/printf_output.c"
 )
@@ -462,8 +439,9 @@ if(MINI_TREE_EVENT_BUS)
     list(APPEND CORE_SRCS "core/src/event_bus.c")
 endif()
 
+
+
 add_library(mini_tree STATIC
-    ${OSAL_SRCS}
     ${HAL_SRCS}
     "board/src/board_device.c"
     "board/src/dev_lifecycle.c"
@@ -502,7 +480,7 @@ endif()
 #   - COOP   (PREEMPT=OFF):          编 xtask_coop.c (协调式 round-robin)
 #   - PREEMPT(PREEMPT=ON):           编 xtask_preempt.c (抢占式, 实验性)
 # COOP/PREEMPT 提供同一套对外 API (见 xtask.h), 调用方无感知; OS 后端用内核调度, 不编入.
-if(OSAL_DEFINE STREQUAL "CONFIG_OSAL_NULL" AND MINI_TREE_XTASK)
+if(MINI_OS_DEFINE STREQUAL "CONFIG_OS_BARE" AND MINI_TREE_XTASK)
     target_sources(mini_tree PRIVATE time_slice/task/xtask.h)
     if(MINI_TREE_XTASK_PREEMPT)
         target_sources(mini_tree PRIVATE time_slice/task/xtask_preempt.c)
@@ -555,7 +533,6 @@ target_include_directories(mini_tree
         "${CMAKE_CURRENT_LIST_DIR}/core/include"
         ${HAL_INCLUDE_DIRS}
         "${CMAKE_CURRENT_LIST_DIR}/interrupt"
-        "${CMAKE_CURRENT_LIST_DIR}/osal/include"
         "${CMAKE_CURRENT_LIST_DIR}/system_c/include"
         "${CMAKE_CURRENT_LIST_DIR}/system_cpp/include"
         ${_PRODUCT_DRV_INC_DIRS}
@@ -570,21 +547,15 @@ target_include_directories(mini_tree
 )
 
 # time_slice 头路径仅裸机 + XTASK 暴露, 避免 OS 构建误包含 xtask.h (与 FreeRTOS xTaskCreate 同名冲突)
-if(OSAL_DEFINE STREQUAL "CONFIG_OSAL_NULL" AND MINI_TREE_XTASK)
+if(MINI_OS_DEFINE STREQUAL "CONFIG_OS_BARE" AND MINI_TREE_XTASK)
     target_include_directories(mini_tree PUBLIC
         "${CMAKE_CURRENT_LIST_DIR}/time_slice/task"
     )
 endif()
 
-# mini-os 内存模块头路径 (裸机 osal_malloc/osal_calloc/osal_free 转发目标, 见 CONFIG_OSAL_NULL_MINI_OS_MEM);
-# 仅在开关开启时暴露, 避免与其它模块的头文件同名冲突 (memory.h)
-if(OSAL_DEFINE STREQUAL "CONFIG_OSAL_NULL" AND CONFIG_OSAL_NULL_MINI_OS_MEM_ON)
-    target_include_directories(mini_tree PUBLIC
-        "${CMAKE_CURRENT_LIST_DIR}/lib/mini-os/inc"
-    )
-endif()
 
-target_compile_definitions(mini_tree PUBLIC ${OSAL_DEFINE})
+
+target_compile_definitions(mini_tree PUBLIC ${MINI_OS_DEFINE})
 if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
     target_compile_definitions(mini_tree PRIVATE CONFIG_SYSTEM_CPP)
     if(MSVC)
@@ -615,7 +586,7 @@ add_custom_target(mini_tree_gen DEPENDS "${KCONFIG_OUT}" ${GEN_SRCS} ${GEN_HDRS}
 add_dependencies(mini_tree mini_tree_gen)
 
 # TinyUSB: 仅 USB 使能时链接。usb_net_cb.c / usb_bus.c 需要 tusb.h 的
-# include 路径 (lib/tinyusb/src), 且 TINYUSB_OS 与 OSAL 联动 (Kconfig select)。
+# include 路径 (lib/tinyusb/src), 且 TINYUSB_OS 与 OS 后端联动 (Kconfig select)。
 if(MINI_TREE_USB)
     mini_tree_link_tinyusb(mini_tree)
 endif()

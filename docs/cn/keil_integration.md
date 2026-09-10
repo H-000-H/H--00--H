@@ -78,7 +78,7 @@
 1. **构建**：Keil Studio 的 CMake 支持直接吃本仓 `add_subdirectory(mini_tree)` 流程；生成头（`genconfig` / `dtc-lite`）随 CMake configure 自动产出。
 2. **编辑**：装 clangd 扩展后，跳转/补全/诊断与本仓 `compile_flags.txt` / `ide/stubs` 一致，写代码体验等同 VS Code。
 3. **调试**：ARM 官方调试器与断点/寄存器/内存视图保留，推荐作为**调试环境**（本仓 `debug_monitor.md` 的日志/监控流程不变）。
-4. **云编译**：无本地工具链时可走 Keil Studio Cloud；生成物仍按 `.config` 对齐（`CONFIG_OSAL_*` / `CONFIG_SYSTEM_*` 等）。
+4. **云编译**：无本地工具链时可走 Keil Studio Cloud；生成物仍按 `.config` 对齐（`CONFIG_ESP_*` / `CONFIG_SYSTEM_*` 等）。
 
 > 注：Keil Studio 是**通用 VS Code 生态**的一部分，因此本仓对 VS Code 的既有建议（见 §3）对它同样适用；唯一额外收益是 ARM 官方调试/烧录与云编译的整合。
 >
@@ -118,7 +118,7 @@ IDE 验收见 [getting_started.md](getting_started.md) §7、[debug_monitor.md](
 | 项 | 说明 |
 | :--- | :--- |
 | 生成物目录 | 必须进 Include；与 CMake 输出路径一致 |
-| 宏 | `CONFIG_OSAL_*` / `CONFIG_SYSTEM_*` / `CONFIG_SYS_LOG_*` 等与 `.config` 一致 |
+| 宏 | `CONFIG_ESP_*` / `CONFIG_SYSTEM_*` / `CONFIG_SYS_LOG_*` 等与 `.config` 一致 |
 | 文件列表 | 由脚本从目录规则生成，避免手点几百个文件 |
 | 本仓现状 | **不自带**这个生成器；远古脚本要是还能翻出来，当模板看看就行，**我不维护** |
 

@@ -17,7 +17,8 @@
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include "vfs-i2c.h"
@@ -55,7 +56,7 @@ struct bmp280_device
 
 static struct bmp280_device           s_bmp280_pool[BMP280_POOL_COUNT] MINI_ALIGNED(4);
 static uint8_t                        s_bmp280_used[BMP280_POOL_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_bmp280_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_bmp280_pool_ctrl MINI_ALIGNED(4);
 static const char* const              k_tag = "bmp280";
 
 /**
@@ -63,7 +64,7 @@ static const char* const              k_tag = "bmp280";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void bmp280_pool_boot_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_bmp280_pool_ctrl, s_bmp280_used, BMP280_POOL_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_bmp280_pool_ctrl, s_bmp280_used, BMP280_POOL_COUNT));
 }
 
 /**
@@ -204,7 +205,7 @@ static int bmp280_hw_create(struct bmp280_device* dev)
         MINI_IGNORE_RESULT(device_close(dev->i2c_dev));
         return ret;
     }
-    osal_delay_ms(10);
+    mini_delay_ms(10);
     ret = bmp280_load_calib(dev, 100);
     if (ret != MINI_OK)
     {
@@ -313,7 +314,7 @@ static int bmp280_cmd_read(struct bmp280_device* dev, void* arg, size_t len, uin
     ret = bmp280_i2c_wr(dev, ctrl, 2, timeout_ms);
     if (ret != MINI_OK)
         return ret;
-    osal_delay_ms(10);
+    mini_delay_ms(10);
     ret = bmp280_read_regs(dev, BMP280_REG_PRESS_MSB, raw, sizeof(raw), timeout_ms);
     if (ret != MINI_OK)
         return ret;
@@ -373,7 +374,7 @@ static int bmp280_probe(struct device* pdev)
     int                   pool_idx, ret;
     if (!pdev)
         return MINI_ERR_INVAL;
-    pool_idx = osal_pool_claim(&s_bmp280_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_bmp280_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
     dev = &s_bmp280_pool[pool_idx];
@@ -397,7 +398,7 @@ static int bmp280_probe(struct device* pdev)
 err:
     pdev->ops = NULL;
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_bmp280_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_bmp280_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -420,14 +421,14 @@ static int bmp280_remove(struct device* pdev)
     idx = (int)(dev - s_bmp280_pool);
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
     bmp280_hw_destroy(dev);
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_bmp280_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_bmp280_pool_ctrl, idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

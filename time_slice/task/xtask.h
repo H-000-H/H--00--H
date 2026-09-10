@@ -1,7 +1,7 @@
 /**
  *@copyright SPDX-License-Identifier: Apache-2.0
  *@file xtask.h
- *@brief 裸机时间片调度器 (仅 CONFIG_OSAL_NULL)
+ *@brief 裸机时间片调度器 (仅 CONFIG_OS_BARE)
  *@author H-000-H
  *@details
  *   @note 与 FreeRTOS/RT-Thread 等 OS 后端互斥; OS 后端勿包含本头
@@ -10,8 +10,8 @@
 #ifndef XTASK_H
 #define XTASK_H
 
-#ifndef CONFIG_OSAL_NULL
-#error "xtask.h is bare-metal only; enable CONFIG_OSAL_NULL or do not include this header"
+#ifndef CONFIG_OS_BARE
+#error "xtask.h is bare-metal only; enable CONFIG_OS_BARE or do not include this header"
 #endif
 
 #include "compiler_compat.h"

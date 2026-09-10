@@ -14,7 +14,7 @@
 | ID | Issue | Impact | Workaround / Status |
 | :--- | :--- | :--- | :--- |
 | P1 | `err_section` not placed separately in some linker scripts | error symbol table shares a segment with code, hard to diagnose | `CONFIG_ERR_SECTION=1` only works with a dedicated ROM area; see [memory_footprint.md](memory_footprint.md) §1 |
-| P2 | Stack ownership for bare-metal C++ tasks under `CONFIG_OSAL_NULL_TASK_CPP` | unclear who allocates; possible overflow | platform manually specifies in `osal_task.cpp` for now; long-term belongs to `system` task manager |
+| P2 | Stack ownership for bare-metal C++ tasks under `CONFIG_XTASK_PREEMPT` | unclear who allocates; possible overflow | platform manually specifies in `（C++ 封装已移除）` for now; long-term belongs to `system` task manager |
 | P3 | dtc-lite sensitive to nested dtsi `include` order | board overrides error-prone | platform pins a single `BOARD_DTSI_DIR` source |
 
 ---

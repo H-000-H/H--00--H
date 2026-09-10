@@ -79,7 +79,7 @@ void system_wdt_feed_iwdg(void)
 
 struct stack_monitor_entry
 {
-    osal_task_handle_t task;                  /**< 被监控任务句柄 */
+    mini_task_handle_t task;                  /**< 被监控任务句柄 */
     uint32_t           alarm_threshold_bytes; /**< 栈剩余报警阈值 (字节) */
 };
 
@@ -92,7 +92,7 @@ static size_t                     s_stack_entry_count = 0;
  * @param[in] alarm_threshold_bytes 阈值
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_NOSPC 表满
  */
-int system_wdt_stack_monitor_register(osal_task_handle_t task, uint32_t alarm_threshold_bytes)
+int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes)
 {
     if (task == NULL || alarm_threshold_bytes == 0)
         return MINI_ERR_INVAL;
@@ -119,19 +119,19 @@ void system_wdt_stack_check_all(void)
         if (entry->task == NULL)
             continue;
 
-        uint32_t wm_bytes = osal_task_get_stack_watermark(entry->task);
+        uint32_t wm_bytes = mini_task_get_stack_watermark(entry->task);
 
         if (wm_bytes == 0)
         {
-            SYS_LOGE(k_tag, "FAIL: task '%s' stack overflowed (wm=0)!", osal_task_get_name(entry->task));
+            SYS_LOGE(k_tag, "FAIL: task '%s' stack overflowed (wm=0)!", mini_task_get_name(entry->task));
             continue;
         }
 
         if (wm_bytes < entry->alarm_threshold_bytes)
-            SYS_LOGE(k_tag, "STACK CRITICAL: '%s' watermark %u bytes < alarm %u", osal_task_get_name(entry->task), (unsigned)wm_bytes,
+            SYS_LOGE(k_tag, "STACK CRITICAL: '%s' watermark %u bytes < alarm %u", mini_task_get_name(entry->task), (unsigned)wm_bytes,
                      (unsigned)entry->alarm_threshold_bytes);
         else if (wm_bytes < entry->alarm_threshold_bytes * 2)
-            SYS_LOGW(k_tag, "STACK WARN: '%s' watermark %u bytes (alarm=%u)", osal_task_get_name(entry->task), (unsigned)wm_bytes,
+            SYS_LOGW(k_tag, "STACK WARN: '%s' watermark %u bytes (alarm=%u)", mini_task_get_name(entry->task), (unsigned)wm_bytes,
                      (unsigned)entry->alarm_threshold_bytes);
     }
 }
@@ -156,7 +156,7 @@ int system_wdt_init(uint32_t timeout_ms)
  * @param[in] task 任务
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_AGAIN 未初始化
  */
-int system_wdt_subscribe(osal_task_handle_t task)
+int system_wdt_subscribe(mini_task_handle_t task)
 {
     if (task == NULL)
         return MINI_ERR_INVAL;
@@ -170,7 +170,7 @@ int system_wdt_subscribe(osal_task_handle_t task)
  * @param[in] task 任务
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_AGAIN 未初始化
  */
-int system_wdt_unsubscribe(osal_task_handle_t task)
+int system_wdt_unsubscribe(mini_task_handle_t task)
 {
     if (task == NULL)
         return MINI_ERR_INVAL;

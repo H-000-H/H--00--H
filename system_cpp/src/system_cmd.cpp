@@ -13,10 +13,10 @@
 /* 构造函数 */
 /* -------------------------------------------------------------------------- */
 SystemCmd::SystemCmd()
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
 {
-    m_lock = reinterpret_cast<struct osal_spinlock*>(m_lock_storage);
-    MINI_IGNORE_RESULT(osal_spinlock_init(m_lock));
+    /* 并发保护已改用 mini_critical_enter / mini_critical_exit 临界区,
+     * 没有需要初始化的锁对象 (原先的自旋锁只创建/初始化, 换来换去等价于关中断) */
 }
 #else
     : m_count(0)
@@ -49,21 +49,21 @@ int SystemCmd::register_cmd(const char* name, bool (*handler)())
     node.ctx_id = get_type_id<void>();
     node.wrapper = [handler](const void*, size_t, void*) -> bool { return handler(); };
 
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
     CmdString cmd(name);
-    MINI_IGNORE_RESULT(osal_spinlock_lock(m_lock));
+    mini_irq_state_t irq = mini_critical_enter();
     if (m_commands.full())
     {
-        MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+        mini_critical_exit(irq);
         return MINI_ERR_NOSPC;
     }
     if (m_commands.contains(cmd))
     {
-        MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+        mini_critical_exit(irq);
         return MINI_ERR_BUSY;
     }
     bool success = m_commands.insert(etl::make_pair(cmd, node)).second;
-    MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+    mini_critical_exit(irq);
     return success ? MINI_OK : MINI_ERR_NOMEM;
 #else
     for (size_t index = 0; index < m_count; index++)
@@ -86,17 +86,17 @@ int SystemCmd::unregister_cmd(const char* name)
     if (!name)
         return MINI_ERR_INVAL;
 
-#ifndef CONFIG_OSAL_NULL
-    MINI_IGNORE_RESULT(osal_spinlock_lock(m_lock));
+#ifndef CONFIG_OS_BARE
+    mini_irq_state_t irq = mini_critical_enter();
     CmdString key(name);
     auto it = m_commands.find(key);
     if (it == m_commands.end())
     {
-        MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+        mini_critical_exit(irq);
         return MINI_ERR_NODEV;
     }
     m_commands.erase(it);
-    MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+    mini_critical_exit(irq);
     return MINI_OK;
 #else
     for (size_t index = 0; index < m_count; index++)
@@ -121,18 +121,18 @@ int SystemCmd::dispatch(const char* name, const void* arg, size_t arg_len, void*
     if (!name)
         return MINI_ERR_INVAL;
 
-#ifndef CONFIG_OSAL_NULL
-    MINI_IGNORE_RESULT(osal_spinlock_lock(m_lock));
+#ifndef CONFIG_OS_BARE
+    mini_irq_state_t irq = mini_critical_enter();
     CmdString key(name);
     auto it = m_commands.find(key);
     if (it == m_commands.end())
     {
-        MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+        mini_critical_exit(irq);
         return MINI_ERR_NODEV;
     }
     /* 拷贝 HandlerNode 后再解锁, 避免 erase 导致悬垂引用 */
     HandlerNode node = it->second;
-    MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+    mini_critical_exit(irq);
 
     if (expected_args_id && node.args_id != expected_args_id)
         return MINI_ERR_NOTSUPP;
@@ -164,11 +164,11 @@ bool SystemCmd::has_cmd(const char* name) const
     if (!name)
         return false;
 
-#ifndef CONFIG_OSAL_NULL
-    MINI_IGNORE_RESULT(osal_spinlock_lock(m_lock));
+#ifndef CONFIG_OS_BARE
+    mini_irq_state_t irq = mini_critical_enter();
     CmdString key(name);
     bool found = m_commands.find(key) != m_commands.end();
-    MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+    mini_critical_exit(irq);
     return found;
 #else
     for (size_t index = 0; index < m_count; index++)
@@ -180,10 +180,10 @@ bool SystemCmd::has_cmd(const char* name) const
 
 size_t SystemCmd::count() const
 {
-#ifndef CONFIG_OSAL_NULL
-    MINI_IGNORE_RESULT(osal_spinlock_lock(m_lock));
+#ifndef CONFIG_OS_BARE
+    mini_irq_state_t irq = mini_critical_enter();
     size_t sz = m_commands.size();
-    MINI_IGNORE_RESULT(osal_spinlock_unlock(m_lock));
+    mini_critical_exit(irq);
     return sz;
 #else
     return m_count;

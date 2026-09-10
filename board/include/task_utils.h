@@ -6,7 +6,7 @@
  *@details
  *   task_utils.h — 板级任务创建工具头文件
  *   声明 board_task_entry_t 任务入口函数指针类型.
- *   声明 board_task_create: 封装 OSAL 任务创建的薄包装,
+ *   声明 board_task_create: 封装统一接口任务创建的薄包装,
  *   透传名称/栈/优先级/入口/参数/核心, 失败返回 NULL.
  */
 
@@ -26,7 +26,7 @@ extern "C"
 typedef void (*board_task_entry_t)(void* param);
 
 /**
- * @brief 创建板级任务 (封装 OSAL 任务创建的薄包装)
+ * @brief 创建板级任务 (封装统一接口任务创建的薄包装)
  * @param[in] name 任务名
  * @param[in] stack_size 栈大小 (字节)
  * @param[in] priority 任务优先级

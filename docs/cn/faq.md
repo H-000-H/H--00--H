@@ -1,11 +1,11 @@
 # 常见问题 FAQ
 
-> 构建、链接、clangd、probe、OSAL 切换中最常踩的坑。
+> 构建、链接、clangd、probe、后端切换中最常踩的坑。
 
 | 项 | 内容 |
 | :--- | :--- |
 | **读者** | 所有使用者 |
-| **相关** | [getting_started.md](getting_started.md) · [problem_summary.md](problem_summary.md) · [osal_switching.md](osal_switching.md) · [ecosystem.md](ecosystem.md) |
+| **相关** | [getting_started.md](getting_started.md) · [problem_summary.md](problem_summary.md) · [backend_switching.md](backend_switching.md) · [ecosystem.md](ecosystem.md) |
 
 ---
 
@@ -66,7 +66,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T \"${CMAKE_SOURCE_DIR}/m
 
 ### `multiple definition of 'SVC_Handler'` / `'PendSV_Handler'`（FreeRTOS 后端）
 
-FreeRTOS 经 `FreeRTOSConfig.h` 的 `vPortSVCHandler` / `xPortPendSVHandler` 宏占住这两个中断向量；CubeMX 生成的 `stm32f1xx_it.c` 也强定义了同名函数，导致重定义。把板级 `stm32f1xx_it.c` 里这两个函数改为 `__weak` 即可。详见 [osal_switching.md](osal_switching.md) 第 4.1 节。
+FreeRTOS 经 `FreeRTOSConfig.h` 的 `vPortSVCHandler` / `xPortPendSVHandler` 宏占住这两个中断向量；CubeMX 生成的 `stm32f1xx_it.c` 也强定义了同名函数，导致重定义。把板级 `stm32f1xx_it.c` 里这两个函数改为 `__weak` 即可。详见 [backend_switching.md](backend_switching.md) 第 4.1 节。
 
 ---
 
@@ -86,11 +86,11 @@ FreeRTOS 经 `FreeRTOSConfig.h` 的 `vPortSVCHandler` / `xPortPendSVHandler` 宏
 
 ### 裸机无调度
 
-`CONFIG_OSAL_NULL` 下用 `mini_tree_system_loop` + 裸机调度器（`x_scheduler` / `x_task`，见 `time_slice/task/xtask.h`）。调度器由 `Kconfig.mini_tree` 的「裸机调度器」choice 三选一：`XTASK_NONE`（自写 `while(1)`）/ `XTASK_COOP`（协调式 `xtask_coop.c`，默认）/ `XTASK_PREEMPT`（抢占式 `xtask_preempt.c`，已完工可编译）。不要调用 `vTaskStartScheduler`。
+`CONFIG_OS_BARE` 下用 `mini_tree_system_loop` + 裸机调度器（`x_scheduler` / `x_task`，见 `time_slice/task/xtask.h`）。调度器由 `Kconfig.mini_tree` 的「裸机调度器」choice 三选一：`XTASK_NONE`（自写 `while(1)`）/ `XTASK_COOP`（协调式 `xtask_coop.c`，默认）/ `XTASK_PREEMPT`（抢占式 `xtask_preempt.c`，已完工可编译）。不要调用 `vTaskStartScheduler`。
 
 ### 切 RTOS 后优先级行为相反
 
-见 [osal_switching.md](osal_switching.md)：FreeRTOS 与 RT-Thread 优先级数值语义相反。
+见 [backend_switching.md](backend_switching.md)：FreeRTOS 与 RT-Thread 优先级数值语义相反。
 
 ### 复位后异常、上电正常
 

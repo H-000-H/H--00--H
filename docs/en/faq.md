@@ -1,11 +1,11 @@
 # Frequently Asked Questions
 
-> The most common pitfalls in build, linking, clangd, probe, and OSAL switching.
+> The most common pitfalls in build, linking, clangd, probe, and the unified interface switching.
 
 | Item | Content |
 | :--- | :--- |
 | **Audience** | Everyone |
-| **Related** | [getting_started.md](getting_started.md) · [problem_summary.md](problem_summary.md) · [osal_switching.md](osal_switching.md) · [ecosystem.md](ecosystem.md) |
+| **Related** | [getting_started.md](getting_started.md) · [problem_summary.md](problem_summary.md) · [backend_switching.md](backend_switching.md) · [ecosystem.md](ecosystem.md) |
 
 ---
 
@@ -73,11 +73,11 @@ Clean the build directory, make sure CMake depends on that `.c`, and let dtc-lit
 
 ### Bare-metal has no scheduling
 
-Under `CONFIG_OSAL_NULL`, use `mini_tree_system_loop` + the bare-metal scheduler (`x_scheduler` / `x_task`, see `time_slice/task/xtask.h`). The scheduler is picked by the `Kconfig.mini_tree` "bare-metal scheduler" choice: `XTASK_NONE` (write your own `while(1)`) / `XTASK_COOP` (cooperative `xtask_coop.c`, default) / `XTASK_PREEMPT` (preemptive `xtask_preempt.c`, finished & compilable). Do not call `vTaskStartScheduler`.
+Under `CONFIG_OS_BARE`, use `mini_tree_system_loop` + the bare-metal scheduler (`x_scheduler` / `x_task`, see `time_slice/task/xtask.h`). The scheduler is picked by the `Kconfig.mini_tree` "bare-metal scheduler" choice: `XTASK_NONE` (write your own `while(1)`) / `XTASK_COOP` (cooperative `xtask_coop.c`, default) / `XTASK_PREEMPT` (preemptive `xtask_preempt.c`, finished & compilable). Do not call `vTaskStartScheduler`.
 
 ### Priority behavior is inverted after switching RTOS
 
-See [osal_switching.md](osal_switching.md): FreeRTOS and RT-Thread have opposite numeric priority semantics.
+See [backend_switching.md](backend_switching.md): FreeRTOS and RT-Thread have opposite numeric priority semantics.
 
 ### Fails after reset, works after power-on
 

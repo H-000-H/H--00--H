@@ -124,7 +124,7 @@ _PRESERVE_HEADER = (
     "# 当前不可见的符号 (genconfig 自动暂存, 勿手工编辑)\n"
     "# 这些选项的 depends on 暂时不满足, kconfiglib 的 write_config 不会写出\n"
     "# 它们。若直接丢弃, 依赖恢复后只能取 Kconfig 默认值, 自己定制会静默\n"
-    "# 丢失 (例如临时切一次 OSAL 后端, XTASK_* / X_PREEMPT_* 就会被冲掉)。\n"
+    "# 丢失 (例如临时切一次 OS 后端, XTASK_* / X_PREEMPT_* 就会被冲掉)。\n"
     "# 放在独立 sidecar (.config.preserved) 而非 .config 里, 是为了不让 CMake\n"
     "# 的 file(STRINGS .config REGEX \"^CONFIG_X=y$\") 把暂存行误当成生效值。\n"
     "# 依赖恢复后 write_config 会把它们写回 .config, 本文件随之自动缩小/删除。\n"

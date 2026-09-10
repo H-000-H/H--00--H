@@ -13,7 +13,6 @@
 
 #include "config.h"
 #include "hal_storage.h"
-#include "osal.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -80,7 +79,7 @@ void production_log_push(prod_log_level_t level, const char* tag, const char* ms
     s_state.head = (s_state.head + 1) % PROD_LOG_SLOT_COUNT;
 
     /* ISR 中跳过持久化 (存储操作可能阻塞) */
-    if (osal_in_isr())
+    if (hal_is_in_isr())
         return;
 
     MINI_IGNORE_RESULT(hal_storage_write_blob(PROD_LOG_STORAGE_SLOT, (const uint8_t*)&s_state, sizeof(s_state)));

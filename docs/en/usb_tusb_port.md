@@ -13,7 +13,7 @@
 
 - TinyUSB is pulled via FetchContent (`mini_tree_link_tinyusb`, see [ecosystem.md](ecosystem.md)); not vendored under `lib/`.
 - The board `dtsi/` provides the USB controller node (see `board/dtsi/example-soc.dtsi`).
-- An `CONFIG_OSAL_*` backend is selected (USB interrupts need the OSAL interrupt wrapper).
+- An `CONFIG_ESP_*` backend is selected (USB interrupts need the the unified interface interrupt wrapper).
 
 ---
 
@@ -40,9 +40,9 @@
 
 ---
 
-## 4. Interrupts & OSAL
+## 4. Interrupts & the unified interface
 
-USB interrupts go through the VIRQ wrapper in `interrupt/interrupt.{c,h}` and then to the OSAL interrupt; under bare metal (`CONFIG_OSAL_NULL`) they are dispatched by the `time_slice` scheduler. See [osal_switching.md](osal_switching.md).
+USB interrupts go through the VIRQ wrapper in `interrupt/interrupt.{c,h}` and then to the the unified interface interrupt; under bare metal (`CONFIG_OS_BARE`) they are dispatched by the `time_slice` scheduler. See [backend_switching.md](backend_switching.md).
 
 ---
 
@@ -57,4 +57,4 @@ USB interrupts go through the VIRQ wrapper in `interrupt/interrupt.{c,h}` and th
 
 ## Related Docs
 
-- [peripherals.md](peripherals.md) · [device_tree_porting.md](device_tree_porting.md) · [ecosystem.md](ecosystem.md) · [osal_switching.md](osal_switching.md)
+- [peripherals.md](peripherals.md) · [device_tree_porting.md](device_tree_porting.md) · [ecosystem.md](ecosystem.md) · [backend_switching.md](backend_switching.md)

@@ -18,7 +18,7 @@
 #include "driver.h"
 #include "dt_config_gen.h"
 #include "i2s_bus.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -48,10 +48,10 @@ struct vfs_i2s_client
 
 static struct vfs_i2s_host_priv s_host_pool[I2S_HOST_POOL];
 static uint8_t                  s_host_used[I2S_HOST_POOL];
-static osal_pool_t              s_host_pool_ctrl;
+static mini_slot_t              s_host_pool_ctrl;
 static struct vfs_i2s_client    s_client_pool[I2S_CLIENT_POOL];
 static uint8_t                  s_client_used[I2S_CLIENT_POOL];
-static osal_pool_t              s_client_pool_ctrl;
+static mini_slot_t              s_client_pool_ctrl;
 static const char*              k_host = "i2s_host";
 static const char*              k_cli = "i2s_vfs";
 
@@ -60,8 +60,8 @@ static const char*              k_cli = "i2s_vfs";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void pools(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_host_pool_ctrl, s_host_used, I2S_HOST_POOL));
-    MINI_IGNORE_RESULT(osal_pool_init(&s_client_pool_ctrl, s_client_used, I2S_CLIENT_POOL));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_host_pool_ctrl, s_host_used, I2S_HOST_POOL));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_client_pool_ctrl, s_client_used, I2S_CLIENT_POOL));
 }
 
 /**
@@ -219,7 +219,7 @@ static int host_probe(struct device* pdev, uint32_t role)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    idx = osal_pool_claim(&s_host_pool_ctrl);
+    idx = mini_slot_claim(&s_host_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -254,7 +254,7 @@ static int host_probe(struct device* pdev, uint32_t role)
     return MINI_OK;
 
 err:
-    MINI_IGNORE_RESULT(osal_pool_release(&s_host_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_host_pool_ctrl, idx));
     return ret;
 }
 
@@ -276,7 +276,7 @@ static int host_remove(struct device* pdev)
     ret = i2s_bus_host_deinit(pdev);
     if (ret != MINI_OK)
         return ret;
-    MINI_IGNORE_RESULT(osal_pool_release(&s_host_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_host_pool_ctrl, idx));
     return MINI_OK;
 }
 
@@ -714,7 +714,7 @@ static int client_probe(struct device* pdev)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    idx = osal_pool_claim(&s_client_pool_ctrl);
+    idx = mini_slot_claim(&s_client_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -746,7 +746,7 @@ static int client_probe(struct device* pdev)
     return MINI_OK;
 
 err:
-    MINI_IGNORE_RESULT(osal_pool_release(&s_client_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_client_pool_ctrl, idx));
     return ret;
 }
 
@@ -771,14 +771,14 @@ static int client_remove(struct device* pdev)
     idx = priv->pool_idx;
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
 
     i2s_bus_client_unregister(pdev);
-    MINI_IGNORE_RESULT(osal_pool_release(&s_client_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_client_pool_ctrl, idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

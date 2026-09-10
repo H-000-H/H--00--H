@@ -16,19 +16,20 @@
 #include "system_cfg.h"
 #include "system_scrubber_config.h"
 #include "system_wdt.h"
+#include "mini_time.h"
 
 #include "compiler_compat_poison.h"
 
 static const char*    k_tag = "Scrubber";
 static const uint32_t k_scrubber_prio =
-#if defined(CONFIG_OSAL_FREERTOS)
+#if defined(CONFIG_OS_FREERTOS)
     1; /* FreeRTOS: 0=最低, 31=最高 — 后台巡检, 最低优先级 */
 #else
     30; /* RT-Thread: 0=最高, 31=最低 — 后台巡检, 最低优先级 */
 #endif
 static const uint32_t k_scrubber_stack = 2048;
 
-static osal_task_handle_t s_handle = NULL;
+static mini_task_handle_t s_handle = NULL;
 static volatile bool      s_running = false;
 
 /**
@@ -88,7 +89,7 @@ static void scrubber_task(void* param)
     if (base_addr == 0 || total_size == 0)
     {
         SYS_LOGE(k_tag, "cannot locate app partition — scrubber aborted");
-        osal_task_self_delete();
+        mini_task_self_delete();
         return;
     }
 
@@ -97,7 +98,7 @@ static void scrubber_task(void* param)
     if (baseline_crc == 0)
     {
         SYS_LOGW(k_tag, "CRC baseline not set (0x%08X) — scrubber inactive, run post_build_crc.py", (unsigned)baseline_crc);
-        osal_task_self_delete();
+        mini_task_self_delete();
         return;
     }
 
@@ -138,11 +139,11 @@ static void scrubber_task(void* param)
             crc = 0xFFFFFFFF;
         }
 
-        osal_delay_ms(SYSTEM_SCRUBBER_INTERVAL_MS);
+        mini_delay_ms(SYSTEM_SCRUBBER_INTERVAL_MS);
     }
 
     SYS_LOGI(k_tag, "scrubber task exiting");
-    osal_task_self_delete();
+    mini_task_self_delete();
 }
 
 /**
@@ -161,7 +162,7 @@ int system_scrubber_start(void)
         return MINI_OK;
 
     s_running = true;
-    int ret = osal_task_create_handle("scrubber", k_scrubber_stack, k_scrubber_prio, scrubber_task, NULL, 0, &s_handle);
+    int ret = mini_task_create_handle("scrubber", k_scrubber_stack, k_scrubber_prio, scrubber_task, NULL, 0, &s_handle);
     if (ret != 0)
     {
         SYS_LOGE(k_tag, "failed to create scrubber task");

@@ -64,7 +64,7 @@ Kconfig 入口按构建后端分两套，共用同一份公共配置树 `Kconfig
 | `Kconfig.non_esp` | 仓库根 | 非 ESP 入口：`mainmenu` + `source "Kconfig.mini_tree"`（改名避免被 IDF 组件扫描自动收录，造成与 `Kconfig.projbuild` 双重 source） | `tools/genconfig.py` / `menuconfig.py` / 非 ESP `CMakeLists.txt` |
 | `Kconfig.projbuild` | 仓库根 | ESP-IDF 入口：`orsource "Kconfig.mini_tree"`（相对本文件目录），被 IDF confgen 注入顶层 Kconfig 树 | ESP-IDF（`idf.py menuconfig` / `idf.py reconfigure`） |
 
-ESP 路径下，`idf.py menuconfig` 即可在顶层菜单看到 "mini_tree Configuration" 子菜单，所有 `OSAL_*` / `SYSTEM_*` / `EVENT_BUS` 等开关经 IDF 的 `depends on` / `default` / `range` 正确求值后写入 `sdkconfig.h`，无需再手编 `.config`。
+ESP 路径下，`idf.py menuconfig` 即可在顶层菜单看到 "mini_tree Configuration" 子菜单，所有 `OS_*` / `SYSTEM_*` / `EVENT_BUS` 等开关经 IDF 的 `depends on` / `default` / `range` 正确求值后写入 `sdkconfig.h`，无需再手编 `.config`。
 
 ### 3.1 生成 `config.h`
 
@@ -81,16 +81,16 @@ python3 tools/genconfig.py Kconfig build/generated/kconfig/mini_tree --config .c
 | :--- | :--- | :--- |
 | Platform | `PLATFORM_ARM_CM4F` 等 | 架构提示（与工具链配合） |
 | Multi-core | `CPU_CORES` / `AMP_MODE` | 1=单核；2=AMP |
-| OSAL | `OSAL_NULL` / `MINI_OS` / `FREERTOS` / `RTTHREAD` | 运行时后端：裸机 / mini-os（自研，仅 Cortex-M）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
-| OSAL 容量 | `OSAL_NULL_MAX_QUEUES`（基础队列数，EventBus 开自动 +1）/ `OSAL_NULL_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | 队列/堆内存（仅对应后端可见） |
+| OS 后端 | `OS_BARE` / `MINI_OS` / `FREERTOS` / `RTTHREAD` | 运行时后端：裸机 / mini-os（自研，仅 Cortex-M）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
+| 后端容量 | `OS_BARE_MAX_QUEUES`（基础队列数，EventBus 开自动 +1）/ `OS_BARE_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | 队列/堆内存（仅对应后端可见） |
 | System | `SYSTEM` / `SYSTEM_CPP` / `SYSTEM_C` | 总开关（默认自开）+ 语言后端 |
-| Log | `SYS_LOG_USE_PRINTF` / `OSAL` | `SYS_LOG*` 后端 |
+| Log | `SYS_LOG_USE_PRINTF` / `统一接口` | `SYS_LOG*` 后端 |
 | Board Features | `SYSTEM_WDT` / `SYSTEM_SCRUBBER` 等 | 框架看门狗（默认开）/ CRC 巡检（默认关），依赖 `SYSTEM` |
-| Runtime | `EVENT_BUS` / `EVENT_BUS_*` / `OSAL_MUTEX_POOL_SIZE` / `BOTTOM_HALF_QUEUE_DEPTH` | 总开关 + 容量 |
+| Runtime | `EVENT_BUS` / `EVENT_BUS_*` / `MINI_MUTEX_POOL_SIZE` / `BOTTOM_HALF_QUEUE_DEPTH` | 总开关 + 容量 |
 
 `SYSTEM` 为**默认自开启**的可选模块，`EVENT_BUS` 与 `SYSTEM_CMD` 为**默认关闭**：关闭 `SYSTEM` 后 `system_c/`、`system_cpp/` 与 EventBus 一并裁剪；仅开启 `EVENT_BUS` 则保留两阶段启动与看门狗，加上发布/订阅总线。
 
-仓库自带 `.config` 常见默认：`OSAL_NULL` + `SYSTEM`/`SYSTEM_CPP` + `SYSTEM_WDT` + `SYS_LOG_USE_PRINTF`（`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` 默认关）。
+仓库自带 `.config` 常见默认：`OS_BARE` + `SYSTEM`/`SYSTEM_CPP` + `SYSTEM_WDT` + `SYS_LOG_USE_PRINTF`（`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` 默认关）。
 
 ---
 
@@ -136,7 +136,7 @@ set(VENDOR_INC_DIRS "${CUBE_INC};${HAL_INC}" CACHE STRING "" FORCE)
 
 1. 跑 `genconfig.py`
 2. 跑 `dtc-lite`（扫描 vfs/bus/drivers 中的 `DRIVER_REGISTER`，生成编译期 probe 表）
-3. 按 `.config` 挑选 OSAL / SYSTEM 源；链入 `lib/` 中的 vendor 内核（mini-os / FreeRTOS v11.3.0 / RT-Thread v5.3.0）
+3. 按 `.config` 挑选 OS / SYSTEM 源；链入 `lib/` 中的 vendor 内核（mini-os / FreeRTOS v11.3.0 / RT-Thread v5.3.0）
 4. 配置期积木（TinyUSB / lwIP）由根 CMake 直接 `include` 对应 `cmake/*.cmake`；其余可选积木由产品侧 `mini_tree_link_*` 链接期点亮（首次可能联网 Fetch）
 
 语言后端对照见 [runtime_services.md](runtime_services.md#3-system_c-vs-system_cpp)；USB 板级契约见 [usb_tusb_port.md](usb_tusb_port.md)；积木清单见 [ecosystem.md](ecosystem.md)。
@@ -185,18 +185,18 @@ int main(void)
     /* 可选：业务服务静态 init */
 
     mini_tree_start_tasks();   /* probe + 框架任务 */
-    /* 可选：osal_task_create 业务任务 */
+    /* 可选：mini_task_create 业务任务 */
 
     system_init_complete();
 
-#if defined(CONFIG_OSAL_NULL)
+#if defined(CONFIG_OS_BARE)
     for (;;)
         mini_tree_system_loop();
-#elif defined(CONFIG_OSAL_MINI_OS)
+#elif defined(CONFIG_OS_MINI_OS)
     mini_os_schedule_start();
-#elif defined(CONFIG_OSAL_FREERTOS)
+#elif defined(CONFIG_OS_FREERTOS)
     vTaskStartScheduler();
-#elif defined(CONFIG_OSAL_RTTHREAD)
+#elif defined(CONFIG_OS_RTTHREAD)
     rt_system_scheduler_start();
 #endif
     return 0;
@@ -206,24 +206,24 @@ int main(void)
 ### 6.2 C++（`system_init.hpp`）
 
 ```cpp
-#include "config.h"            // CONFIG_OSAL_* / CONFIG_XTASK_PREEMPT 等宏为相关头所需
+#include "config.h"            // CONFIG_ESP_* / CONFIG_XTASK_PREEMPT 等宏为相关头所需
 #include "system_init.hpp"
 
 mini_tree::system_pre_os_init();
 /* 可选：业务服务静态 init（SystemCmd::get_instance().register_cmd(…) 等）*/
 mini_tree::system_start_tasks();   /* probe + 框架任务 */
-/* 可选：osal_task_create 业务任务 */
+/* 可选：mini_task_create 业务任务 */
 
 system_init_complete();
 // 再启动调度器（vTaskStartScheduler / rt_system_scheduler_start / mini_tree_system_loop）
 ```
 
-> 裸机（`CONFIG_OSAL_NULL`）下 `osal_task_create` **C 版恒返回 `OSAL_ERR_NOTSUPP`**：
-> C++ 工程请用 `osal_null.h` 的 C++ 重载 `osal_task_create`（`CONFIG_OSAL_NULL_TASK_CPP`，默认开启；
+> 裸机（`CONFIG_OS_BARE`）下 `mini_task_create` **C 版恒返回 `MINI_ERR_NOTSUPP`**：
+> C++ 工程请用 `mini_backend.h` 的 C++ 重载 `mini_task_create`（`CONFIG_XTASK_PREEMPT`，默认开启；
 > `period` 参数为任务周期 ms，`param1` 为调用方静态分配的 `x_task*` TCB）；
 > C 工程直接调 `xscheduler_task_create`（见 `time_slice/task/xtask.h`）。OS 后端无此限制。
 >
-> **抢占式 (`CONFIG_XTASK_PREEMPT=y`) 注意**: C++ 重载仍提供, 但 `osal_task_create` 切换为带 `priority` 的分支（`stack_size` 在裸机下复用为周期）; 也可走 `xscheduler_task_create` 原生 API. 调度器实现换成 `xtask_preempt.c` (N+1 多优先级, 已完整实现可编译).
+> **抢占式 (`CONFIG_XTASK_PREEMPT=y`) 注意**: C++ 重载仍提供, 但 `mini_task_create` 切换为带 `priority` 的分支（`stack_size` 在裸机下复用为周期）; 也可走 `xscheduler_task_create` 原生 API. 调度器实现换成 `xtask_preempt.c` (N+1 多优先级, 已完整实现可编译).
 
 阶段含义见 [architecture.md §3](architecture.md#3-启动时序两段式点火)。
 
@@ -254,7 +254,7 @@ system_init_complete();
 
 ## 8. 验收清单
 
-- [ ] `config.h` 生成且 OSAL/SYSTEM 宏符合预期
+- [ ] `config.h` 生成且 OS/SYSTEM 宏符合预期
 - [ ] dtc-lite 产出 `board_nodes.h`，`DEV_ID_COUNT` ≥ 1（真实板应远大于占位）
 - [ ] 链接后 GPIO/UART 等 HAL 为平台实现（非一直 `MINI_ERR_NOTSUPP`）
 - [ ] `board_driver_probe_all` 无意外 FATAL
@@ -265,5 +265,5 @@ system_init_complete();
 ## 相关文档
 
 - [device_tree_porting.md](device_tree_porting.md) · [driver_guide.md](driver_guide.md)
-- [osal_switching.md](osal_switching.md) · [faq.md](faq.md) · [ecosystem.md](ecosystem.md)
+- [backend_switching.md](backend_switching.md) · [faq.md](faq.md) · [ecosystem.md](ecosystem.md)
 - [tools_guide.md](../tools_guide.md)

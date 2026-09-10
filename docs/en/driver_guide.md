@@ -182,7 +182,7 @@ Drivers with fops should follow this order (`driver.h` comments):
 
 1. `dev_lc_remove_start(device_lc(dev))`
 2. `device_ops_unregister(dev)`
-3. `dev_lc_remove_drain(..., OSAL_WAIT_FOREVER)`
+3. `dev_lc_remove_drain(..., MINI_WAIT_FOREVER)`
 4. Release hardware / bus
 5. `dev_lc_remove_finish(...)`
 

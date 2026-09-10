@@ -12,7 +12,6 @@ get_filename_component(MINI_TREE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(KCONFIG_DOT "${MINI_TREE_DIR}/.config")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${KCONFIG_DOT}")
 
-file(STRINGS "${KCONFIG_DOT}" CONFIG_OSAL_ENTRY   REGEX "^CONFIG_OSAL_(FREERTOS|RTTHREAD|NULL)=y$")
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ENTRY REGEX "^CONFIG_SYSTEM_(C|CPP)=y$")
 
 # System / EventBus 软编码：.config 显式 "# CONFIG_SYSTEM is not set" 才裁剪；缺省视为启用（对齐 Kconfig default y）
@@ -57,9 +56,9 @@ foreach(d ${HAL_INCLUDE_DIRS})
 endforeach()
 set(HAL_INCLUDE_DIRS ${_HAL_INC_EXISTING})
 
-# ESP 强制 FreeRTOS OSAL（对接 IDF 内核）
-set(OSAL_SRCS "${MINI_TREE_DIR}/osal/src/osal_freertos.c")
-set(OSAL_DEFINE CONFIG_OSAL_FREERTOS)
+# ESP 强制 FreeRTOS 后端（对接 IDF 内核）
+set(MINI_OS_SRCS "${MINI_TREE_DIR}/core/src/mini_backend_freertos.c")
+set(MINI_OS_DEFINE CONFIG_OS_FREERTOS)
 
 # HAL stub 全量编入, 但每个 stub 文件内部已做 #if defined(ESP_PLATFORM) 屏蔽:
 # ESP 构建下文件编译为空 (hal_* 由板级组件提供 strong 实现, 缺失直接链接报错,
@@ -128,7 +127,14 @@ set(BOARD_SRCS
 )
 
 set(CORE_SRCS
-    "${MINI_TREE_DIR}/core/src/buffer_pool.c"
+    "${MINI_TREE_DIR}/core/src/mini_backend_bare.c"
+    "${MINI_TREE_DIR}/core/src/mini_backend_freertos.c"
+    "${MINI_TREE_DIR}/core/src/mini_backend_mini_os.c"
+    "${MINI_TREE_DIR}/core/src/mini_backend_rtthread.c"
+    "${MINI_TREE_DIR}/core/src/mini_log.c"
+    "${MINI_TREE_DIR}/core/src/mini_panic.c"
+    "${MINI_TREE_DIR}/core/src/mini_slot.c"
+    "${MINI_TREE_DIR}/core/src/mini_time.c"
     "${MINI_TREE_DIR}/core/src/production_log.c"
     "${MINI_TREE_DIR}/core/src/printf_output.c"
 )
@@ -296,7 +302,7 @@ endif()
 
 idf_component_register(
     SRCS
-        ${OSAL_SRCS}
+        ${MINI_OS_SRCS}
         ${HAL_SRCS}
         ${BOARD_SRCS}
         ${CORE_SRCS}
@@ -309,7 +315,6 @@ idf_component_register(
         "${MINI_TREE_DIR}/board/define/vfs"
         "${MINI_TREE_DIR}/board"
         "${MINI_TREE_DIR}/core/include"
-        "${MINI_TREE_DIR}/osal/include"
         "${MINI_TREE_DIR}/system_c/include"
         "${MINI_TREE_DIR}/system_cpp/include"
         "${MINI_TREE_DIR}/algorithm/buffer"
@@ -400,7 +405,7 @@ add_dependencies(${COMPONENT_LIB}
 
 set_source_files_properties(${GEN_SRCS} PROPERTIES GENERATED TRUE)
 
-target_compile_definitions(${COMPONENT_LIB} PUBLIC ${OSAL_DEFINE} ETL_NO_STL)
+target_compile_definitions(${COMPONENT_LIB} PUBLIC ${MINI_OS_DEFINE} ETL_NO_STL)
 if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
     target_compile_definitions(${COMPONENT_LIB} PRIVATE CONFIG_SYSTEM_CPP)
     target_compile_options(${COMPONENT_LIB} PRIVATE

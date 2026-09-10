@@ -19,7 +19,7 @@
 #include "dt_config_gen.h"
 #include "hal_gpio.h"
 #include "interrupt.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 #include <stdint.h>
@@ -30,7 +30,6 @@ static const char* const k_tag = "vfs-gpio";
 struct vfs_gpio_priv
 {
     struct file_operations ops;           /**< VFS 操作表 */
-    struct osal_mutex*     io_mutex;      /**< I/O 互斥锁 */
     hal_gpio_dev_t         obj;           /**< HAL GPIO 设备对象 */
     int                    default_level; /**< 默认电平 */
     int                    pool_idx;      /**< 池索引 */
@@ -38,15 +37,14 @@ struct vfs_gpio_priv
 
 static struct vfs_gpio_priv              s_gpio_priv_pool[VFS_GPIO_PIN_COUNT] MINI_ALIGNED(4);
 static uint8_t                           s_gpio_priv_used[VFS_GPIO_PIN_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_gpio_priv_pool_ctrl MINI_ALIGNED(4);
-static uint8_t                           s_gpio_mutex_storage[VFS_GPIO_PIN_COUNT][OSAL_MUTEX_STORAGE_SIZE] MINI_ALIGNED(4);
+static mini_slot_t s_gpio_priv_pool_ctrl MINI_ALIGNED(4);
 
 /**
  * @brief GPIO VFS 私有数据池启动初始化
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void gpio_priv_pool_boot_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_gpio_priv_pool_ctrl, s_gpio_priv_used, VFS_GPIO_PIN_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_gpio_priv_pool_ctrl, s_gpio_priv_used, VFS_GPIO_PIN_COUNT));
 }
 
 /**
@@ -284,7 +282,7 @@ static int vfs_gpio_probe(struct device* pdev)
     if (!pdev)
         return MINI_ERR_INVAL;
 
-    pool_idx = osal_pool_claim(&s_gpio_priv_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_gpio_priv_pool_ctrl);
     if (pool_idx < 0)
     {
         SYS_LOGE(k_tag, "Failed to claim gpio pool");
@@ -335,12 +333,6 @@ static int vfs_gpio_probe(struct device* pdev)
     MINI_IGNORE_RESULT(device_get_prop_int(pdev, "default-level", &default_level));
     priv->default_level = default_level;
 
-    if (osal_mutex_create_static(&priv->io_mutex, s_gpio_mutex_storage[pool_idx], sizeof(s_gpio_mutex_storage[pool_idx])) != 0)
-    {
-        ret = MINI_ERR_NOMEM;
-        goto err_pool;
-    }
-
     device_lc_bind(pdev);
     priv->ops = gpio_fops;
     pdev->ops = &priv->ops;
@@ -348,20 +340,19 @@ static int vfs_gpio_probe(struct device* pdev)
     if (device_set_priv(pdev, priv) != MINI_OK)
     {
         ret = MINI_ERR_IO;
-        goto err_mutex;
+        goto err_unbind;
     }
 
     SYS_LOGI(k_tag, "probe OK: port=0x%x pin=0x%x clk=0x%x mode=%d", (unsigned)port_val, (unsigned)pin_val, (unsigned)clk_val, priv->obj.cfg.mode);
     return MINI_OK;
 
-err_mutex:
+/* 回滚 device_lc_bind + pdev->ops (原 err_mutex 因 io_mutex 存在而得名, 现按其实际职责改名) */
+err_unbind:
     pdev->ops = NULL;
     dev_lc_reset(device_lc(pdev));
-    osal_mutex_destroy(priv->io_mutex);
-    priv->io_mutex = NULL;
 err_pool:
     MINI_MEM_SET(priv, 0, sizeof(*priv));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_gpio_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_gpio_priv_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -389,17 +380,15 @@ static int vfs_gpio_remove(struct device* pdev)
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
 
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         SYS_LOGE(k_tag, "remove drain failed");
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
 
-    osal_mutex_destroy(priv->io_mutex);
-    priv->io_mutex = NULL;
     MINI_MEM_SET(priv, 0, sizeof(*priv));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_gpio_priv_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_gpio_priv_pool_ctrl, pool_idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

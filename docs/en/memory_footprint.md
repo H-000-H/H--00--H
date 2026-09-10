@@ -31,7 +31,7 @@
 | :--- | :--- |
 | `CONFIG_SYSTEM_WDT` | framework watchdog (on by default) |
 | `CONFIG_SAFETY_SHUTDOWN` | safe-shutdown callbacks (off by default) |
-| `CONFIG_SYS_LOG_USE_PRINTF` / `_OSAL` / `_ESP` | `SYS_LOG*` backend selection (logging off saves the most) |
+| `CONFIG_SYS_LOG_USE_PRINTF` / `_ESP` / `_ESP` | `SYS_LOG*` backend selection (logging off saves the most) |
 | `CONFIG_PRODUCTION_LOG` | black-box fault recording (off by default) |
 | `CONFIG_EVENT_BUS` / `CONFIG_SYSTEM_CMD` / `CONFIG_SYSTEM_SCRUBBER` | optional-feature master switches (off by default) |
 | `CONFIG_BUILD_DISASM` | disassembly post-build (on by default; turn off as needed) |
@@ -44,10 +44,10 @@
 
 | Config | text | rodata | data | bss | flash total | Note |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| Minimal (framework + `osal` only) | 6.2 | 1.1 | 0.3 | 2.4 | 7.6 | `CONFIG_OSAL_NULL` + empty board |
+| Minimal (framework + `core` only) | 6.2 | 1.1 | 0.3 | 2.4 | 7.6 | `CONFIG_OS_BARE` + empty board |
 | + device model | 11.8 | 2.0 | 0.6 | 4.1 | 13.8 | all of `board/` |
 | + one VFS device (uart) | 15.3 | 2.6 | 0.8 | 5.2 | 18.7 | `vfs/uart` |
-| + FreeRTOS backend | 19.1 | 3.3 | 1.1 | 6.9 | 23.5 | `CONFIG_OSAL_FREERTOS` |
+| + FreeRTOS backend | 19.1 | 3.3 | 1.1 | 6.9 | 23.5 | `CONFIG_OS_FREERTOS` |
 | + WDT + safe_state | 20.4 | 3.5 | 1.2 | 7.3 | 24.9 | `CONFIG_SYSTEM_WDT` + `CONFIG_SAFETY_SHUTDOWN` |
 
 > Above table estimated with GCC `-Os` + LTO. Enabling logging (`CONFIG_SYS_LOG_LEVEL>0`) adds ~3–8 KiB `rodata`/`text` per tier; turning it off saves the most.
@@ -58,7 +58,7 @@
 
 ## 4. Scheduler Comparison (minimal-firmware measured)
 
-> Measured with `arm-none-eabi-gcc 13.3.1` (Windows, older than the previous 14.2.1/Linux — builds fine on the older toolchain), `-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -ffunction-sections -fdata-sections` + `--gc-sections`. Minimal firmware = `startup` (vector table + Reset_Handler) + `main` (standard system-layer startup sequence) + linking the whole `mini_tree` library (RTOS kernel included, `--start-group` for circular references), linked with an STM32F4-like script (FLASH 1 MiB / RAM 128 KiB). Units in bytes; `RAM total = data + bss`. Two libc baselines are reported: **newlib-nano** (`--specs=nano.specs`, the usual minimal-size choice) and **full newlib** (the previous table's baseline); the `.config` baseline is the current repo default (event bus/WDT/OSAL logging on), unreferenced modules (lwIP/USB, etc.) are kept out of the closure by `--gc-sections`. Absolute values drift with toolchain and baseline config — **relative deltas** are the meaningful comparison.
+> Measured with `arm-none-eabi-gcc 13.3.1` (Windows, older than the previous 14.2.1/Linux — builds fine on the older toolchain), `-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -ffunction-sections -fdata-sections` + `--gc-sections`. Minimal firmware = `startup` (vector table + Reset_Handler) + `main` (standard system-layer startup sequence) + linking the whole `mini_tree` library (RTOS kernel included, `--start-group` for circular references), linked with an STM32F4-like script (FLASH 1 MiB / RAM 128 KiB). Units in bytes; `RAM total = data + bss`. Two libc baselines are reported: **newlib-nano** (`--specs=nano.specs`, the usual minimal-size choice) and **full newlib** (the previous table's baseline); the `.config` baseline is the current repo default (event bus/WDT/printing logging on), unreferenced modules (lwIP/USB, etc.) are kept out of the closure by `--gc-sections`. Absolute values drift with toolchain and baseline config — **relative deltas** are the meaningful comparison.
 
 ### 4.1 newlib-nano (recommended baseline)
 
@@ -97,13 +97,13 @@
 **Heap accounting (why bss is not directly comparable across backends)**:
 
 - FreeRTOS: heap is a static array `ucHeap[CONFIG_FREERTOS_HEAP_SIZE]` (default 8192), **counted in bss**;
-- RT-Thread: heap is a static array `s_rtt_heap[CONFIG_RTT_HEAP_SIZE]` (default 32×1024, see `osal_rtthread.c`), **counted in bss**;
+- RT-Thread: heap is a static array `s_rtt_heap[CONFIG_RTT_HEAP_SIZE]` (default 32×1024, see `mini_backend_rtthread.c`), **counted in bss**;
 - mini-os: heap is a link-time region (`__mini_os_heap_start`→`__mini_os_heap_end`, from end of bss to top of stack), **not counted in bss** — all remaining RAM goes to the heap;
 - bare-metal xtask: no heap.
 
 Framework bss excluding the configurable heap (nano / C++): coop 4432 · mini-os 3016 · FreeRTOS 4336 · RT-Thread 2712. The bare row's 512 B bss is the linker-script `._user_heap_stack` minimum-heap placeholder, not real usage; all other rows include it as well.
 
-Scope (as before): under `XTASK_NONE`, `OSAL_NULL_TASK_CPP` is auto-disabled by Kconfig (`depends on !XTASK_NONE`) and the osal/system layer depends on the xtask interface (`osal_null.h` unconditionally includes `xtask.h`), so with no implementation it cannot link; the firmware degrades to a minimal closure (startup + hand-written main loop) without the system/osal layer. RTOS backends' `text` already includes their respective kernels; numbers include the whole library (board device model, etc.) — **relative deltas** are the meaningful comparison. The bare-metal scheduler tri-state (`XTASK_NONE`/`XTASK_COOP`/`XTASK_PREEMPT`) is selected via the `Kconfig.mini_tree` choice; CMake injects `MINI_TREE_XTASK_*` macros to decide whether `xtask_coop.c` or `xtask_preempt.c` is compiled. Preemptive and cooperative expose the identical API (`xscheduler_task_create`/`x_scheduler_poll`/`xscheduler_start`), so caller code switches transparently.
+Scope (as before): under `XTASK_NONE`, `CONFIG_XTASK_PREEMPT` is auto-disabled by Kconfig (`depends on !XTASK_NONE`) and the core/system layer depends on the xtask interface (`mini_backend.h` unconditionally includes `xtask.h`), so with no implementation it cannot link; the firmware degrades to a minimal closure (startup + hand-written main loop) without the system/core layer. RTOS backends' `text` already includes their respective kernels; numbers include the whole library (board device model, etc.) — **relative deltas** are the meaningful comparison. The bare-metal scheduler tri-state (`XTASK_NONE`/`XTASK_COOP`/`XTASK_PREEMPT`) is selected via the `Kconfig.mini_tree` choice; CMake injects `MINI_TREE_XTASK_*` macros to decide whether `xtask_coop.c` or `xtask_preempt.c` is compiled. Preemptive and cooperative expose the identical API (`xscheduler_task_create`/`x_scheduler_poll`/`xscheduler_start`), so caller code switches transparently.
 
 Conclusions:
 
@@ -121,7 +121,7 @@ Conclusions:
 
 1. Turn off logging (skip the `CONFIG_SYS_LOG_USE_*` backends or reduce log volume) — each `LOG_*` macro occupies space; this saves the most.
 2. Use `-Os` + `-ffunction-sections -fdata-sections -Wl,--gc-sections` (see §6.2) for dead-code elimination.
-3. Picking the `CONFIG_OSAL_NULL` backend (bare metal) is smallest, but you must implement scheduling yourself.
+3. Picking the `CONFIG_OS_BARE` backend (bare metal) is smallest, but you must implement scheduling yourself.
 4. Don't compile unused VFS / HAL: dependencies are driven by the CMake source set, so unreferenced ones never reach the binary.
 5. `err_section` only matters when a dedicated ROM area / diagnostics are genuinely required — keep the `error_symbols.ld` link then.
 
@@ -149,7 +149,7 @@ Conclusions:
 
 | Kconfig / config | Value | Impact |
 | :--- | :--- | :--- |
-| `CONFIG_OSAL_NULL` | `y` | drop FreeRTOS/RT-Thread, use bare-metal OSAL — main RAM driver (RTOS needs per-task TCB + dedicated stack; xtask reuses the main-loop stack) |
+| `CONFIG_OS_BARE` | `y` | drop FreeRTOS/RT-Thread, use bare-metal unified interface — main RAM driver (RTOS needs per-task TCB + dedicated stack; xtask reuses the main-loop stack) |
 | `CONFIG_XTASK_PREEMPT` | `y` | preemptive xtask coroutines + `CONFIG_XTASK_COROUTINE` |
 | `# CONFIG_SYSTEM_SCRUBBER` | unset | disable startup memory scrubber |
 | `# CONFIG_SYSTEM_CMD` | unset | disable command-line shell |
@@ -161,9 +161,9 @@ Conclusions:
 ### 6.3 Key Findings
 
 1. **`--gc-sections` is active but barely affects RAM**: it strips "unreferenced standalone sections" (mainly `text`/FLASH), while the RAM bulk is `bss` (task pool, queue buffers, etc.) — which is always referenced and cannot be gc'd. This is exactly why Release saved only ~1.7 KB FLASH over Debug while RAM barely moved (9,776 → 9,768 B).
-2. **RAM is cut by feature trimming, not by optimization level**: switching to `CONFIG_OSAL_NULL` and disabling `SYSTEM_SCRUBBER`/`SYSTEM_CMD` are what actually lowered RAM.
+2. **RAM is cut by feature trimming, not by optimization level**: switching to `CONFIG_OS_BARE` and disabling `SYSTEM_SCRUBBER`/`SYSTEM_CMD` are what actually lowered RAM.
 3. **Static-library trimming granularity is limited**: `mini_tree` is a `STATIC` library; the linker pulls in whole `.o` files, so `--gc-sections` can only drop individual unreferenced sections within an `.o`; global data not split into sections stays.
-4. **To reduce RAM further**: shrink the queue buffer (`CONFIG_OSAL_NULL_QUEUE_BUF_SZ`, currently 1024), disable `CONFIG_EVENT_BUS`/`CONFIG_VIRQ` (currently `y`), or shrink the task pool.
+4. **To reduce RAM further**: shrink the queue buffer (`CONFIG_OS_BARE_QUEUE_BUF_SZ`, currently 1024), disable `CONFIG_EVENT_BUS`/`CONFIG_VIRQ` (currently `y`), or shrink the task pool.
 
 ---
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * TaskManager — OSAL 任务创建工具类
+ * TaskManager — 统一接口任务创建工具类
  *
  * 基于 board_task_config 结构创建任务, 自动订阅 TWDT 看门狗
  * 提供两类接口: create (配置结构体) 与 create_task (参数直传)
@@ -8,11 +8,11 @@
  */
 #pragma once
 
-#include "osal.h"
+#include "mini_backend.h"
 #include "task_config.h"
 
 /**
- * @brief OSAL 任务创建工具类
+ * @brief 统一接口任务创建工具类
  *
  * 基于 board_task_config 结构创建任务, 自动订阅 TWDT 看门狗
  * 提供两类接口: create (配置结构体) 与 create_task (参数直传)
@@ -23,10 +23,10 @@ public:
     using TaskEntry = void (*)(void* param); /**< 任务入口函数指针类型 */
 
     /** @brief 从配置结构体创建任务, 自动订阅 TWDT */
-    static osal_task_handle_t create(const struct board_task_config& config, TaskEntry entry,
+    static mini_task_handle_t create(const struct board_task_config& config, TaskEntry entry,
                                      void* param);
 
     /** @brief 简便版: 从参数直接创建任务, 无需预先定义 struct board_task_config */
-    static osal_task_handle_t create_task(const char* name, uint32_t stack_size, uint32_t priority,
+    static mini_task_handle_t create_task(const char* name, uint32_t stack_size, uint32_t priority,
                                           TaskEntry entry, void* param, int core_id);
 };

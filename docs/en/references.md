@@ -19,13 +19,13 @@
 
 ---
 
-## 2. RTOS & OSAL
+## 2. RTOS & the unified interface
 
 | Resource | Description |
 | :--- | :--- |
-| FreeRTOS official docs | reference for `CONFIG_OSAL_FREERTOS` backend |
-| RT-Thread official docs | reference for `CONFIG_OSAL_RTTHREAD` backend |
-| OSAL four-backend design | `osal/src/osal_{null,mini_os,freertos,rtthread}.c` |
+| FreeRTOS official docs | reference for `CONFIG_OS_FREERTOS` backend |
+| RT-Thread official docs | reference for `CONFIG_OS_RTTHREAD` backend |
+| the unified interface four-backend design | `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` |
 
 ---
 

@@ -64,7 +64,7 @@
 
 ---
 
-## core / osal / interrupt / system
+## core / interrupt / system
 
 | 路径 | 说明 |
 | :--- | :--- |
@@ -72,13 +72,12 @@
 | `core/include/compiler_compat.h` | 可移植属性与 mem API |
 | `core/include/compiler_compat_poison.h` | poison 层 |
 | `core/include/event_bus.h` · `event_bus.hpp` | 事件总线 |
-| `core/include/buffer_pool.h` | 缓冲池 |
 | `core/include/system_log.h` · `production_log.h` | 日志 |
 | `core/src/*.c` | 上述实现 |
-| `osal/include/osal.h` | OSAL 总头 |
-| `osal/include/osal_null.h` | 裸机后端辅助接口 + C++ 任务重载声明（`CONFIG_OSAL_NULL_TASK_CPP`） |
-| `osal/src/osal_{null,mini_os,freertos,rtthread}.c` | 四后端 |
-| `osal/src/osal_task.cpp` | 裸机 C++ 任务创建封装（`CONFIG_OSAL_NULL_TASK_CPP`） |
+| `core/include/mini_backend.h` | 统一接口总头 |
+| `core/include/mini_backend.h` | 裸机后端辅助接口 + C++ 任务重载声明（`CONFIG_XTASK_PREEMPT`） |
+| `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` | 四后端 |
+| `（裸机任务走 xtask, C++ 封装已移除）` | 裸机 C++ 任务创建封装（`CONFIG_XTASK_PREEMPT`） |
 | `interrupt/interrupt.{c,h}` | VIRQ |
 | `system_c/` · `system_cpp/` | init、wdt、scrubber、safe_state、task_manager、cmd（Kconfig 选 C 或 C++） |
 | `time_slice/task/xtask*.{c,h}` | 裸机调度（协调式 `xtask_coop.c` / 抢占式 `xtask_preempt.c` / 共用 `xtask.h`） |

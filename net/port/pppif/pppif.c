@@ -28,7 +28,7 @@
 #include "net/arch/sys_arch.h"
 #include "netif/ppp/ppp.h"
 #include "netif/ppp/pppos.h"
-#include "osal.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include <stddef.h>
@@ -69,7 +69,7 @@ struct pppif_context
     struct device*   modem_dev;                 /**< 模组设备句柄 */
     struct netif     ppp_netif;                 /**< lwIP netif 实例 */
     ppp_pcb*         ppp_pcb;                   /**< lwIP PPP 控制块 */
-    osal_thread_t    rx_thread;                 /**< 接收处理线程句柄 */
+    port_thread_t    rx_thread;                 /**< 接收处理线程句柄 */
     volatile uint8_t is_running;                /**< 线程运行标志位 */
     volatile bool    is_link_up;                /**< PPP 链路就绪标志 */
     uint8_t          rx_buf[PPPIF_RX_BUF_SIZE]; /**< 接收数据流缓存 */
@@ -106,7 +106,7 @@ static int pppif_at_send_expect(const char* cmd, const char* expect_resp, uint32
     if (ret != MINI_OK)
         return ret;
 
-    start_time = osal_time_ms();
+    start_time = mini_time_ms();
 
     do
     {
@@ -125,7 +125,7 @@ static int pppif_at_send_expect(const char* cmd, const char* expect_resp, uint32
             if (strcmp(expect_resp, "CONNECT") != 0 && strstr((const char*)resp_buf, "ERROR") != NULL)
                 return MINI_ERR_IO;
         }
-    } while ((osal_time_ms() - start_time) < timeout_ms);
+    } while ((mini_time_ms() - start_time) < timeout_ms);
 
     return MINI_ERR_TIMEOUT;
 }
@@ -254,7 +254,7 @@ static void pppif_rx_thread_entry(void* param)
     {
         if (!p_ctx->modem_dev || !p_ctx->ppp_pcb)
         {
-            osal_delay_ms(10);
+            mini_delay_ms(10);
             continue;
         }
         receive_len = device_read(p_ctx->modem_dev, p_ctx->rx_buf, sizeof(p_ctx->rx_buf), PPPIF_UART_TIMEOUT_MS);
@@ -262,7 +262,7 @@ static void pppif_rx_thread_entry(void* param)
             pppos_input(p_ctx->ppp_pcb, p_ctx->rx_buf, receive_len);
     }
     SYS_LOGI(k_tag, "PPP RX task exited");
-    osal_task_delete(NULL);
+    mini_task_delete(NULL);
 }
 #endif /* !NO_SYS */
 
@@ -342,7 +342,7 @@ int pppif_init(const char* modem_label, const char* apn, const char* username, c
 #if !NO_SYS
     /* 创建后台接收数据处理任务 (RTOS 模式) */
     s_pppif_context.is_running = true;
-    ret = osal_task_create_handle("pppos_rx", PPPIF_RX_TASK_STACK_SIZE, PPPIF_RX_TASK_PRIO, pppif_rx_thread_entry, &s_pppif_context, (int)-1,
+    ret = mini_task_create_handle("pppos_rx", PPPIF_RX_TASK_STACK_SIZE, PPPIF_RX_TASK_PRIO, pppif_rx_thread_entry, &s_pppif_context, (int)-1,
                                   &s_pppif_context.rx_thread);
     if (ret != 0 || !s_pppif_context.rx_thread)
     {

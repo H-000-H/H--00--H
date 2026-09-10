@@ -17,6 +17,7 @@
 #include "compiler_compat.h"
 #include "dev_lifecycle.h"
 #include "hal_gpio.h"
+#include "mini_backend.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -60,7 +61,7 @@ enum device_criticality
 {
     DEVICE_CRIT_IGNORE = 0, /**< 可无声忽略 */
     DEVICE_CRIT_WARNING,    /**< 失败时记录告警 (默认) */
-    DEVICE_CRIT_FATAL,      /**< 失败时触发 OSAL_PANIC 安全停机 */
+    DEVICE_CRIT_FATAL,      /**< 失败时触发 MINI_PANIC 安全停机 */
 };
 
 /* -------------------------------------------------------------------------- */
@@ -156,7 +157,7 @@ struct device
     enum device_status            status;        /**< 运行时状态 */
     void*                         priv_data;     /**< 驱动私有数据 (VFS 层) */
     const struct file_operations* ops;           /**< 操作函数表 */
-    struct osal_mutex*            lock;          /**< per-device 递归锁 (create_static_recursive) */
+    mini_mutex_t*                 lock;          /**< per-device 递归锁 (mini_mutex_create_static_recursive) */
     struct dev_lifecycle          lc;            /**< 驱动 I/O 生命周期 (probe 时 device_lc_bind) */
     void*                         platform_data; /**< board 层注入的静态数据, probe 前设置 */
 };

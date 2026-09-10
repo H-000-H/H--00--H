@@ -25,7 +25,7 @@
 #include "system_wdt.h"
 
 #include "compiler_compat_poison.h"
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
 #include "xtask.h"
 #endif
 
@@ -141,7 +141,7 @@ void mini_tree_system_loop(void)
     system_wdt_feed();
     system_wdt_feed_iwdg();
 #endif
-#ifdef CONFIG_OSAL_NULL
+#ifdef CONFIG_OS_BARE
 #ifdef CONFIG_VIRQ
     interrupt_bottom_half_poll();
 #endif

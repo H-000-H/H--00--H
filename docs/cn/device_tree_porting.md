@@ -1,6 +1,6 @@
 # 设备树移植手册（集中版）
 
-> 把 mini_tree 中间件接到新 SoC / 新板级时，**设备树（DTS/DTSI）相关的全部步骤都收在这篇**，不再分散到 architecture / porting_guide / getting_started 各处。HAL 后端、OSAL 后端、CMake 总流程见文末"相关文档"。
+> 把 mini_tree 中间件接到新 SoC / 新板级时，**设备树（DTS/DTSI）相关的全部步骤都收在这篇**，不再分散到 architecture / porting_guide / getting_started 各处。HAL 后端、OS 后端、CMake 总流程见文末"相关文档"。
 >
 > 本文所有示例均对照当前仓库真实机制（`tools/dtc-lite.py`、`board/dtsi/*`、`drivers/bmp280` 等）与当前 API 编写。
 
@@ -270,7 +270,7 @@ if (IS_ERR_OR_NULL(bus))
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_backend.h"
 #include "status.h"
 #include "system_log.h"
 #include "vfs-i2c.h"
@@ -372,7 +372,7 @@ set(BOARD_DTSI_DIR         ${MINI_TREE_BOARD_PORT}/dtsi)   # 含 my_soc.dtsi
 | 板级入口 `main` | 时钟/堆/控制台 + 两段式点火 | **平台专用**（改） |
 | 应用任务模块 `app/<模块>/` | 业务逻辑：任务回调 + 任务注册 | **零改动**（DTS/HAL 就绪后） |
 | 设备访问 | `device_find_by_label` / `device_open` / `device_ioctl` | 零改动（靠 DTS label） |
-| 框架服务 | OSAL 任务 / EventBus / config_store / 调度器 | 零改动（OSAL 后端统一） |
+| 框架服务 | 统一接口任务 / EventBus / config_store / 调度器 | 零改动（OS 后端统一） |
 
 ### 9.2 API 关键点
 
@@ -380,8 +380,8 @@ set(BOARD_DTSI_DIR         ${MINI_TREE_BOARD_PORT}/dtsi)   # 含 my_soc.dtsi
 - 任务创建：
   - C 协调式：`xscheduler_task_create(task, name, cb, period_ms)`（TCB 由调用方静态分配）。
   - C 抢占式（`XTASK_PREEMPT`）：`x_scheduler_task_create(name, period_ms, priority, cb, param)`（任务池自分配）。
-  - C++ 裸机：`osal_task_create(name, stack_size, period, entry, param1, ...)` 重载，返回 `etl::optional<x_task_handle_t>`。
-  - OS 后端（FreeRTOS/RT-Thread）：统一走 C API `osal_task_create`。
+  - C++ 裸机：`mini_task_create(name, stack_size, period, entry, param1, ...)` 重载，返回 `etl::optional<x_task_handle_t>`。
+  - OS 后端（FreeRTOS/RT-Thread）：统一走 C API `mini_task_create`。
 - 主循环：裸机 `while(1) x_scheduler_poll()`（或 `mini_tree_system_loop()`）；OS 后端启动各自调度器。
 
 **裸机调度器 tick 源（`xscheduler_start()`）两级选择：**
@@ -436,7 +436,7 @@ set(BOARD_DTSI_DIR         ${MINI_TREE_BOARD_PORT}/dtsi)   # 含 my_soc.dtsi
 **ESP 全系不需要填 `cpus` / `clock-frequency`，SysTick 整层不参与**，三重复合保证：
 
 1. **`hal_systick.c` 不在 ESP 编译列表**：`cmake/esp_idf.cmake` 的 `HAL_SRCS` 独立，不编 `hal_systick.c`。
-2. **ESP 强制 `CONFIG_OSAL_FREERTOS`**（对接 IDF 内核），`xtask_coop/preempt` 不编译，无人调用 `hal_systick_init`；tick 归 **IDF 的 SYSTIMER + FreeRTOS**（`CONFIG_FREERTOS_HZ`）。
+2. **ESP 强制 `CONFIG_OS_FREERTOS`**（对接 IDF 内核），`xtask_coop/preempt` 不编译，无人调用 `hal_systick_init`；tick 归 **IDF 的 SYSTIMER + FreeRTOS**（`CONFIG_FREERTOS_HZ`）。
 3. **ESP 默认板 DTS 无 `cpus`** → dtc-lite 走兜底，不生成 `#error`，编译照常通过。
 
 > ESP 板工程若**显式写了 `cpus/cpu@0` 且 `clock-frequency = <0>`**，会触发 `#error`——但 ESP 正常不应写 cpus（走 IDF 时钟树），保留该约束可拦截复制占位模板漏改的错误。
@@ -459,7 +459,7 @@ VFS 层是给 **DTS 设备节点**服务的（probe、open/close、`get_hal_dev`
 ```c
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "system_init.h"
-#include "xtask.h"          /* 裸机调度器 (CONFIG_OSAL_NULL) */
+#include "xtask.h"          /* 裸机调度器 (CONFIG_OS_BARE) */
 #include "led.h"            /* 应用任务模块 */
 
 /* 平台：时钟 / 堆 / 控制台初始化（HAL 后端，平台专用） */
@@ -475,12 +475,12 @@ int main(void)
 
     App_Led_register();               /* 注册应用任务 */
 
-#if defined(CONFIG_OSAL_NULL)
+#if defined(CONFIG_OS_BARE)
     for (;;)
         x_scheduler_poll();           /* 裸机时间片轮询（含抢占式） */
-#elif defined(CONFIG_OSAL_FREERTOS)
+#elif defined(CONFIG_OS_FREERTOS)
     vTaskStartScheduler();
-#elif defined(CONFIG_OSAL_RTTHREAD)
+#elif defined(CONFIG_OS_RTTHREAD)
     rt_system_scheduler_start();
 #endif
     return 0;
@@ -573,13 +573,13 @@ namespace App_Led
 } // namespace App_Led
 ```
 
-`led.cpp`（C++ 走裸机 `osal_task_create` 重载，返回 `etl::optional`）：
+`led.cpp`（C++ 走裸机 `mini_task_create` 重载，返回 `etl::optional`）：
 
 ```cpp
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "led.hpp"
 #include "device.h"
-#include "osal_null.h"          /* 裸机 C++ osal_task_create 重载 */
+#include "mini_backend.h"          /* 裸机 C++ mini_task_create 重载 */
 #include "status.h"
 #include "system_log.h"
 #include "vfs-gpio.h"
@@ -616,7 +616,7 @@ namespace App_Led
     {
         /* 裸机 C++ 重载：coordinated = (name, stack_size, period, entry, param1)；
            CONFIG_XTASK_PREEMPT=y 时第三参为 priority，stack_size 复用为周期 */
-        auto handle = osal_task_create(kName.c_str(), 0u, kPeriodMs,
+        auto handle = mini_task_create(kName.c_str(), 0u, kPeriodMs,
                                        led_task_cb, nullptr);
         if (!handle)
             return etl::nullopt;
@@ -625,7 +625,7 @@ namespace App_Led
 } // namespace App_Led
 ```
 
-> C++ 裸机下**建议走 `osal_task_create` 重载**（跨 OS 习惯统一），C 工程裸机直接 `xscheduler_task_create`。OS 后端（FreeRTOS/RT-Thread）统一走 C API `osal_task_create`。抢占式开启（`XTASK_PREEMPT`）时，C 用 `x_scheduler_task_create(name, period, priority, cb, param)`。
+> C++ 裸机下**建议走 `mini_task_create` 重载**（跨 OS 习惯统一），C 工程裸机直接 `xscheduler_task_create`。OS 后端（FreeRTOS/RT-Thread）统一走 C API `mini_task_create`。抢占式开启（`XTASK_PREEMPT`）时，C 用 `x_scheduler_task_create(name, period, priority, cb, param)`。
 
 ---
 

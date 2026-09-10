@@ -16,7 +16,8 @@
 #include "device.h"
 #include "driver.h"
 #include "dt_config_gen.h"
-#include "osal.h"
+#include "mini_slot.h"
+#include "mini_time.h"
 #include "status.h"
 #include "system_log.h"
 #include "vfs-i2c.h"
@@ -41,7 +42,7 @@ struct sht30_device
 
 static struct sht30_device           s_sht30_pool[SHT30_POOL_COUNT] MINI_ALIGNED(4);
 static uint8_t                       s_sht30_used[SHT30_POOL_COUNT] MINI_ALIGNED(4);
-static osal_pool_t s_sht30_pool_ctrl MINI_ALIGNED(4);
+static mini_slot_t s_sht30_pool_ctrl MINI_ALIGNED(4);
 static const char* const             k_tag = "sht30";
 
 /**
@@ -49,7 +50,7 @@ static const char* const             k_tag = "sht30";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void sht30_pool_boot_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_sht30_pool_ctrl, s_sht30_used, SHT30_POOL_COUNT));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_sht30_pool_ctrl, s_sht30_used, SHT30_POOL_COUNT));
 }
 
 /**
@@ -194,7 +195,7 @@ static int sht30_cmd_read(struct sht30_device* dev, void* arg, size_t len, uint3
     ret = sht30_i2c_wr(dev, cmd, 2, timeout_ms);
     if (ret != MINI_OK)
         return ret;
-    osal_delay_ms(20);
+    mini_delay_ms(20);
     ret = sht30_i2c_rd(dev, raw, 6, timeout_ms);
     if (ret != MINI_OK)
         return ret;
@@ -254,7 +255,7 @@ static int sht30_probe(struct device* pdev)
     int                  pool_idx, ret;
     if (!pdev)
         return MINI_ERR_INVAL;
-    pool_idx = osal_pool_claim(&s_sht30_pool_ctrl);
+    pool_idx = mini_slot_claim(&s_sht30_pool_ctrl);
     if (pool_idx < 0)
         return MINI_ERR_NOMEM;
     dev = &s_sht30_pool[pool_idx];
@@ -278,7 +279,7 @@ static int sht30_probe(struct device* pdev)
 err:
     pdev->ops = NULL;
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_sht30_pool_ctrl, pool_idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_sht30_pool_ctrl, pool_idx));
     return ret;
 }
 
@@ -301,14 +302,14 @@ static int sht30_remove(struct device* pdev)
     idx = (int)(dev - s_sht30_pool);
     dev_lc_remove_start(lc);
     device_ops_unregister(pdev);
-    if (dev_lc_remove_drain(lc, OSAL_WAIT_FOREVER) != MINI_OK)
+    if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }
     sht30_hw_destroy(dev);
     MINI_MEM_SET(dev, 0, sizeof(*dev));
-    MINI_IGNORE_RESULT(osal_pool_release(&s_sht30_pool_ctrl, idx));
+    MINI_IGNORE_RESULT(mini_slot_release(&s_sht30_pool_ctrl, idx));
     dev_lc_remove_finish(lc);
     return MINI_OK;
 }

@@ -3,15 +3,15 @@
  * System Command Dispatcher — 双后端 (OS / Bare-metal)
  *
  * Kconfig 自动选择后端:
- *   CONFIG_OSAL_NULL=y       → bare-metal: 纯数组 + const char* + 无锁
- *   CONFIG_OSAL_FREERTOS=y
- *   | CONFIG_OSAL_RTTHREAD=y → OS:  etl::map + etl::string + spinlock
+ *   CONFIG_OS_BARE=y       → bare-metal: 纯数组 + const char* + 无锁
+ *   CONFIG_OS_FREERTOS=y
+ *   | CONFIG_OS_RTTHREAD=y → OS:  etl::map + etl::string + spinlock
  *
  * 公共 API 完全一致, 应用层代码不感知后端差异.
  */
 #pragma once
 
-#include "osal.h"
+#include "mini_critical.h"
 #include "status.h"
 #include <etl/char_traits.h>
 #include <etl/placement_new.h>
@@ -20,7 +20,7 @@
 #include <etl/utility.h>
 
 /* 后端选择: bare-metal 不需要 ETL */
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
 #include <etl/map.h>
 #include <etl/string.h>
 #endif
@@ -37,7 +37,7 @@
 /* -------------------------------------------------------------------------- */
 /* CmdFn — 固定容量内联函数包装器 (Small-Buffer-Optimized Callable Wrapper) */
 /*  */
-/* 通用后端, 不依赖 ETL / OSAL, 两个后端共用. */
+/* 通用后端, 不依赖 ETL / 统一接口, 两个后端共用. */
 /* -------------------------------------------------------------------------- */
 template <size_t StorageSz = SYS_CMD_WRAPPER_FN_SZ> 
 class CmdFn
@@ -213,16 +213,15 @@ private:
     /* -------------------------------------------------------------------------- */
     /* 后端存储 */
     /* -------------------------------------------------------------------------- */
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
     /* -------------------------------------------------------------------------- */
-    /* OS 后端: etl::map + spinlock */
+    /* OS 后端: etl::map + 临界区保护 */
     /* -------------------------------------------------------------------------- */
     using CmdString = etl::string<k_max_cmd_name_len>; /**< 命令名存储类型 */
     using CmdMap = etl::map<CmdString, HandlerNode, k_max_commands>; /**< 命令映射表 */
 
     CmdMap m_commands; /**< 命令名 → 处理节点 映射 */
-    mutable struct osal_spinlock* m_lock; /**< 自旋锁指针 (保护并发访问) */
-    uint8_t m_lock_storage[OSAL_SPINLOCK_STORAGE_SIZE] MINI_ALIGNED(4); /**< 自旋锁存储区 */
+    /* 并发保护用 mini_critical_enter / mini_critical_exit 临界区 (无需锁对象与存储区) */
 #else
     /* -------------------------------------------------------------------------- */
     /* Bare-metal 后端: 普通数组 + const char* + 无锁 */
@@ -271,21 +270,21 @@ inline int SystemCmd::register_cmd(const char* name, bool (*handler)(const Args&
         return handler(typed_arg, ctx);
     };
 
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
     CmdString cmd(name);
-    osal_spinlock_lock(m_lock);
+    mini_irq_state_t irq = mini_critical_enter();
     if (m_commands.full())
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_NOSPC;
     }
     if (m_commands.contains(cmd))
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_BUSY;
     }
     bool success = m_commands.insert(etl::make_pair(cmd, node)).second;
-    osal_spinlock_unlock(m_lock);
+    mini_critical_exit(irq);
     return success ? MINI_OK : MINI_ERR_NOMEM;
 #else
     for (size_t index = 0; index < m_count; index++)
@@ -327,21 +326,21 @@ inline int SystemCmd::register_cmd(const char* name, bool (*handler)(const Args&
         return handler(typed_arg, ctx);
     };
 
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
     CmdString cmd(name);
-    osal_spinlock_lock(m_lock);
+    mini_irq_state_t irq = mini_critical_enter();
     if (m_commands.full())
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_NOSPC;
     }
     if (m_commands.contains(cmd))
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_BUSY;
     }
     bool success = m_commands.insert(etl::make_pair(cmd, node)).second;
-    osal_spinlock_unlock(m_lock);
+    mini_critical_exit(irq);
     return success ? MINI_OK : MINI_ERR_NOMEM;
 #else
     for (size_t index = 0; index < m_count; index++)
@@ -378,21 +377,21 @@ template <typename Ctx> inline int SystemCmd::register_cmd(const char* name, boo
         return handler(ctx);
     };
 
-#ifndef CONFIG_OSAL_NULL
+#ifndef CONFIG_OS_BARE
     CmdString cmd(name);
-    osal_spinlock_lock(m_lock);
+    mini_irq_state_t irq = mini_critical_enter();
     if (m_commands.full())
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_NOSPC;
     }
     if (m_commands.contains(cmd))
     {
-        osal_spinlock_unlock(m_lock);
+        mini_critical_exit(irq);
         return MINI_ERR_BUSY;
     }
     bool success = m_commands.insert(etl::make_pair(cmd, node)).second;
-    osal_spinlock_unlock(m_lock);
+    mini_critical_exit(irq);
     return success ? MINI_OK : MINI_ERR_NOMEM;
 #else
     for (size_t index = 0; index < m_count; index++)

@@ -1,5 +1,5 @@
 # ==============================================================================
-# lib — OSAL 条件内核 + 基础设施
+# lib — 按 OS 后端条件编入的内核 + 基础设施
 # ==============================================================================
 # 保留 vendor：freeRTOS / rtthread（按 Kconfig）· ETL（仅 include + cmake）
 # 其余基础设施（tinyusb / lwIP / cJSON）通过 cmake/*.cmake FetchContent 按需拉取
@@ -31,24 +31,19 @@ if(NOT TARGET board_dts_generate)
     endif()
 endif()
 
-# ── OSAL 后端（读 mini_tree/.config）──
-set(OSAL_BACKEND "NULL")
+# ── OS 后端（读 mini_tree/.config）──
+set(OS_BACKEND "BARE")
 if(EXISTS "${MINI_TREE_CONFIG}")
-    file(STRINGS "${MINI_TREE_CONFIG}" _osal_choice REGEX "^CONFIG_OSAL_(MINI_OS|FREERTOS|RTTHREAD|THREADX|UCOS_III|UCOS_II|NULL)=y$")
-    if(_osal_choice STREQUAL "CONFIG_OSAL_MINI_OS=y")
-        set(OSAL_BACKEND "MINI_OS")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_FREERTOS=y")
-        set(OSAL_BACKEND "FREERTOS")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_RTTHREAD=y")
-        set(OSAL_BACKEND "RTTHREAD")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_THREADX=y")
-        set(OSAL_BACKEND "THREADX")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_UCOS_III=y")
-        set(OSAL_BACKEND "UCOS_III")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_UCOS_II=y")
-        set(OSAL_BACKEND "UCOS_II")
-    elseif(_osal_choice STREQUAL "CONFIG_OSAL_NULL=y")
-        set(OSAL_BACKEND "NULL")
+    file(STRINGS "${MINI_TREE_CONFIG}" _os_choice REGEX "^CONFIG_OS_(MINI_OS|FREERTOS|RTTHREAD|BARE)=y$")
+    if(_os_choice STREQUAL "CONFIG_OS_MINI_OS=y")
+        set(OS_BACKEND "MINI_OS")
+    elseif(_os_choice STREQUAL "CONFIG_OS_FREERTOS=y")
+        set(OS_BACKEND "FREERTOS")
+    elseif(_os_choice STREQUAL "CONFIG_OS_RTTHREAD=y")
+        set(OS_BACKEND "RTTHREAD")
+
+    elseif(_os_choice STREQUAL "CONFIG_OS_BARE=y")
+        set(OS_BACKEND "BARE")
     endif()
 endif()
 
@@ -60,15 +55,15 @@ if(NOT DEFINED FREERTOS_HEAP OR FREERTOS_HEAP STREQUAL "")
     set(FREERTOS_HEAP "4")
 endif()
 
-if(OSAL_BACKEND STREQUAL "FREERTOS")
+if(OS_BACKEND STREQUAL "FREERTOS")
     add_subdirectory(freeRTOS)
 endif()
-if(OSAL_BACKEND STREQUAL "RTTHREAD")
+if(OS_BACKEND STREQUAL "RTTHREAD")
     add_subdirectory(rtthread)
 endif()
 
 # mini-os 内核 (自研 RTOS, 仅 Cortex-M; risc-v port 为空壳, Kconfig 层已限制)
-if(OSAL_BACKEND STREQUAL "MINI_OS")
+if(OS_BACKEND STREQUAL "MINI_OS")
     # MCU 名仅用于独立构建兜底; 嵌入式构建的 -mcpu 由工具链文件全局注入,
     # lib/mini-os/CMakeLists.txt 在 add_subdirectory 场景下不再自带 arch flags
     file(STRINGS "${MINI_TREE_CONFIG}" _mini_os_platform REGEX "^CONFIG_PLATFORM_")
@@ -83,7 +78,7 @@ if(OSAL_BACKEND STREQUAL "MINI_OS")
     endif()
     add_subdirectory(mini-os)
     # 错误码对齐: mini-os err.h 需看到 mini_tree 的 config.h / compiler_compat.h,
-    # 才能使 MINI_OS_ERR_* == MINI_ERR_* == OSAL_ERR_* 零转换互转
+    # 才能使 MINI_OS_ERR_* == MINI_ERR_* 零转换互转
     target_include_directories(mini-os SYSTEM PRIVATE
         "${MINI_TREE_KCONFIG_GEN_DIR}"
         "${MINI_TREE_ROOT}/core/include"
@@ -97,7 +92,7 @@ endif()
 if(NOT DEFINED THREADX_TOOLCHAIN)
     set(THREADX_TOOLCHAIN "gnu")
 endif()
-if(OSAL_BACKEND STREQUAL "THREADX")
+if(OS_BACKEND STREQUAL "THREADX")
     if(THREADX_ARCH STREQUAL "")
         file(STRINGS "${MINI_TREE_CONFIG}" _kconfig_platform REGEX "^CONFIG_PLATFORM_")
         if(_kconfig_platform STREQUAL "CONFIG_PLATFORM_ARM_CM7=y")
@@ -117,10 +112,10 @@ if(OSAL_BACKEND STREQUAL "THREADX")
     add_subdirectory(threadx)
     add_library(threadx_kernel ALIAS threadx)
 endif()
-if(OSAL_BACKEND STREQUAL "UCOS_III")
+if(OS_BACKEND STREQUAL "UCOS_III")
     add_subdirectory(uC-OS3)
 endif()
-if(OSAL_BACKEND STREQUAL "UCOS_II")
+if(OS_BACKEND STREQUAL "UCOS_II")
     add_subdirectory(uC-OS2)
 endif()
 
@@ -135,16 +130,16 @@ endforeach()
 message(STATUS "Infra bricks (tinyusb/lwIP/cJSON): FetchContent via cmake/*.cmake; ETL vendored")
 
 add_library(lib INTERFACE)
-if(OSAL_BACKEND STREQUAL "MINI_OS")
+if(OS_BACKEND STREQUAL "MINI_OS")
     target_link_libraries(lib INTERFACE mini_os_kernel)
-elseif(OSAL_BACKEND STREQUAL "FREERTOS")
+elseif(OS_BACKEND STREQUAL "FREERTOS")
     target_link_libraries(lib INTERFACE freertos_kernel)
-elseif(OSAL_BACKEND STREQUAL "RTTHREAD")
+elseif(OS_BACKEND STREQUAL "RTTHREAD")
     target_link_libraries(lib INTERFACE rtthread_kernel)
-elseif(OSAL_BACKEND STREQUAL "THREADX")
+elseif(OS_BACKEND STREQUAL "THREADX")
     target_link_libraries(lib INTERFACE threadx_kernel)
-elseif(OSAL_BACKEND STREQUAL "UCOS_III")
+elseif(OS_BACKEND STREQUAL "UCOS_III")
     target_link_libraries(lib INTERFACE ucos_iii_kernel)
-elseif(OSAL_BACKEND STREQUAL "UCOS_II")
+elseif(OS_BACKEND STREQUAL "UCOS_II")
     target_link_libraries(lib INTERFACE ucos_ii_kernel)
 endif()

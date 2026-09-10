@@ -12,8 +12,8 @@
 
 ## 开发原则 / Development Principles
 
-1. **不向中间件公共头引入厂商 SDK 依赖**（OSAL 后端 `#if` 路径除外）。  
-   **No vendor SDK dependencies in public middleware headers** (except OSAL backend `#if` paths).
+1. **不向中间件公共头引入厂商 SDK 依赖**（OS 后端 `#if` 路径除外）。  
+   **No vendor SDK dependencies in public middleware headers** (except OS backend `#if` paths).
 2. 新外设顺序：**HAL 头 + weak .c →（可选）bus → vfs → `DRIVER_REGISTER` → 文档/契约**。  
    New peripheral order: **HAL header + weak .c → (optional) bus → vfs → `DRIVER_REGISTER` → docs/contract**.
 3. 错误码统一 `status.h`；对外 API 禁止 `void` 成功/失败。  
@@ -49,7 +49,7 @@ pip install lark
 
 | 要求 / Requirement | 说明 / Notes |
 | :--- | :--- |
-| 说明影响层 / State the affected layer | hal / bus / vfs / board / osal / tools / docs |
+| 说明影响层 / State the affected layer | hal / bus / vfs / board / tools / docs |
 | DTS 契约变更 / DTS contract changes | 同步 `docs/cn/driver_guide.md` / Update `docs/cn/driver_guide.md` |
 | 文档位置 / Doc placement | 新专题进 `docs/`；勿在根目录再堆手册 / New topics go to `docs/`; do not pile more manuals in the root |
 | 不提交 / Do not commit | 密钥、本机绝对路径、子目录 `compile_flags.txt`、SoC 专用 dtsi 冒充默认板 / Secrets, machine-local absolute paths, per-directory `compile_flags.txt`, SoC-specific dtsi masquerading as the default board |

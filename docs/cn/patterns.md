@@ -6,7 +6,7 @@
 | :--- | :--- |
 | **读者** | 需要写驱动、写应用或改中间件的工程师 |
 | **前置** | 已读 [architecture.md](architecture.md)（分层与启动时序） |
-| **相关** | [fast_path.md](fast_path.md)（红线）· [osal_switching.md](osal_switching.md)（OSAL 后端切换）· [driver_guide.md](driver_guide.md)（驱动编写）· [runtime_services.md](runtime_services.md) |
+| **相关** | [fast_path.md](fast_path.md)（红线）· [backend_switching.md](backend_switching.md)（OS 后端切换）· [driver_guide.md](driver_guide.md)（驱动编写）· [runtime_services.md](runtime_services.md) |
 
 ---
 
@@ -40,11 +40,11 @@
 | `170` | `interrupt/interrupt.c` | 全局下半部 poller（FIFO + pending_drain） |
 | `161` | `time_slice/task/xtask_preempt.c` | N+1 抢占式调度器（分组优先级 + CLZ 定位，可延迟/休眠/抢占，无就绪时精确 WFI） |
 | `160` | `time_slice/task/xtask_coop.c` | 协调式调度器 `g_scheduler`（默认） |
-| `152` | `osal/src/osal_null.c` | 裸机队列池 |
-| `151` | `osal/src/osal_null.c` | 裸机信号量池 |
-| `150` | `osal/src/osal_null.c` | 裸机互斥锁池 |
+| `152` | `core/src/mini_backend_bare.c` | 裸机队列池 |
+| `151` | `core/src/mini_backend_bare.c` | 裸机信号量池 |
+| `150` | `core/src/mini_backend_bare.c` | 裸机互斥锁池 |
 
-**设计意图**：让"池、表、队列"这类基础设施在任何业务代码触碰之前就绪；constructor 优先级数字越大越先跑，天然形成依赖排序（poller 池 > 调度器 > 各类 OSAL 池）。
+**设计意图**：让"池、表、队列"这类基础设施在任何业务代码触碰之前就绪；constructor 优先级数字越大越先跑，天然形成依赖排序（poller 池 > 调度器 > 各类后端池）。
 
 ### 常见坑
 
@@ -71,15 +71,15 @@ C++ 侧 `mini_tree::system_pre_os_init()` / `system_start_tasks()` 与之对应�
 
 ### 为什么顺序不可变（论证）
 
-1. **`device_tree_init` 必须先于一切设备访问**：运行时实例表（`device` / 递归互斥锁池 / `dev_lifecycle`）是静态数组，但锁必须逐个 `osal_mutex_create_static_recursive` 创建；任何 `device_*` 调用前这些必须就绪。
+1. **`device_tree_init` 必须先于一切设备访问**：运行时实例表（`device` / 递归互斥锁池 / `dev_lifecycle`）是静态数组，但锁必须逐个 `mini_mutex_create_static_recursive` 创建；任何 `device_*` 调用前这些必须就绪。
 2. **第一阶段必须关全局中断**：probe 过程中 `device_open` 会真正使能外设中断（NVIC），而此刻 VIRQ 表 / 下半部 work 可能尚未注册完整。先关中断，保证"中断使能"只发生在所有 ISR 依赖就绪之后；`system_init_complete()` 才统一释放。
 3. **EventBus 必须先建**：probe 失败路径会调用 `device_ops_unregister` → `event_bus_post(EVENT_SYS_DEVICE_REMOVED, ...)`，事件队列必须已经存在。
-4. **probe 放第二阶段而不是第一阶段**：probe 会 open 设备、走日志、失败时按 criticality 触发 `OSAL_PANIC`（需要 `printf_output` 与 safe_state 已就绪）；这些依赖都在第一阶段结尾才备齐。
+4. **probe 放第二阶段而不是第一阶段**：probe 会 open 设备、走日志、失败时按 criticality 触发 `MINI_PANIC`（需要 `printf_output` 与 safe_state 已就绪）；这些依赖都在第一阶段结尾才备齐。
 5. **中断使能放在调度器之前**：RTOS 路径下，先开中断再 `vTaskStartScheduler`，否则调度器启动瞬间的中断没有任务上下文可以承接。
 
 ### 常见坑
 
-- 在阶段 1~2 之间（全局中断关闭期间）调用 `osal_delay_ms` 依赖 tick 中断，会死等——`osal_null` 后端虽有 tick hang 检测兜底（见 §4），但 RTOS 后端无此保护。
+- 在阶段 1~2 之间（全局中断关闭期间）调用 `mini_delay_ms` 依赖 tick 中断，会死等——`mini_backend_bare` 后端虽有 tick hang 检测兜底（见 §4），但 RTOS 后端无此保护。
 - 不要在阶段 1 里 probe 设备：此时 `board_driver_probe_all` 依赖的日志/安全子系统尚未初始化。
 
 ---
@@ -111,7 +111,7 @@ board_driver_probe_all()
 
 - **运行时零 strcmp**：compatible 字符串在编译期就映射为函数指针，运行时只是查表取地址。
 - **3 趟 deferred probe**：`board_driver_probe_all` 最多跑 3 趟；驱动返回 `MINI_ERR_DEFER`（phandle 依赖未就绪）则下趟重试；`deferred` 不再减少视为 **stall**，相关设备被永久 `DEVICE_STATUS_DISABLED`。
-- **失败分级**（`handle_probe_failure`）：`DEVICE_CRIT_FATAL` → `OSAL_PANIC` 安全停机；`DEVICE_CRIT_WARNING` → 告警；`DEVICE_CRIT_IGNORE` → 静默。依赖失败的设备通过 `disable_dependents` 级联禁用。
+- **失败分级**（`handle_probe_failure`）：`DEVICE_CRIT_FATAL` → `MINI_PANIC` 安全停机；`DEVICE_CRIT_WARNING` → 告警；`DEVICE_CRIT_IGNORE` → 静默。依赖失败的设备通过 `disable_dependents` 级联禁用。
 - 无驱动的无名节点静默禁用；有名节点无驱动按 criticality 处理。
 
 ### 为什么编译期而不是运行期
@@ -132,7 +132,7 @@ board_driver_probe_all()
 
 ### 机制
 
-裸机后端（`CONFIG_OSAL_NULL`）下，全系统只有一个时基源：`x_scheduler.tick_count`。`xscheduler_start()` 按"chosen 显式覆盖优先，否则 SysTick 默认"两级选择 tick 源：
+裸机后端（`CONFIG_OS_BARE`）下，全系统只有一个时基源：`x_scheduler.tick_count`。`xscheduler_start()` 按"chosen 显式覆盖优先，否则 SysTick 默认"两级选择 tick 源：
 
 ```text
 ① DTS 显式配 chosen TIM（CHOSEN_SCHEDULER_TIM）→ 显式覆盖，走通用 TIM + VIRQ
@@ -144,7 +144,7 @@ board_driver_probe_all()
   → SysTick_Handler → hal_systick_irq_handler() + x_scheduler_tick(+tick_delay)  ← ISR 内，仅此而已
 
 非 ARM（RISC-V）无 SysTick，hal_systick_init 返回 NOTSUPP，RISC-V 板必须在 DTS 配 chosen。
-→ osal_time_ms() 直接读 g_scheduler.tick_count                     ← 全局统一时钟
+→ mini_time_ms() 直接读 g_scheduler.tick_count                     ← 全局统一时钟
 ```
 
 任务模型（`time_slice/task/xtask.h`）：
@@ -157,8 +157,8 @@ board_driver_probe_all()
 
 - **固定时基不漂移**：`next_running = now + period`，任务执行耗时不会被计入下一周期，长期无累积漂移。
 - **is_running 是重入保护而非使能开关**：注释明确"非运行态才允许进入"，防止同一任务在回调内再次进入；到期与否都复位，避免未到期分支把任务卡死在 running。
-- **单一全局时基**：裸机 `osal_time_ms()`、`osal_delay_ms()`、调度器 tick、下半部轮询共用 `g_scheduler.tick_count`，语义一致；切到 RTOS 后 `osal_time_ms()` 换成 RTOS tick，业务代码零改动。
-- **裸机 delay 有防死锁兜底**：`osal_delay_ms` 用 WFI 忙等 + tick hang 检测（连续 10000 次无 tick 前进即退出），防止时基未启动时硬死锁。
+- **单一全局时基**：裸机 `mini_time_ms()`、`mini_delay_ms()`、调度器 tick、下半部轮询共用 `g_scheduler.tick_count`，语义一致；切到 RTOS 后 `mini_time_ms()` 换成 RTOS tick，业务代码零改动。
+- **裸机 delay 有防死锁兜底**：`mini_delay_ms` 用 WFI 忙等 + tick hang 检测（连续 10000 次无 tick 前进即退出），防止时基未启动时硬死锁。
 
 ### 任务周期与时间预算
 
@@ -175,7 +175,7 @@ board_driver_probe_all()
 | 20 ms | ≤ 5 ms | 状态机推进、协议轮询 |
 | 100 ms | ≤ 20 ms | 慢速外设巡检、看门狗喂狗 |
 
-预算超支时优先：**缩短回调内阻塞**（改状态机，见 §8）→ 拆任务 → 换 `CONFIG_OSAL_FREERTOS` 抢占式（`osal_switching.md`）或裸机抢占式 `xtask_preempt.c`（`XTASK_PREEMPT`，N+1 多优先级，已完工可编译）。
+预算超支时优先：**缩短回调内阻塞**（改状态机，见 §8）→ 拆任务 → 换 `CONFIG_OS_FREERTOS` 抢占式（`backend_switching.md`）或裸机抢占式 `xtask_preempt.c`（`XTASK_PREEMPT`，N+1 多优先级，已完工可编译）。
 
 ### protothread 协程延时（PT_DELAY）
 
@@ -210,14 +210,14 @@ static x_task s_led_task;
 ```
 
 要点：
-- 回调内**不能用** `osal_delay_ms`（忙等阻塞全系统）；用 `PT_DELAY(task, ms)` 让出。
+- 回调内**不能用** `mini_delay_ms`（忙等阻塞全系统）；用 `PT_DELAY(task, ms)` 让出。
 - `PT_WAIT_UNTIL(task, cond)` / `PT_YIELD(task)` 可做条件等待 / 每帧让出。
 - 调度器（coop/preempt 均支持）在回调返回后检查 `pt_line`：非 0 视为协程挂起，保留 `PT_DELAY` 设的到期时刻；为 0 才按 `period` 推进下一轮。
 - 兼容性：不写 PT 宏的普通回调行为完全不变。
 
 ### 常见坑
 
-- 回调里调用 `osal_delay_ms`（忙等）会拖死所有周期任务，只允许在初始化阶段或短时序使用；回调内的延时请用 `PT_DELAY`（见上文 protothread 小节）。
+- 回调里调用 `mini_delay_ms`（忙等）会拖死所有周期任务，只允许在初始化阶段或短时序使用；回调内的延时请用 `PT_DELAY`（见上文 protothread 小节）。
 - 回调必须尽快返回，不能 `while(1)` 死循环。
 - `xscheduler_start()` 必须在 `mini_tree_start_tasks()` 之后调用（注释明确：VFS 设备已 probe）。
 
@@ -255,8 +255,8 @@ rerun     fn() 执行期间再次 trigger → 结束后补跑，事件不丢失
 
 | 路径 | 结构 | 唤醒方式 |
 | :--- | :--- | :--- |
-| 裸机（`CONFIG_OSAL_NULL`） | `bottom_half_poller`：fifo + `pending_drain` 标志 | 主循环 `interrupt_bottom_half_poll()`；ISR 置位，主循环先清标志再 `run_pending`，期间新 ISR 重新置位——防丢唤醒 |
-| RTOS | `bottom_half_task`：fifo + 二值信号量 | 专用任务 `osal_sem_wait` 阻塞等待，ISR 侧 `post_from_isr` 唤醒 |
+| 裸机（`CONFIG_OS_BARE`） | `bottom_half_poller`：fifo + `pending_drain` 标志 | 主循环 `interrupt_bottom_half_poll()`；ISR 置位，主循环先清标志再 `run_pending`，期间新 ISR 重新置位——防丢唤醒 |
+| RTOS | `bottom_half_task`：fifo + 二值信号量 | 专用任务 `mini_sem_wait` 阻塞等待，ISR 侧 `post_from_isr` 唤醒 |
 
 ### 完整模式（ISR 里长事务怎么做）
 
@@ -277,7 +277,7 @@ ISR（top_half，必须轻量）
 
 ### 常见坑
 
-- ISR 里禁止 `osal_mutex_lock`（返回 `OSAL_ERR_ISR`）；临界区用 `osal_spinlock`。
+- ISR 里禁止 `mini_mutex_lock`（返回 `MINI_ERR_ISR`）；临界区用 `mini_critical`。
 - `bottom_half_run_pending` 必须在线程上下文调用，ISR 内调用直接返回。
 - FIFO 满时 submit 失败返回 false，work 被丢弃——队列深度 `BOTTOM_HALF_QUEUE_DEPTH`（2 的幂）要按最坏中断频率设计。
 
@@ -317,7 +317,7 @@ struct fifo_spsc {
 
 ### 常见坑
 
-- **违反 SPSC 是未定义行为**：多生产者会丢数据/破坏内存序，多消费者会重复消费。需要多对多就上 OSAL 队列（带锁）。
+- **违反 SPSC 是未定义行为**：多生产者会丢数据/破坏内存序，多消费者会重复消费。需要多对多就上 统一接口队列（带锁）。
 - `fifo_init` 强制 `size` 为 2 的幂（`(size & (size-1)) != 0` 拒绝），传错值返回 `BUFF_ERR_INVAL`。
 - `fifo_data_type` 是 `uintptr_t`：既能存 16 位 ADC 采样值，也能存下半部 work 指针（`interrupt.h` 正是这么复用的）。
 - buffer 家族全部接口返回 `BUFF_*` 错误码（自成一套, 包装 errno: `BUFF_OK` / `BUFF_ERR_INVAL` / `BUFF_ERR_FULL` / `BUFF_ERR_EMPTY`），长度类结果经指针参数回传。
@@ -339,7 +339,7 @@ state       UNINITIALIZED → LIVE → REMOVING → (RESET)
 
 - `open_begin` / `io_begin`：CAS 循环递增；遇 `-1` 哨兵（teardown 已锁定）或非 `LIVE` 直接拒绝。
 - `remove_drain`（teardown 排空，两阶段 CAS）：
-  1. CAS `opens` 0→`-1`（`DEV_LC_LOCKED`）；失败说明仍有 open，`osal_delay_ms(1)` 重试等待归零；
+  1. CAS `opens` 0→`-1`（`DEV_LC_LOCKED`）；失败说明仍有 open，`mini_delay_ms(1)` 重试等待归零；
   2. **opens 一旦锁定即保持 `-1` 不回滚**，在 `state == REMOVING` 门控下反复 CAS `io_active` 0→`-1` 直至归零（失败仅重试 io_active）。
 - 设计意图（源码注释）：状态机门控（`state == REMOVING` 是 drain 入口前提，期间 `open_begin`/`io_begin` 均检查 `state == LIVE`，故不会新增计数）+ 单调锁定（opens 不回滚到 0，避免短暂暴露窗口）+ 内存序（ACQUIRE/RELEASE/ACQ_REL）+ 无 ABA 考虑（`-1` 终态仅由 `remove_finish` 复位，单调操作通常不会再现同值）。drain 退出时两计数器均稳定 `-1`，并发 open/io 见 `-1` 会拒绝。此逻辑依赖代码评审，未做形式化验证。
 
@@ -348,7 +348,7 @@ state       UNINITIALIZED → LIVE → REMOVING → (RESET)
 ```c
 dev_lc_remove_start(device_lc(pdev));      // state → REMOVING
 device_ops_unregister(pdev);               // REMOVED + 广播 EVENT_SYS_DEVICE_REMOVED + 持锁清 ops（防 TOCTOU）
-dev_lc_remove_drain(device_lc(pdev), OSAL_WAIT_FOREVER);  // 原子轮询，无持锁
+dev_lc_remove_drain(device_lc(pdev), MINI_WAIT_FOREVER);  // 原子轮询，无持锁
 ... teardown ...
 dev_lc_remove_finish(device_lc(pdev));     // RESET
 ```
@@ -360,7 +360,7 @@ dev_lc_remove_finish(device_lc(pdev));     // RESET
 
 ### 常见坑
 
-- `remove_drain` 超时返回 `MINI_ERR_TIMEOUT`；`OSAL_WAIT_FOREVER` 时若某个 open 永不释放会永久等待——业务代码必须保证 open/io 成对。
+- `remove_drain` 超时返回 `MINI_ERR_TIMEOUT`；`MINI_WAIT_FOREVER` 时若某个 open 永不释放会永久等待——业务代码必须保证 open/io 成对。
 - `dev_lc_open_begin` 返回语义：首次 open 返回 1，重复 open 返回 0，失败返回负错误码，别把"重复 open"当错误。
 
 ---
@@ -369,7 +369,7 @@ dev_lc_remove_finish(device_lc(pdev));     // RESET
 
 ### 背景
 
-裸机后端（`CONFIG_OSAL_NULL`）下 `osal_task_create` 返回 `OSAL_ERR_NOTSUPP`——**裸机没有 OS 任务**。`osal_null.c` 头注释明确：
+裸机后端（`CONFIG_OS_BARE`）下 `mini_task_create` 返回 `MINI_ERR_NOTSUPP`——**裸机没有 OS 任务**。`mini_backend_bare.c` 头注释明确：
 
 > 复杂任务必须走状态机和任务切换（日常就 OS 吧省心省力，除非内存紧张或对效率要求极高）。
 
@@ -393,10 +393,10 @@ void my_task_cb(x_task* t)          /* 注册到 xtask，周期 5ms */
     {
     case S_IDLE:
         st = S_WAIT_DELAY;
-        t_start = osal_time_ms();
+        t_start = mini_time_ms();
         break;
     case S_WAIT_DELAY:
-        if ((osal_time_ms() - t_start) >= 500U)   /* uint32 相减，溢出安全 */
+        if ((mini_time_ms() - t_start) >= 500U)   /* uint32 相减，溢出安全 */
             st = S_DONE;
         break;
     case S_DONE:
@@ -409,17 +409,17 @@ void my_task_cb(x_task* t)          /* 注册到 xtask，周期 5ms */
 
 要点：
 
-- **用 `osal_time_ms()` 记时间戳轮询**，不用 `osal_delay_ms` 阻塞——回调不阻塞，其他周期任务不受影响。
+- **用 `mini_time_ms()` 记时间戳轮询**，不用 `mini_delay_ms` 阻塞——回调不阻塞，其他周期任务不受影响。
 - `(now - start)` 用无符号相减，**天然处理 uint32 回绕**（49.7 天后不炸）。
 - 复杂任务拆成多个状态 + 每周期推进一小步；这同时满足 §4 的时间预算。
 
 ### RTOS 后端的差异
 
-切到 `CONFIG_OSAL_FREERTOS` / `RTTHREAD` 后，`osal_delay_ms` 是**真正的休眠**（任务挂起、让出 CPU），可以放心阻塞；但同一套状态机代码在裸机/RTOS 都能跑，属于"可移植的最低公共分母"写法。
+切到 `CONFIG_OS_FREERTOS` / `RTTHREAD` 后，`mini_delay_ms` 是**真正的休眠**（任务挂起、让出 CPU），可以放心阻塞；但同一套状态机代码在裸机/RTOS 都能跑，属于"可移植的最低公共分母"写法。
 
 ### 常见坑
 
-- 裸机下在 ISR 或 tick 回调里 `osal_delay_ms` 忙等——拖死整个时基。
+- 裸机下在 ISR 或 tick 回调里 `mini_delay_ms` 忙等——拖死整个时基。
 - 状态机忘记在终态复位，任务只执行一次后永远空转。
 - 不要用 `volatile` 解决状态变量同步——周期任务同一线程串行执行，普通 `static` 即可。
 
@@ -428,5 +428,5 @@ void my_task_cb(x_task* t)          /* 注册到 xtask，周期 5ms */
 ## 相关文档
 
 - [architecture.md](architecture.md)（分层与启动时序） · [fast_path.md](fast_path.md)（ISR/热路径红线）
-- [osal_switching.md](osal_switching.md)（OSAL 后端切换） · [driver_guide.md](driver_guide.md)（驱动编写与 remove 生命周期）
-- [runtime_services.md](runtime_services.md)（EventBus / VIRQ / BufferPool） · [design_decisions.md](design_decisions.md)（设计动机）
+- [backend_switching.md](backend_switching.md)（OS 后端切换） · [driver_guide.md](driver_guide.md)（驱动编写与 remove 生命周期）
+- [runtime_services.md](runtime_services.md)（EventBus / VIRQ / Buffer） · [design_decisions.md](design_decisions.md)（设计动机）

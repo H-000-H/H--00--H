@@ -22,7 +22,7 @@
 #include "compiler_compat.h"
 #include "device.h"
 #include "hal_i2c.h"
-#include "osal.h"
+#include "mini_slot.h"
 #include "status.h"
 #include "system_log.h"
 
@@ -52,7 +52,7 @@ struct i2c_bus_client
 
 static struct i2c_bus_host   s_i2c_hosts[I2C_BUS_HOST_MAX];
 static uint8_t               s_i2c_host_used[I2C_BUS_HOST_MAX];
-static osal_pool_t           s_i2c_host_pool_ctrl;
+static mini_slot_t           s_i2c_host_pool_ctrl;
 static struct i2c_bus_client s_i2c_clients[DEV_ID_COUNT];
 static const char* const     k_tag = "i2c_bus";
 
@@ -61,7 +61,7 @@ static const char* const     k_tag = "i2c_bus";
  */
 mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void i2c_bus_pool_init(void)
 {
-    MINI_IGNORE_RESULT(osal_pool_init(&s_i2c_host_pool_ctrl, s_i2c_host_used, I2C_BUS_HOST_MAX));
+    MINI_IGNORE_RESULT(mini_slot_init(&s_i2c_host_pool_ctrl, s_i2c_host_used, I2C_BUS_HOST_MAX));
 }
 /* -------------------------------------------------------------------------- */
 /* Host pool helpers */
@@ -74,7 +74,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void i2c_bus_pool_init(vo
 static struct i2c_bus_host* i2c_host_from_device(struct device* pdev)
 {
     for (int index = 0; index < I2C_BUS_HOST_MAX; index++)
-        if (osal_pool_is_used(&s_i2c_host_pool_ctrl, index) && s_i2c_hosts[index].pdev == pdev)
+        if (mini_slot_is_used(&s_i2c_host_pool_ctrl, index) && s_i2c_hosts[index].pdev == pdev)
             return &s_i2c_hosts[index];
     return NULL;
 }
@@ -135,7 +135,7 @@ static int i2c_host_init_impl(struct device* pdev, const void* cfg)
     if (i2c_host_from_device(pdev))
         return MINI_OK;
 
-    idx = osal_pool_claim(&s_i2c_host_pool_ctrl);
+    idx = mini_slot_claim(&s_i2c_host_pool_ctrl);
     if (idx < 0)
         return MINI_ERR_NOMEM;
 
@@ -151,7 +151,7 @@ static int i2c_host_init_impl(struct device* pdev, const void* cfg)
     if (ret != MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_i2c_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_i2c_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -160,7 +160,7 @@ static int i2c_host_init_impl(struct device* pdev, const void* cfg)
     {
         MINI_IGNORE_RESULT(hal_i2c_bus_host_deinit(&host->hal_host));
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_i2c_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_i2c_host_pool_ctrl, idx));
         return ret;
     }
 
@@ -200,7 +200,7 @@ static int i2c_host_deinit_impl(struct device* pdev)
     if (ret == MINI_OK)
     {
         MINI_MEM_SET(host, 0, sizeof(*host));
-        MINI_IGNORE_RESULT(osal_pool_release(&s_i2c_host_pool_ctrl, idx));
+        MINI_IGNORE_RESULT(mini_slot_release(&s_i2c_host_pool_ctrl, idx));
     }
     return ret;
 }

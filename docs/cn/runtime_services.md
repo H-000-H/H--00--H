@@ -1,6 +1,6 @@
 # 运行时服务
 
-> 启动后常用的横向能力：事件总线、VIRQ、系统语言后端、缓冲池，以及可选的看门狗 / CRC 巡检 / 安全停机模块。分层总览见 [architecture.md](architecture.md)。
+> 启动后常用的横向能力：事件总线、VIRQ、系统语言后端，以及可选的看门狗 / CRC 巡检 / 安全停机模块。分层总览见 [architecture.md](architecture.md)。
 
 | 项 | 内容 |
 | :--- | :--- |
@@ -15,7 +15,7 @@
 1. [EventBus](#1-eventbus)
 2. [VIRQ 与上下半部](#2-virq-与上下半部)
 3. [SYSTEM_C vs SYSTEM_CPP](#3-system_c-vs-system_cpp)
-4. [BufferPool 与 algorithm/buffer](#4-bufferpool-与-algorithmbuffer)
+4. [Buffer（algorithm/buffer）](#4-buffer-algorithmbuffer)
 5. [安全类可选模块（积木）](#5-安全类可选模块积木)
 
 ---
@@ -118,14 +118,13 @@ ISR 禁止：`printf`、长时间锁、无界工作 — [fast_path.md](fast_path
 
 ---
 
-## 4. BufferPool 与 algorithm/buffer
+## 4. Buffer（algorithm/buffer）
 
 | 组件 | 路径 | 用途 |
 | :--- | :--- | :--- |
-| BufferPool | `core/include/buffer_pool.h` | 定长块池；驱动/协议借还 |
 | 环形/双缓冲 | `algorithm/buffer/` | `fifo_spsc`、`double_buffer_spsc` 等结构 |
 
-业务可直接用；勿在 ISR 里做复杂分配（池 API 是否 ISR-safe 以头文件注释为准）。
+业务可直接用；勿在 ISR 里做复杂分配（是否 ISR-safe 以头文件注释为准）。
 
 ---
 
@@ -143,7 +142,7 @@ ISR 禁止：`printf`、长时间锁、无界工作 — [fast_path.md](fast_path
 要点：
 
 1. **推荐**将上述模块链接入库并启用（生产环境默认开）；它们已是 `mini_tree` 库的一部分。
-2. **不启用不影响开发**：关闭对应 Kconfig 后，核心（设备模型 / VFS / OSAL / EventBus）照常工作。
+2. **不启用不影响开发**：关闭对应 Kconfig 后，核心（设备模型 / VFS / 统一接口 / EventBus）照常工作。
 3. 与 **EventBus 封表（`seal`）无关**——封表是核心运行行为，不是可选积木。
 
 ---
