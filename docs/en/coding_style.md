@@ -57,7 +57,7 @@ Root `.clang-tidy`:
 | Item | Value |
 | :--- | :--- |
 | Checks | `bugprone-*`, `clang-analyzer-*`, `modernize-*`, `performance-*`, `readability-*` |
-| Naming enforced | lowercase (`x_task`, `x_scheduler`, `list_node`, `k_tag`, `struct event`, `mini_tree::` …) |
+| Naming enforced | lowercase (`x_task`, `x_scheduler`, `list_node`, `k_tag`, `struct event` …) |
 
 Naming violations surface at tidy time, not compile time — CI blocks them.
 
@@ -71,7 +71,7 @@ Uniform lowercase (enforced by `readability-identifier-naming`):
 | :--- | :--- |
 | functions / variables | `snake_case` |
 | types (`struct/typedef`) | lowercase (`device`, `hal_can_config`) |
-| namespace (`system_cpp`) | `mini_tree::` |
+| C++ class (`system_cmd`) | `PascalCase` (`SystemCmd`) |
 | macros / enum values | UPPER `SNAKE_CASE` (`DEV_ID_UART0`, `MINI_ERR_*`) |
 
 Recommended at the `app` layer; mandatory below `app`.

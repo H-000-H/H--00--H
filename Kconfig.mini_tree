@@ -819,43 +819,19 @@ config SYSTEM
       System 模块总开关，默认自开启。
       包含两阶段启动 (pre_os_init / start_tasks)、看门狗 (IWDG/TWDT)、
       Flash CRC 巡检、任务管理器与安全停机等。
-      关闭后 system_c/ 与 system_cpp/ 均不编入，EventBus 也会随之不可用
+      关闭后 system_c/ 不编入，EventBus 也会随之不可用
       (CONFIG_EVENT_BUS 依赖本项)。
 
       Master switch for the System module, enabled by default.
       Covers the two-phase boot (pre_os_init / start_tasks), watchdogs
       (IWDG/TWDT), Flash CRC scrubber, task manager and safe shutdown.
-      When off, neither system_c/ nor system_cpp/ is compiled, and
+      When off, system_c/ is not compiled, and
       EventBus is unavailable too (CONFIG_EVENT_BUS depends on this).
-
-choice
-    prompt "System backend"
-    depends on SYSTEM
-    default SYSTEM_CPP
-    help
-      选择 C 或 C++ 系统后端。
-
-      Select C or C++ system backend.
-
-config SYSTEM_C
-    bool "C"
-    help
-      纯 C 系统运行时。
-
-      Pure C system runtime.
-
-config SYSTEM_CPP
-    bool "C++"
-    help
-      C++ 系统运行时。
-
-      C++ system runtime.
-endchoice
 
 config SYSTEM_CMD
     bool "System command infra (SystemCmd)"
     default n
-    depends on SYSTEM_CPP
+    depends on SYSTEM
     help
       SystemCmd 命令注册/派发基础设施 (system_cpp/src/system_cmd.cpp)。
       默认关闭; 需要命令行接口时再开启。

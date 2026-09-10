@@ -62,7 +62,7 @@ Current `lib/` state: **mini-os (in-tree), FreeRTOS (v11.3.0), RT-Thread (v5.3.0
 | NULL (cooperative, `XTASK_COOP`) | C API ignores priority arguments |
 | NULL (preemptive, `XTASK_PREEMPT`) | N+1 linked-list multi-priority; higher number = higher priority |
 
-Bare-metal task creation is controlled by `CONFIG_XTASK_PREEMPT` (depends on `SYSTEM_CPP && !XTASK_NONE`, on by default):
+Bare-metal task creation is controlled by `CONFIG_XTASK_PREEMPT` (part of the bare-metal scheduler choice, depends on `!XTASK_NONE`; the choice defaults to `XTASK_COOP`):
 - **On (unified path)**: the C++ overload `mini_task_create` in `mini_backend.h`.
   - Cooperative: `period` is the task period in ms (bare metal has no priority concept — the argument is **reinterpreted** as period).
   - Preemptive: the same overload gains a `priority` parameter (higher = more urgent); `stack_size` is reused as the period on bare metal.

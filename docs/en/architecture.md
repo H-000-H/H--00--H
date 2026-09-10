@@ -83,7 +83,7 @@ In the DTSI, `#include <vendor_header>` → expanded by `cpp` → properties bec
 | `core/` | error codes, compat macros, events, logging | `MINI_ERR_*`, `event_bus_*` |
 | `core/` | locks, queues, tasks, time | `mini_mutex_lock` |
 | `interrupt/` | VIRQ, top/bottom halves | `interrupt_virtual_dispatch` |
-| `system_c` / `system_cpp` | startup, WDT, scrubber, safe_state | `mini_tree_pre_os_init` / `mini_tree::system_pre_os_init` |
+| `system_c` (`system_cpp` cmd only) | startup, WDT, scrubber, safe_state, task_manager; command dispatch | `mini_tree_pre_os_init` / `SystemCmd` |
 | `time_slice/` | bare-metal scheduling — selected by the `Kconfig.mini_tree` tri-state choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`); cooperative (`xtask_coop.c`, default) and preemptive (`xtask_preempt.c`, N+1 multi-priority) are mutually exclusive, sharing `xtask.h` API; dual-gated by CMake (`MINI_TREE_XTASK_*`) + `#ifdef`; only used under `OS_BARE` | `x_scheduler` / `x_task` |
 | `drivers/<chip>/` | product drivers (39, `{include,src}` layout) | `DRIVER_REGISTER` / ioctl; dtc-lite compile-time probe |
 | `can_hook/` | CAN hook extensions | — |
@@ -116,11 +116,7 @@ In the DTSI, `#include <vendor_header>` → expanded by `cpp` → properties bec
 | 3 | `system_init_complete()` | re-enable global interrupts |
 | 4 | scheduler or bare-metal loop | `vTaskStartScheduler` / `rt_system_scheduler_start` / `mini_os_schedule_start` / `mini_tree_system_loop` |
 
-### 3.2 C++ API (`system_cpp`)
-
-`mini_tree::system_pre_os_init()` / `mini_tree::system_start_tasks()` correspond to phases 1/2 above and still end with `system_init_complete()`; `extern "C"` wrappers `mini_tree_pre_os_init()` / `mini_tree_start_tasks()` are also provided for the C side.
-
-### 3.3 Probe Cooperation
+### 3.2 Probe Cooperation
 
 dtc-lite scans `DRIVER_REGISTER` and generates the probe/remove table; `board_driver_probe_all` executes in order:
 

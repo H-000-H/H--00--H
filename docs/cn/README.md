@@ -61,7 +61,7 @@
 | [app_cpp_guide.md](app_cpp_guide.md) | 应用层 C++ 限制与推荐（ETL 容器 / 编码分档 / 禁则） |
 | [memory_footprint.md](memory_footprint.md) | 内存足迹：固定静态开销与裁剪开关 |
 | [service_spec.md](service_spec.md) | 应用层允许/禁止 |
-| [runtime_services.md](runtime_services.md) | EventBus / VIRQ / SYSTEM_C·CPP / 缓冲 |
+| [runtime_services.md](runtime_services.md) | EventBus / VIRQ / 系统运行时后端 / 缓冲 |
 | [can_hook.md](can_hook.md) | CAN 协议超集钩子 |
 | [fast_path.md](fast_path.md) | ISR / 热路径红线 |
 | [api_compatibility.md](api_compatibility.md) | API 稳定面 |

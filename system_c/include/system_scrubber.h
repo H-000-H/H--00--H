@@ -5,10 +5,25 @@
  *@author H-000-H
  *@details
  *   system_scrubber (C 接口) — Flash bit-rot CRC 巡检
- *   通过 system_scrubber.hpp 声明的 extern "C" API 供 .c 调用;
- *   定期扫描 Flash 分区与构建期 CRC 基线比对, 检测位翻转。
+ *   定期扫描 Flash 分区与构建期 CRC 基线比对, 检测位翻转;
+ *   实现见 system_c/src/system_scrubber.c。
  */
 
 #pragma once
 
-#include "system_scrubber.hpp"
+#include "status.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    int system_scrubber_init(void);
+    int system_scrubber_start(void);
+    bool system_scrubber_is_running(void);
+
+#ifdef __cplusplus
+}
+#endif

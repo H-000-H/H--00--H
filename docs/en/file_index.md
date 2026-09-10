@@ -71,7 +71,7 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 | `core/include/status.h` | `MINI_ERR_*`, `ERR_PTR` |
 | `core/include/compiler_compat.h` | portable attributes & mem API |
 | `core/include/compiler_compat_poison.h` | poison layer |
-| `core/include/event_bus.h` · `event_bus.hpp` | event bus |
+| `core/include/event_bus.h` | event bus |
 | `core/include/system_log.h` · `production_log.h` | logging |
 | `core/src/*.c` | implementations above |
 | `core/include/mini_backend.h` | the unified interface master header |
@@ -79,7 +79,8 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 | `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` | four backends |
 | `（裸机任务走 xtask, C++ 封装已移除）` | bare-metal C++ task wrapper |
 | `interrupt/interrupt.{c,h}` | VIRQ |
-| `system_c/` · `system_cpp/` | init, wdt, scrubber, safe_state, task_manager, cmd (C or C++ via Kconfig) |
+| `system_c/` | init, wdt, scrubber, safe_state, task_manager (system layer, pure C) |
+| `system_cpp/` | cmd only (`SystemCmd`, C++, `CONFIG_SYSTEM_CMD`, off by default) |
 | `time_slice/task/xtask*.{c,h}` | bare-metal scheduler |
 
 ---

@@ -60,6 +60,8 @@
 
 > 实测：`arm-none-eabi-gcc 13.3.1`（Windows，旧于旧版 14.2.1/Linux——旧编译链验证可编过），`-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -ffunction-sections -fdata-sections` + `--gc-sections`；最小固件 = `startup`（向量表 + Reset_Handler）+ `main`（system 层标准启动序列）+ 链接 `mini_tree` 全库（含 RTOS 内核，`--start-group` 解决循环引用），链接脚本仿 STM32F4（FLASH 1 MiB / RAM 128 KiB）。单位 B，`RAM 合计 = data + bss`。分两套 libc 口径：**newlib-nano**（`--specs=nano.specs`，最小体积常规选择）与**完整 newlib**（旧表口径）；`.config` 基线为仓库当前默认（事件总线/WDT/统一接口 日志开），未引用模块（lwIP/USB 等）经 `--gc-sections` 不进闭包。绝对值随工具链与基线配置漂移，**相对差**更有效。
 
+> **注（后端已简化）**：C++ 系统后端（原 `SYSTEM_CPP`）已移除，系统层现为纯 C（`system_c/`，命令模块 `SystemCmd` 除外）。下表 `system 后端 = C++` 各行为**历史测量数据**，仅用于对比 C/C++ 开销、佐证“改用纯 C”的决策，当前配置已无法复现该列。
+
 ### 4.1 newlib-nano（推荐口径）
 
 | 调度方案 | system 后端 | text | data | bss | RAM 合计 |
@@ -111,7 +113,7 @@
 2. 裸机 xtask（coop 11.2 KB）是最省的"带调度"方案，且**无独立任务栈**（run-to-completion，任务栈复用主循环栈）；preempt 的 bss 多出任务池（448 B）。
 3. RTOS 内核 text：**mini-os（14.4 KB）< FreeRTOS（17.6 KB）< RT-Thread（18.1 KB）**；mini-os 比 FreeRTOS 省 ~3.2 KB、比 RT-Thread 省 ~3.7 KB(mini-os未做smp mpu等部件做完差距不大都在17kb到18kb左右内核源码就这么大不太好压了除非主动裁剪功能)。
 4. RTOS 内核 text：**mini-os（14.4 KB）< FreeRTOS（17.6 KB）< RT-Thread（18.1 KB）**，mini-os 当前省～3.2–3.7 KB；**该差距主要来自功能集差异**——mini-os 未实现 SMP/MPU/ 内存保护等部件，补齐后预计与 FreeRTOS/RT-Thread 同级（17–18 KB 区间）。完整内核的 text 本体在此量级属正常，进一步压缩只能靠裁剪功能，调 `CONFIG_RTT_HEAP_SIZE`/`CONFIG_FREERTOS_HEAP_SIZE` 等可对齐。
-5. C/C++ system 后端：RTOS 下 C++ 比 C 约 +100~140 B text、+350~400 B bss；裸机几乎一致（+84 B text / +32 B bss）。**选 C 后端最省**。
+5. C/C++ system 后端（历史结论，据此已移除 C++ 后端）：RTOS 下 C++ 比 C 约 +100~140 B text、+350~400 B bss；裸机几乎一致（+84 B text / +32 B bss）。**C 后端最省**——系统层现固定为纯 C。
 6. **libc 的影响（4.1 vs 4.2）**：完整 newlib 比 nano 普遍 **+24.6 KB text、+~1.65 KB data**（stdio 结构），bss 仅 +~48 B；RT-Thread 例外多 ~6.4 KB（其 kservice 配置为复用 libc 格式化 `RT_KLIBC_USING_LIBC_VSNPRINTF`，拉入完整 vfprintf）。libc 为常量开销，不影响后端间相对比较；追求最小体积用 `--specs=nano.specs`。
 7. 每任务额外成本：RTOS 需 TCB + 独立任务栈（栈按应用配置另计）；xtask 仅静态 TCB（coop 28 B / preempt 48 B 池槽），无栈。
 
@@ -154,7 +156,6 @@
 | `# CONFIG_SYSTEM_SCRUBBER` | 未设 | 关启动内存 scrubber |
 | `# CONFIG_SYSTEM_CMD` | 未设 | 关命令行交互 |
 | `CONFIG_SYSTEM_WDT` | `y` | 保留看门狗（安全项未裁） |
-| `CONFIG_SYSTEM_CPP` | `y` | C++ system 后端 |
 | 编译/链接 | `-Os -fdata-sections -ffunction-sections -Wl,--gc-sections` | 裁未引用函数/数据 |
 | HAL / driver 源集合 | 按需 | `mini_tree/CMakeLists.txt` 仅编必要模块 |
 

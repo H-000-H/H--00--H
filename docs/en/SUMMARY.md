@@ -50,7 +50,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | `service_spec.md` | App-layer do's/don'ts; `device_find` returns `ERR_PTR` → use `IS_ERR`; two-phase boot | **P0** | [en](service_spec.md) |
 | `app_cpp_guide.md` | Upper-layer C++ restrictions (ETL containers, tiers, forbidden) | P1 (C++) | [en](app_cpp_guide.md) |
 | `coding_style.md` | `.clang-format` (LLVM/Allman/RemoveBracesLLVM/Left pointer/200 cols) + layered `.clang-tidy` + `compiler_compat_poison.h` (on by default, `ALLOW_*` opt-out) | **P0** | [en](coding_style.md) |
-| `runtime_services.md` | EventBus / VIRQ / SYSTEM_C·CPP / Buffer | P1 | [en](runtime_services.md) |
+| `runtime_services.md` | EventBus / VIRQ / System Runtime / Buffer | P1 | [en](runtime_services.md) |
 | `fast_path.md` | ISR / hot-path red lines (no printf/mutex/malloc/heavy logic) | **P0** (drivers) | [en](fast_path.md) |
 | `can_hook.md` | CAN protocol superset hooks | P2 | [en](can_hook.md) |
 | `memory_footprint.md` | Memory/flash baseline (flash total; different metric from CHANGELOG's RAM floor) + trimming knobs | P2 | [en](memory_footprint.md) |

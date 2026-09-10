@@ -38,7 +38,7 @@
 | **status / MINI_ERR_*** | 统一错误码 | `core/include/status.h` |
 | **积木 / Brick** | 可选开源能力块（GUI/网络/FS…） | [ecosystem.md](ecosystem.md)；`mini_tree_link_*` |
 | **vendor / Fetch** | 仅 FreeRTOS / RT-Thread / ETL 常驻 `lib/`；TinyUSB / lwIP 为配置期 FetchContent，其余链接期 | [ecosystem.md](ecosystem.md) §0 |
-| **两段式点火** | pre-os → start-tasks → complete → 调度 | `system_init.h` / `system_init.hpp` |
+| **两段式点火** | pre-os → start-tasks → complete → 调度 | `system_init.h` |
 
 ---
 

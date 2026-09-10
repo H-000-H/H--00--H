@@ -61,7 +61,7 @@
 | [app_cpp_guide.md](app_cpp_guide.md) | Upper-layer C++ restrictions and recommendations (ETL containers / tiering / forbidden) |
 | [memory_footprint.md](memory_footprint.md) | Memory footprint: fixed static RAM overhead & trimming knobs |
 | [service_spec.md](service_spec.md) | Application-layer do's and don'ts |
-| [runtime_services.md](runtime_services.md) | EventBus / VIRQ / SYSTEM_C·CPP / buffers |
+| [runtime_services.md](runtime_services.md) | EventBus / VIRQ / System Runtime / buffers |
 | [can_hook.md](can_hook.md) | CAN protocol superset hooks |
 | [fast_path.md](fast_path.md) | ISR / hot-path red lines |
 | [api_compatibility.md](api_compatibility.md) | API stability surface |

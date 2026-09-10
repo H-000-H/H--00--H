@@ -6,11 +6,12 @@
  *@details
  *   task_manager (C 接口) — 任务创建便捷封装
  *   包装 mini_task_create_handle, 自动订阅 TWDT (若已初始化)。
- *   C++ 实现见 system_cpp/task_manager.hpp, 本头供 .c 文件调用。
+ *   实现见 system_c/src/task_manager.c。
  */
 
 #pragma once
 
+#include "mini_backend.h"
 #include "task_config.h"
 
 #ifdef __cplusplus

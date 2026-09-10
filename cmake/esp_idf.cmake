@@ -12,8 +12,6 @@ get_filename_component(MINI_TREE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(KCONFIG_DOT "${MINI_TREE_DIR}/.config")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${KCONFIG_DOT}")
 
-file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ENTRY REGEX "^CONFIG_SYSTEM_(C|CPP)=y$")
-
 # System / EventBus 软编码：.config 显式 "# CONFIG_SYSTEM is not set" 才裁剪；缺省视为启用（对齐 Kconfig default y）
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_OFF REGEX "^# CONFIG_SYSTEM is not set$")
 if(CONFIG_SYSTEM_OFF)
@@ -28,10 +26,9 @@ if(CONFIG_EVENT_BUS_OFF OR NOT MINI_TREE_SYSTEM)
 else()
     set(MINI_TREE_EVENT_BUS ON)
 endif()
-# SystemCmd: 默认关, 仅显式 "CONFIG_SYSTEM_CMD=y" 才编入
+# SystemCmd: 默认关, 仅显式 "CONFIG_SYSTEM_CMD=y" 才编入 (系统层唯一保留的 C++ 模块)
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_CMD_ON REGEX "^CONFIG_SYSTEM_CMD=y$")
-# SYSTEM_CMD 仅 SYSTEM_CPP 后端有效
-if(CONFIG_SYSTEM_CMD_ON AND CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
+if(CONFIG_SYSTEM_CMD_ON AND MINI_TREE_SYSTEM)
     set(MINI_TREE_SYSTEM_CMD ON)
 else()
     set(MINI_TREE_SYSTEM_CMD OFF)
@@ -94,25 +91,17 @@ if(MINI_TREE_USB)
 endif()
 
 if(MINI_TREE_SYSTEM)
-    if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
-        set(SYSTEM_SRCS
-            "${MINI_TREE_DIR}/system_cpp/src/system_init.cpp"
-            "${MINI_TREE_DIR}/system_cpp/src/system_scrubber.cpp"
-            "${MINI_TREE_DIR}/system_cpp/src/system_wdt.cpp"
-            "${MINI_TREE_DIR}/system_cpp/src/task_manager.cpp"
-            "${MINI_TREE_DIR}/system_cpp/src/safe_state.c"
-        )
-        if(MINI_TREE_SYSTEM_CMD)
-            list(APPEND SYSTEM_SRCS "${MINI_TREE_DIR}/system_cpp/src/system_cmd.cpp")
-        endif()
-    else()
-        set(SYSTEM_SRCS
-            "${MINI_TREE_DIR}/system_c/src/system_init.c"
-            "${MINI_TREE_DIR}/system_c/src/system_scrubber.c"
-            "${MINI_TREE_DIR}/system_c/src/system_wdt.c"
-            "${MINI_TREE_DIR}/system_c/src/task_manager.c"
-            "${MINI_TREE_DIR}/system_cpp/src/safe_state.c"
-        )
+    # 系统运行时恒为纯 C (system_c/); safe_state 亦为 C, 同属 system_c/
+    set(SYSTEM_SRCS
+        "${MINI_TREE_DIR}/system_c/src/system_init.c"
+        "${MINI_TREE_DIR}/system_c/src/system_scrubber.c"
+        "${MINI_TREE_DIR}/system_c/src/system_wdt.c"
+        "${MINI_TREE_DIR}/system_c/src/task_manager.c"
+        "${MINI_TREE_DIR}/system_c/src/safe_state.c"
+    )
+    # SystemCmd (命令分发器) 是系统层唯一保留的 C++ 模块, 仅 CONFIG_SYSTEM_CMD=y 时编入
+    if(MINI_TREE_SYSTEM_CMD)
+        list(APPEND SYSTEM_SRCS "${MINI_TREE_DIR}/system_cpp/src/system_cmd.cpp")
     endif()
 endif()
 
@@ -406,8 +395,8 @@ add_dependencies(${COMPONENT_LIB}
 set_source_files_properties(${GEN_SRCS} PROPERTIES GENERATED TRUE)
 
 target_compile_definitions(${COMPONENT_LIB} PUBLIC ${MINI_OS_DEFINE} ETL_NO_STL)
-if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
-    target_compile_definitions(${COMPONENT_LIB} PRIVATE CONFIG_SYSTEM_CPP)
+# 系统层唯一的 C++ 模块是 SystemCmd (命令分发器); 编入时对其施加 no-rtti/no-exceptions
+if(MINI_TREE_SYSTEM_CMD)
     target_compile_options(${COMPONENT_LIB} PRIVATE
         $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
         $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>

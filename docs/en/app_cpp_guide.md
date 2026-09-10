@@ -6,7 +6,7 @@
 
 | Item | Content |
 | :--- | :--- |
-| **Audience** | People writing business logic in C++ at the app / system_cpp layer |
+| **Audience** | People writing business logic in C++ at the app / business layer |
 | **Prereq** | [coding_style.md](coding_style.md) · [service_spec.md](service_spec.md) |
 | **Related** | [fast_path.md](fast_path.md) · [runtime_services.md](runtime_services.md) |
 

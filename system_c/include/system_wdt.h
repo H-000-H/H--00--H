@@ -5,10 +5,34 @@
  *@author H-000-H
  *@details
  *   system_wdt (C 接口) — 看门狗喂狗与栈水位监控
- *   通过 system_wdt.hpp 声明的 extern "C" API 供 .c 调用;
- *   实现见 system_c/src/system_wdt.c (及可选 C++ 路径)。
+ *   IWDG 独立看门狗 (LSI) + TWDT 任务级软看门狗 + 栈水位巡检;
+ *   实现见 system_c/src/system_wdt.c。
  */
 
 #pragma once
 
-#include "system_wdt.hpp"
+#include "mini_backend.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    int system_wdt_init(uint32_t timeout_ms);
+    int system_wdt_subscribe(mini_task_handle_t task);
+    int system_wdt_unsubscribe(mini_task_handle_t task);
+    void system_wdt_feed(void);
+
+    int system_wdt_init_iwdg(uint32_t timeout_ms);
+    void system_wdt_feed_iwdg(void);
+    void system_wdt_iwdg_set_long_timeout(void);
+    void system_wdt_iwdg_restore_timeout(void);
+
+    int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes);
+    void system_wdt_stack_check_all(void);
+
+#ifdef __cplusplus
+}
+#endif

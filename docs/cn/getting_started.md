@@ -83,14 +83,14 @@ python3 tools/genconfig.py Kconfig build/generated/kconfig/mini_tree --config .c
 | Multi-core | `CPU_CORES` / `AMP_MODE` | 1=单核；2=AMP |
 | OS 后端 | `OS_BARE` / `OS_MINI_OS` / `OS_FREERTOS` / `OS_RTTHREAD` | 运行时后端：裸机 / mini-os（自研，仅 Cortex-M）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
 | 后端容量 | `OS_BARE_MAX_QUEUES`（基础队列数，EventBus 开自动 +1）/ `OS_BARE_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | 队列/堆内存（仅对应后端可见） |
-| System | `SYSTEM` / `SYSTEM_CPP` / `SYSTEM_C` | 总开关（默认自开）+ 语言后端 |
+| System | `SYSTEM` | 总开关（默认自开）；系统层为纯 C（`system_c/`） |
 | Log | `SYS_LOG_USE_PRINTF` / `统一接口` | `SYS_LOG*` 后端 |
 | Board Features | `SYSTEM_WDT` / `SYSTEM_SCRUBBER` 等 | 框架看门狗（默认开）/ CRC 巡检（默认关），依赖 `SYSTEM` |
 | Runtime | `EVENT_BUS` / `EVENT_BUS_*` / `MINI_MUTEX_POOL_SIZE` / `BOTTOM_HALF_QUEUE_DEPTH` | 总开关 + 容量 |
 
-`SYSTEM` 为**默认自开启**的可选模块，`EVENT_BUS` 与 `SYSTEM_CMD` 为**默认关闭**：关闭 `SYSTEM` 后 `system_c/`、`system_cpp/` 与 EventBus 一并裁剪；仅开启 `EVENT_BUS` 则保留两阶段启动与看门狗，加上发布/订阅总线。
+`SYSTEM` 为**默认自开启**的可选模块，`EVENT_BUS` 与 `SYSTEM_CMD` 为**默认关闭**：关闭 `SYSTEM` 后 `system_c/` 与 EventBus 一并裁剪（命令模块 `system_cmd` 随 `SYSTEM_CMD` 关闭）；仅开启 `EVENT_BUS` 则保留两阶段启动与看门狗，加上发布/订阅总线。
 
-仓库自带 `.config` 常见默认：`OS_BARE` + `SYSTEM`/`SYSTEM_CPP` + `SYSTEM_WDT` + `SYS_LOG_USE_PRINTF`（`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` 默认关）。
+仓库自带 `.config` 常见默认：`OS_BARE` + `SYSTEM` + `SYSTEM_WDT` + `SYS_LOG_USE_PRINTF`（`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` 默认关）。
 
 ---
 
@@ -139,7 +139,7 @@ set(VENDOR_INC_DIRS "${CUBE_INC};${HAL_INC}" CACHE STRING "" FORCE)
 3. 按 `.config` 挑选 OS / SYSTEM 源；链入 `lib/` 中的 vendor 内核（mini-os / FreeRTOS v11.3.0 / RT-Thread v5.3.0）
 4. 配置期积木（TinyUSB / lwIP）由根 CMake 直接 `include` 对应 `cmake/*.cmake`；其余可选积木由产品侧 `mini_tree_link_*` 链接期点亮（首次可能联网 Fetch）
 
-语言后端对照见 [runtime_services.md](runtime_services.md#3-system_c-vs-system_cpp)；USB 板级契约见 [usb_tusb_port.md](usb_tusb_port.md)；积木清单见 [ecosystem.md](ecosystem.md)。
+系统运行时后端见 [runtime_services.md](runtime_services.md#3-系统运行时后端)；USB 板级契约见 [usb_tusb_port.md](usb_tusb_port.md)；积木清单见 [ecosystem.md](ecosystem.md)。
 
 ### 4.2 ESP-IDF？
 
@@ -203,20 +203,7 @@ int main(void)
 }
 ```
 
-### 6.2 C++（`system_init.hpp`）
-
-```cpp
-#include "config.h"            // CONFIG_ESP_* / CONFIG_XTASK_PREEMPT 等宏为相关头所需
-#include "system_init.hpp"
-
-mini_tree::system_pre_os_init();
-/* 可选：业务服务静态 init（SystemCmd::get_instance().register_cmd(…) 等）*/
-mini_tree::system_start_tasks();   /* probe + 框架任务 */
-/* 可选：mini_task_create 业务任务 */
-
-system_init_complete();
-// 再启动调度器（vTaskStartScheduler / rt_system_scheduler_start / mini_tree_system_loop）
-```
+> 系统层为纯 C；上述点火函数均为 `extern "C"`，C++ 工程也直接调用同一套 C API（命令基础设施 `SystemCmd` 除外，仍为 C++）。
 
 > 裸机（`CONFIG_OS_BARE`）下 `mini_task_create` **C 版恒返回 `MINI_ERR_NOTSUPP`**：
 > C++ 工程请用 `mini_backend.h` 的 C++ 重载 `mini_task_create`（`CONFIG_XTASK_PREEMPT`，默认开启；

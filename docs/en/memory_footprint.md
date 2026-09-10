@@ -60,6 +60,8 @@
 
 > Measured with `arm-none-eabi-gcc 13.3.1` (Windows, older than the previous 14.2.1/Linux — builds fine on the older toolchain), `-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -ffunction-sections -fdata-sections` + `--gc-sections`. Minimal firmware = `startup` (vector table + Reset_Handler) + `main` (standard system-layer startup sequence) + linking the whole `mini_tree` library (RTOS kernel included, `--start-group` for circular references), linked with an STM32F4-like script (FLASH 1 MiB / RAM 128 KiB). Units in bytes; `RAM total = data + bss`. Two libc baselines are reported: **newlib-nano** (`--specs=nano.specs`, the usual minimal-size choice) and **full newlib** (the previous table's baseline); the `.config` baseline is the current repo default (event bus/WDT/printing logging on), unreferenced modules (lwIP/USB, etc.) are kept out of the closure by `--gc-sections`. Absolute values drift with toolchain and baseline config — **relative deltas** are the meaningful comparison.
 
+> **Note (backend simplified)**: the C++ system backend (formerly `SYSTEM_CPP`) has been removed; the system layer is now pure C (`system_c/`, except the command module `SystemCmd`). The `system backend = C++` rows below are **historical measurements**, kept only to compare C/C++ overhead and justify the "go pure C" decision; that column is no longer reproducible with the current config.
+
 ### 4.1 newlib-nano (recommended baseline)
 
 | Scheduler | system backend | text | data | bss | RAM total |
@@ -111,7 +113,7 @@ Conclusions:
 2. Bare-metal xtask (coop 11.2 KB) is the smallest "scheduling-capable" option and needs **no per-task stack** (run-to-completion, task stack reuses the main-loop stack); preempt adds a 448 B task pool to bss.
 3. RTOS kernel text: **mini-os (14.4 KB) < FreeRTOS (17.6 KB) < RT-Thread (18.1 KB)**; mini-os saves ~3.2 KB over FreeRTOS and ~3.7 KB over RT-Thread (mini-os does not yet implement SMP/MPU and similar parts — once finished the gap will be small: the kernels all land around 17–18 KB, the kernel sources are just that big and hard to shrink further unless features are actively trimmed).
 4. RTOS kernel text: **mini-os (14.4 KB) < FreeRTOS (17.6 KB) < RT-Thread (18.1 KB)**, mini-os currently saves ~3.2–3.7 KB; **the gap mainly comes from feature-set differences** — mini-os does not yet implement SMP/MPU/memory-protection parts, and once completed it is expected to be on par with FreeRTOS/RT-Thread (the 17–18 KB range). A complete kernel's text at this magnitude is normal; further compression only comes from trimming features, and `CONFIG_RTT_HEAP_SIZE`/`CONFIG_FREERTOS_HEAP_SIZE` etc. can be tuned to align.
-5. C vs C++ system backend: under RTOS, C++ costs ~+100–140 B text and +350–400 B bss more than C; nearly identical for bare-metal (+84 B text / +32 B bss). **Pick the C backend for minimum size.**
+5. C vs C++ system backend (historical finding — the C++ backend was removed accordingly): under RTOS, C++ cost ~+100–140 B text and +350–400 B bss more than C; nearly identical for bare-metal (+84 B text / +32 B bss). **C is the smallest** — the system layer is now fixed to pure C.
 6. **libc impact (4.1 vs 4.2)**: full newlib costs **~+24.6 KB text and ~+1.65 KB data** (stdio structures) over nano, bss only ~+48 B; RT-Thread is an outlier at ~+6.4 KB more (its kservice is configured to use libc formatting via `RT_KLIBC_USING_LIBC_VSNPRINTF`, pulling in the full vfprintf). libc is a constant overhead that does not affect cross-backend comparison; use `--specs=nano.specs` for minimum size.
 7. Per-task extra cost: RTOS needs a TCB + dedicated task stack (stack sized per app, counted separately); xtask only has a static TCB (coop 28 B / preempt 48 B pool slot), no stack.
 
@@ -154,7 +156,6 @@ Conclusions:
 | `# CONFIG_SYSTEM_SCRUBBER` | unset | disable startup memory scrubber |
 | `# CONFIG_SYSTEM_CMD` | unset | disable command-line shell |
 | `CONFIG_SYSTEM_WDT` | `y` | keep watchdog (safety item, not trimmed) |
-| `CONFIG_SYSTEM_CPP` | `y` | C++ system backend |
 | compile/link | `-Os -fdata-sections -ffunction-sections -Wl,--gc-sections` | strip unreferenced functions/data |
 | HAL / driver source set | on demand | `mini_tree/CMakeLists.txt` compiles only needed modules |
 

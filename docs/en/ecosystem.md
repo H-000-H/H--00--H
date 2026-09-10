@@ -20,7 +20,7 @@
 | **Vendor (in git)** | Sources in `lib/`, committed with the repo | **mini-os**, **FreeRTOS**, **RT-Thread**, **ETL** |
 | **Config-time Fetch** | Root CMake directly `include`s `cmake/*.cmake`, local-or-fetch | **TinyUSB**, **lwIP** |
 | **Link-time Fetch** | Pulled only when `mini_tree_link_*` is called; clone to `lib/<Name>` for offline | littlefs, FatFs, MultiButton, MCUBoot, coreMQTT, LVGL, u8g2, FlashDB, SFUD, EasyFlash, EasyLogger… |
-| **C++ base (in by default)** | ETL in `lib/etl`; root CMake always `mini_tree_link_etl(mini_tree)` | Upper-layer C++ / `SYSTEM_CPP` base |
+| **C++ base (in by default)** | ETL in `lib/etl`; root CMake always `mini_tree_link_etl(mini_tree)` | Upper-layer C++ / `SystemCmd` base |
 
 Implementation: `mini_tree_dep_get()` in `cmake/dep_fetch.cmake` (uses the local copy when its marker file exists, otherwise `FetchContent`).
 

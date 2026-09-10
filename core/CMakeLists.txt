@@ -20,7 +20,7 @@ if(EXISTS "${_MINI_TREE_CONFIG}")
 endif()
 
 add_library(core STATIC
-    "src/event_bus.cpp"
+    "src/event_bus.c"
     "src/mini_backend_bare.c"
     "src/mini_backend_freertos.c"
     "src/mini_backend_mini_os.c"
@@ -37,7 +37,7 @@ target_include_directories(core
         "include"
         "${KCONFIG_GEN_DIR}"
     PRIVATE
-        "${PROJECT_SOURCE_DIR}/system_cpp/include"
+        "${PROJECT_SOURCE_DIR}/system_c/include"
         # 三个 OS 后端实现读 board_config.h 取池尺寸 (MINI_MUTEX_POOL_SIZE / MINI_SEM_POOL_SIZE)
         "${PROJECT_SOURCE_DIR}/board/include"
 )

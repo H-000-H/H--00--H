@@ -57,7 +57,7 @@
 | 项 | 值 |
 | :--- | :--- |
 | 检查集 | `bugprone-*`、`clang-analyzer-*`、`modernize-*`、`performance-*`、`readability-*` |
-| 命名强制 | 小写（`x_task`、`x_scheduler`、`list_node`、`k_tag`、`struct event`、`mini_tree::` …） |
+| 命名强制 | 小写（`x_task`、`x_scheduler`、`list_node`、`k_tag`、`struct event` …） |
 
 命名违规在 tidy 阶段报，不是编译错——CI 会拦。
 
@@ -71,7 +71,7 @@
 | :--- | :--- |
 | 函数 / 变量 | `snake_case` |
 | 类型（`struct/typedef`） | 小写（`device`、`hal_can_config`） |
-| 命名空间（`system_cpp`） | `mini_tree::` |
+| C++ 类（`system_cmd`） | `PascalCase`（`SystemCmd`） |
 | 宏 / 枚举值 | 大写 `SNAKE_CASE`（`DEV_ID_UART0`、`MINI_ERR_*`） |
 
 `app` 层为建议，app 以下为强规定。

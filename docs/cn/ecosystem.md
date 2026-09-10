@@ -20,7 +20,7 @@
 | **vendor（进 git）** | 源码在 `lib/`，随仓库提交 | **mini-os**、**FreeRTOS**、**RT-Thread**、**ETL** |
 | **配置期 Fetch** | 根 CMake 直接 `include(cmake/*.cmake)`，local-or-fetch | **TinyUSB**、**lwIP** |
 | **链接期 Fetch** | 调用 `mini_tree_link_*` 时才拉取；可手动 clone 到 `lib/<Name>` 离线 | littlefs、FatFs、MultiButton、MCUBoot、coreMQTT、LVGL、u8g2、FlashDB、SFUD、EasyFlash、EasyLogger… |
-| **C++ 基础（默认进库）** | ETL 在 `lib/etl`；根 CMake **始终** `mini_tree_link_etl(mini_tree)` | 上层 C++ / `SYSTEM_CPP` 基座 |
+| **C++ 基础（默认进库）** | ETL 在 `lib/etl`；根 CMake **始终** `mini_tree_link_etl(mini_tree)` | 上层 C++ / `SystemCmd` 基座 |
 
 实现：`cmake/dep_fetch.cmake` 的 `mini_tree_dep_get()`（本地标记文件存在则用本地，否则 `FetchContent`）。
 

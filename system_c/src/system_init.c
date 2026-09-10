@@ -28,6 +28,9 @@
 #ifdef CONFIG_OS_BARE
 #include "xtask.h"
 #endif
+#ifdef CONFIG_USB
+void usb_bus_task(void); /* TinyUSB 事件轮询 (声明见 bus/usb/usb_bus.h) */
+#endif
 
 /* -------------------------------------------------------------------------- */
 /* 启动期全局中断控制 */
@@ -141,11 +144,14 @@ void mini_tree_system_loop(void)
     system_wdt_feed();
     system_wdt_feed_iwdg();
 #endif
-#ifdef CONFIG_OS_BARE
 #ifdef CONFIG_VIRQ
-    interrupt_bottom_half_poll();
+    interrupt_bottom_half_poll(); /**< 执行下半部队列 (裸机 + OS 后端均需轮询) */
 #endif
-    x_scheduler_poll();
+#ifdef CONFIG_USB
+    usb_bus_task(); /**< TinyUSB 事件轮询 (枚举 / CDC 收发推进) */
+#endif
+#ifdef CONFIG_OS_BARE
+    x_scheduler_poll(); /**< 裸机调度器轮询 (coop/preempt 各实现同名函数) */
 #endif
 }
 

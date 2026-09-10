@@ -20,14 +20,14 @@
 #include "mini_time.h"
 #include "safe_state.h"
 #include "system_log.h"
-#include "system_wdt.hpp"
+#include "system_wdt.h"
 
 #include "compiler_compat_poison.h"
 
 /* SIOF (Static Initialization Order Fiasco) 防御:
  *   在 system_pre_os_init (Phase 1) 完成前, 禁止所有 EventBus 操作.
  *   防止 C++ 全局构造函数在 main() 之前偷跑调用 post/subscribe.
- *   定义位于 system_init.c / system_init.cpp. */
+ *   定义位于 system_c/src/system_init.c. */
 extern volatile bool g_system_os_initialized;
 
 #define K_TAG "EventBus"

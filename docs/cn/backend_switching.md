@@ -66,7 +66,7 @@
 | NULL (协调式, `XTASK_COOP`) | C API 忽略优先级参数 |
 | NULL (抢占式, `XTASK_PREEMPT`) | N+1 链表多优先级, 数值越大越优先 |
 
-裸机任务创建路径由 `CONFIG_XTASK_PREEMPT` 控制（依赖 `SYSTEM_CPP && !XTASK_NONE`, 默认开启）：
+裸机任务创建路径由 `CONFIG_XTASK_PREEMPT` 控制（属裸机调度器 choice，依赖 `!XTASK_NONE`；choice 默认为 `XTASK_COOP`）：
 - **开启（走统一）**：用 `mini_backend.h` 的 C++ 重载 `mini_task_create`.
   - 协调式: `period` 参数即任务周期 ms（裸机无优先级概念, 该位置被**重解释**为周期）.
   - 抢占式: 同重载新增 `priority` 参数（数值越大越优先）, `stack_size` 在裸机下复用为周期.

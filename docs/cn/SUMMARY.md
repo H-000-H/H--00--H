@@ -50,7 +50,7 @@
 | `service_spec.md` | 应用层允许/禁止；`device_find` 返回 `ERR_PTR` 须用 `IS_ERR` 判错；两段式启动挂载 | **P0** | [cn](service_spec.md) |
 | `app_cpp_guide.md` | 应用层 C++ 限制（ETL 容器、编码分档、禁则） | P1（C++） | [cn](app_cpp_guide.md) |
 | `coding_style.md` | `.clang-format`（LLVM/Allman/单语句去括号/`PointerAlignment: Left`/200 列）+ 分层 `.clang-tidy` + `compiler_compat_poison.h`（默认生效，靠 `ALLOW_*` 豁免） | **P0** | [cn](coding_style.md) |
-| `runtime_services.md` | EventBus / VIRQ / SYSTEM_C·CPP / Buffer | P1 | [cn](runtime_services.md) |
+| `runtime_services.md` | EventBus / VIRQ / 系统运行时后端 / Buffer | P1 | [cn](runtime_services.md) |
 | `fast_path.md` | ISR / 热路径红线（禁 printf/mutex/malloc/长逻辑） | **P0**（驱动） | [cn](fast_path.md) |
 | `can_hook.md` | CAN 协议超集钩子 | P2 | [cn](can_hook.md) |
 | `memory_footprint.md` | 内存/flash 基准（flash 合计；与 CHANGELOG 的 RAM 下限口径不同）+ 裁剪开关 | P2 | [cn](memory_footprint.md) |

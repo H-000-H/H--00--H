@@ -83,7 +83,7 @@ DTSI 中 `#include <厂商头>` → `cpp` 展开 → 属性写成整数 → VFS 
 | `core/` | 错误码、兼容宏、事件、日志 | `MINI_ERR_*`、`event_bus_*` |
 | `core/` | 锁/队列/任务/时间 | `mini_mutex_lock` |
 | `interrupt/` | VIRQ、上/下半部 | `interrupt_virtual_dispatch` |
-| `system_c` / `system_cpp` | 启动、WDT、scrubber、safe_state | `mini_tree_pre_os_init` / `mini_tree::system_pre_os_init` |
+| `system_c`（`system_cpp` 仅 cmd） | 启动、WDT、scrubber、safe_state、task_manager；命令派发 | `mini_tree_pre_os_init` / `SystemCmd` |
 | `time_slice/` | 裸机调度 — 由 Kconfig 三态 choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`) 选择; 协调式 (`xtask_coop.c`, 默认) 与抢占式 (`xtask_preempt.c`, N+1 多优先级) 二选一, 共用 `xtask.h` API; CMake + `#ifdef` 双重互斥; 仅 `OS_BARE` | `x_scheduler` / `x_task` |
 | `drivers/<chip>/` | 产品驱动（39 个，`{include,src}` 结构） | `DRIVER_REGISTER` / ioctl；dtc-lite 编译期 probe |
 | `can_hook/` | CAN 钩子扩展 | — |
@@ -116,11 +116,7 @@ DTSI 中 `#include <厂商头>` → `cpp` 展开 → 属性写成整数 → VFS 
 | 3 | `system_init_complete()` | 释放全局中断 |
 | 4 | 调度或裸机循环 | `vTaskStartScheduler` / `rt_system_scheduler_start` / `mini_os_schedule_start` / `mini_tree_system_loop` |
 
-### 3.2 C++ API（`system_cpp`）
-
-`mini_tree::system_pre_os_init()` / `mini_tree::system_start_tasks()` 与上表阶段 1/2 对应，最后仍调用 `system_init_complete()`；另有 `extern "C"` 包装 `mini_tree_pre_os_init()` / `mini_tree_start_tasks()` 供 C 侧调用。
-
-### 3.3 Probe 协作
+### 3.2 Probe 协作
 
 dtc-lite 扫描 `DRIVER_REGISTER` 并生成 probe/remove 表，`board_driver_probe_all` 按序执行：
 

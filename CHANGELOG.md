@@ -7,6 +7,26 @@
 
 ## [Unreleased] / 未发布
 
+### 系统层移除 C++ 后端 / Remove the C++ system-layer backend
+
+- **系统层改为纯 C（命令模块除外）**：删除 `system_cpp/` 下与 `system_c/` 等价的 C++ 实现（`system_init` / `system_wdt` / `system_scrubber` / `task_manager` 的 `.cpp` + `.hpp`）及 `mini_tree::` 命名空间 API；系统层统一走 `system_c/` 的 C API（`mini_tree_pre_os_init()` / `mini_tree_start_tasks()` / `system_init_complete()` / `mini_tree_system_loop()` / `task_manager_create()`）。理由：C/C++ 两套等价 API 的维护成本高于收益。
+- **`SystemCmd` 保留为 C++**：命令派发基础设施 `system_cpp/src/system_cmd.cpp`（`CONFIG_SYSTEM_CMD`，默认关，依赖 ETL）是系统层唯一的 C++ 例外，未改动。
+- **Kconfig 简化**：移除「System backend」choice（`SYSTEM_C` / `SYSTEM_CPP`）；`CONFIG_SYSTEM` 成为系统层唯一总开关，`CONFIG_SYSTEM_CMD` 依赖由 `SYSTEM_CPP` 改为 `SYSTEM`。
+- **`safe_state` 归位 `system_c/`**：`safe_state.c/.h` 从 `system_cpp/` 移入 `system_c/`，删除 `core/include/safe_state.h` 的重复头。
+- **删除死代码 `event_bus` C++ 副本**：`core/src/event_bus.cpp` + `core/include/event_bus.hpp`（未编译、无引用）删除；EventBus 统一为 `core/src/event_bus.c` + `event_bus.h`。
+- **`system_c` 头自包含**：`system_wdt.h` / `system_scrubber.h` 内联 `extern "C"` 声明（不再转发包含已删除的 `.hpp`）；修复 `task_manager.h` 缺 `mini_backend.h`（`mini_task_handle_t` 定义处）导致的编译错误（旧 `SYSTEM_CPP=y` 下 `task_manager.c` 从不参与编译，故未暴露）。
+- **构建/配置同步**：根 `CMakeLists.txt` 与 `cmake/esp_idf.cmake` 的 SYSTEM 源恒为 C，`system_cmd.cpp` 按 `CONFIG_SYSTEM_CMD` 条件编入，C++ 编译选项（`-fno-rtti` / `-fno-exceptions`）门控改为 `SYSTEM_CMD`；`.config` / `compile_flags.txt` / `ide/stubs/config.h` 移除 `CONFIG_SYSTEM_CPP`。
+- **文档同步**：`docs/{cn,en}` 全量更新（`runtime_services` / `getting_started` / `architecture` / `patterns` / `design_decisions` / `file_index` / `coding_style` / `driver_guide` / `service_spec` / `app_cpp_guide` / `ecosystem` / `keil_integration` / `usage` / `backend_switching` / `README` / `SUMMARY`）；`memory_footprint` / `mini-os` 的 C/C++ 基准标注为历史数据。
+
+**The system layer is now pure C (except the command module)**: removed the C++ implementations under `system_cpp/` that duplicated `system_c/` (`system_init` / `system_wdt` / `system_scrubber` / `task_manager` `.cpp` + `.hpp`) and the `mini_tree::` namespace API; the system layer now uses the C API in `system_c/` (`mini_tree_pre_os_init()` / `mini_tree_start_tasks()` / `system_init_complete()` / `mini_tree_system_loop()` / `task_manager_create()`). Rationale: maintaining two equivalent C/C++ API sets cost more than it returned.
+**`SystemCmd` stays C++**: the command dispatch infra `system_cpp/src/system_cmd.cpp` (`CONFIG_SYSTEM_CMD`, off by default, ETL-based) is the only C++ exception in the system layer and is unchanged.
+**Kconfig simplified**: removed the "System backend" choice (`SYSTEM_C` / `SYSTEM_CPP`); `CONFIG_SYSTEM` is now the sole master switch, and `CONFIG_SYSTEM_CMD`'s dependency changed from `SYSTEM_CPP` to `SYSTEM`.
+**`safe_state` relocated to `system_c/`**: `safe_state.c/.h` moved from `system_cpp/`; the duplicate `core/include/safe_state.h` was deleted.
+**Dead `event_bus` C++ copy removed**: `core/src/event_bus.cpp` + `core/include/event_bus.hpp` (never compiled, unreferenced) deleted; EventBus is now `core/src/event_bus.c` + `event_bus.h`.
+**`system_c` headers self-contained**: `system_wdt.h` / `system_scrubber.h` inline their `extern "C"` declarations (no longer forwarding to deleted `.hpp`); fixed a compile error where `task_manager.h` lacked `mini_backend.h` (where `mini_task_handle_t` is defined) — it never surfaced before because `task_manager.c` was not compiled under the old `SYSTEM_CPP=y`.
+**Build/config synced**: the root `CMakeLists.txt` and `cmake/esp_idf.cmake` always use C SYSTEM sources, compile `system_cmd.cpp` conditionally on `CONFIG_SYSTEM_CMD`, and gate the C++ options (`-fno-rtti` / `-fno-exceptions`) on `SYSTEM_CMD`; `.config` / `compile_flags.txt` / `ide/stubs/config.h` dropped `CONFIG_SYSTEM_CPP`.
+**Docs synced**: `docs/{cn,en}` fully updated (`runtime_services` / `getting_started` / `architecture` / `patterns` / `design_decisions` / `file_index` / `coding_style` / `driver_guide` / `service_spec` / `app_cpp_guide` / `ecosystem` / `keil_integration` / `usage` / `backend_switching` / `README` / `SUMMARY`); the C/C++ benchmarks in `memory_footprint` / `mini-os` are marked historical.
+
 ### 移除 OSAL 抽象层 / Remove the OSAL abstraction layer
 
 - **删除 OSAL 抽象层**：整目录 `osal/` 删除；仓库内代码（board / VFS / bus / core / system / net）改走极薄统一接口 `core/include/mini_backend.h`（互斥锁 / 二值信号量 / 定长队列 / 任务族 + 可嵌套临界区 + 内存三函数），每后端一份实现（`core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c`），编译期分发，不用运行时函数指针表。

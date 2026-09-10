@@ -262,11 +262,11 @@ Full methodology and the four-backend comparison: [memory_footprint.md](memory_f
 | Configuration | newlib-nano | full newlib |
 | :--- | :--- | :--- |
 | mini-os C | 14245 / 120 / 2620 | 38776 / 1772 / 2664 |
-| mini-os C++ | 14381 / 128 / 3016 | 38912 / 1780 / 3064 |
+| mini-os C++ (historical, backend removed) | 14381 / 128 / 3016 | 38912 / 1780 / 3064 |
 
 - **Smallest text** of the four backends (~3 KB less than FreeRTOS, ~3.6 KB less than RT-Thread, nano figures);
-- **Smallest bss, and it does not grow with heap config**: the heap lives in a linker region and does not count into bss (FreeRTOS `ucHeap` 8 KiB / RT-Thread `s_rtt_heap` 32 KiB both land in bss); even excluding configurable heaps, the framework bss is 3016 B (C++) — clearly below the others;
-- The main extra cost is `SYSTEM_CPP` (+136 text / +396 bss, nano figures).
+- **Smallest bss, and it does not grow with heap config**: the heap lives in a linker region and does not count into bss (FreeRTOS `ucHeap` 8 KiB / RT-Thread `s_rtt_heap` 32 KiB both land in bss); even excluding configurable heaps, the framework bss is 2620 B (C) — clearly below the others;
+- The C++ system backend (formerly `SYSTEM_CPP`) has been removed; the system layer is now pure C. The C++ row above is historical (it once cost +136 text / +396 bss over C, nano figures).
 
 ---
 

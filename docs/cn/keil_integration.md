@@ -52,7 +52,7 @@
 | :--- | :--- |
 | **几乎无法干净集成** | 无第一公民 CMake；`BOARD_DTS` / genconfig / dtc-lite / `ide/stubs` 工作流都要手工或旁路脚本搬进工程 |
 | **跳转与索引弱** | 相对 clangd / CLion 差一截；不做自动化时 Include/文件列表极易漂 |
-| **C++ 支持差** | `SYSTEM_CPP`、ETL、现代方言体验弱 |
+| **C++ 支持差** | `SystemCmd`、ETL、现代方言体验弱 |
 | **AI 集成度差** | 与 Cursor / Qoder 多文件理解工作流不兼容 |
 | **工程文件难协作** | `.uvprojx` 易冲突、难 diff |
 
@@ -130,7 +130,7 @@ IDE 验收见 [getting_started.md](getting_started.md) §7、[debug_monitor.md](
 
 即使交付物是 Keil 工程：
 
-- **写代码 / Review / AI**：继续用 Cursor / VS Code / CLion / Qoder（Keil Studio 亦可，因其即 VS Code 生态）。
+- **写代码 / Review / AI**：继续用 Zed /Cursor / VS Code / CLion / Qoder（Keil Studio 亦可，因其即 VS Code 生态）。
 - **µVision**：**调试和写代码都不推荐**（接调试器/仿真器也优先 Keil Studio / 现代 IDE）；编译、烧录和日常开发还是走 CMake 流程，整体转到更现代体系更舒服。
 
 不要把 µVision 当成唯一编辑器。

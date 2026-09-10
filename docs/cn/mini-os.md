@@ -262,11 +262,11 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 | 配置 | newlib-nano | 完整 newlib |
 | :--- | :--- | :--- |
 | mini-os C | 14245 / 120 / 2620 | 38776 / 1772 / 2664 |
-| mini-os C++ | 14381 / 128 / 3016 | 38912 / 1780 / 3064 |
+| mini-os C++（历史，后端已移除） | 14381 / 128 / 3016 | 38912 / 1780 / 3064 |
 
 - 四后端中 **text 最小**（比 FreeRTOS 少 ~3 KB，比 RT-Thread 少 ~3.6 KB，nano 口径）；
-- **bss 最小且不随堆配置膨胀**：堆来自链接区不计 bss（FreeRTOS `ucHeap` 8 KiB / RT-Thread `s_rtt_heap` 32 KiB 均计入 bss），剔除可配堆后框架 bss 3016 B（C++）仍显著小于其余后端；
-- 新增开销主要来自 `SYSTEM_CPP`（+136 text / +396 bss，nano 口径）。
+- **bss 最小且不随堆配置膨胀**：堆来自链接区不计 bss（FreeRTOS `ucHeap` 8 KiB / RT-Thread `s_rtt_heap` 32 KiB 均计入 bss），剔除可配堆后框架 bss 2620 B（C）仍显著小于其余后端；
+- C++ 系统后端（原 `SYSTEM_CPP`）已移除，系统层现为纯 C；上表 C++ 行为历史数据（曾比 C 多 +136 text / +396 bss，nano 口径）。
 
 ---
 

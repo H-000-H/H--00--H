@@ -67,7 +67,7 @@ Boot proceeds in four stages (C API in `system_c/include/system_init.h`):
 | 3 | `system_init_complete()` | Re-enable global interrupts |
 | 4 | scheduler or bare-metal loop | `vTaskStartScheduler` / `rt_system_scheduler_start` / `mini_tree_system_loop` |
 
-The C++ side (`mini_tree::system_pre_os_init()` / `system_start_tasks()`) mirrors stages 1/2 and finally calls `system_init_complete()` too.
+These APIs are all `extern "C"` (the system layer is pure C); C++ projects call the same C API directly, with no separate C++ version.
 
 ### Why the Order Is Fixed
 

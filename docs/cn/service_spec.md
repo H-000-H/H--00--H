@@ -28,7 +28,7 @@
 | `device.h` | 查找设备、open/read/write/ioctl |
 | `status.h` | `MINI_OK` / `MINI_ERR_*` |
 | `mini_backend.h` | 任务、锁、队列、延时、日志级别配合 |
-| `event_bus.h` / `event_bus.hpp` | 发布订阅 |
+| `event_bus.h` | 发布订阅 |
 | `algorithm/buffer` | 缓冲 |
 | `system_log.h` | `SYS_LOGI/W/E` |
 | 业务自身头 | — |

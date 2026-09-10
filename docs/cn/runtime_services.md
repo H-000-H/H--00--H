@@ -1,6 +1,6 @@
 # 运行时服务
 
-> 启动后常用的横向能力：事件总线、VIRQ、系统语言后端，以及可选的看门狗 / CRC 巡检 / 安全停机模块。分层总览见 [architecture.md](architecture.md)。
+> 启动后常用的横向能力：事件总线、VIRQ、系统运行时后端，以及可选的看门狗 / CRC 巡检 / 安全停机模块。分层总览见 [architecture.md](architecture.md)。
 
 | 项 | 内容 |
 | :--- | :--- |
@@ -14,7 +14,7 @@
 
 1. [EventBus](#1-eventbus)
 2. [VIRQ 与上下半部](#2-virq-与上下半部)
-3. [SYSTEM_C vs SYSTEM_CPP](#3-system_c-vs-system_cpp)
+3. [系统运行时后端](#3-系统运行时后端)
 4. [Buffer（algorithm/buffer）](#4-buffer-algorithmbuffer)
 5. [安全类可选模块（积木）](#5-安全类可选模块积木)
 
@@ -24,7 +24,7 @@
 
 > **可选模块（默认关闭）**：`CONFIG_EVENT_BUS`（依赖 `SYSTEM`）。开启后 `core/src/event_bus.c` 编入，`event_bus_*` API 可用；关闭（默认）则不编入、不广播 `EVENT_SYS_*`。
 
-头：`core/include/event_bus.h`（C++ 另有 `event_bus.hpp` 包装）。
+头：`core/include/event_bus.h`。
 
 ### 1.1 事件 ID
 
@@ -95,26 +95,21 @@ ISR 禁止：`printf`、长时间锁、无界工作 — [fast_path.md](fast_path
 
 ---
 
-## 3. SYSTEM_C vs SYSTEM_CPP
+## 3. 系统运行时后端
 
-> **可选模块（默认自开）**：总开关 `CONFIG_SYSTEM`。关闭后 `system_c/` 与 `system_cpp/` 均不编入（`CONFIG_SYSTEM_WDT` / `CONFIG_SYSTEM_SCRUBBER` / `CONFIG_EVENT_BUS` 也依赖本开关）。
+> **可选模块（默认自开）**：总开关 `CONFIG_SYSTEM`。关闭后 `system_c/` 不编入（`CONFIG_SYSTEM_WDT` / `CONFIG_SYSTEM_SCRUBBER` / `CONFIG_EVENT_BUS` 也依赖本开关）。
 
-`CONFIG_SYSTEM` 开启时 Kconfig **二选一**：编入 `system_c/` 或 `system_cpp/`。
+系统层为**纯 C 实现**（`system_c/`），不再提供 C/C++ 语言后端二选一——避免维护两套等价 API。
 
-| | `SYSTEM_C` | `SYSTEM_CPP` |
-| :--- | :--- | :--- |
-| 头 | `system_c/include/system_init.h` | `system_cpp/include/system_init.hpp` |
-| 阶段 1 | `mini_tree_pre_os_init()` | `mini_tree::system_pre_os_init()` |
-| 阶段 2 | `mini_tree_start_tasks()` | `mini_tree::system_start_tasks()` |
-| 收尾 | `system_init_complete()`（两侧共用 C） | 同左 |
-| 裸机 loop | `mini_tree_system_loop()` | 同左（C API） |
-| 依赖 | 更少 | **ETL 默认进库**（上层 C++ 基础 / heap-free C++ base）；根 CMake 常加 `-fno-rtti` / `-fno-exceptions` |
+| 阶段 | C API（`system_c/include/system_init.h`） |
+| :--- | :--- |
+| 阶段 1 | `mini_tree_pre_os_init()` |
+| 阶段 2 | `mini_tree_start_tasks()` |
+| 收尾 | `system_init_complete()` |
+| 裸机 loop | `mini_tree_system_loop()` |
+| 任务创建 | `task_manager_create()` / `task_manager_create_task()`（`system_c/include/task_manager.h`） |
 
-**如何选：**
-
-- 固件整体偏 C、工具链无例外 → `SYSTEM_C`。
-- 已有 C++ 业务 / 要用 `event_bus.hpp`、ETL 头 → `SYSTEM_CPP`（仓库默认 `.config` 常见为此）。
-- 南向 HAL/VFS **仍是 C ABI**；换 SYSTEM 不改变外设栈语言。
+**唯一的 C++ 例外**：命令派发基础设施 `SystemCmd`（`system_cpp/src/system_cmd.cpp`，`CONFIG_SYSTEM_CMD`，默认关闭，依赖 ETL）；启用时根 CMake 会为 C++ 追加 `-fno-rtti` / `-fno-exceptions`。南向 HAL/VFS **仍是 C ABI**，不受影响。
 
 ---
 

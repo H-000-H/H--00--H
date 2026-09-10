@@ -20,7 +20,7 @@
 | 3 | Compile-time probe | `DRIVER_REGISTER` + dtc-lite static tables |
 | 4 | Enforced bus isolation | `#pragma GCC poison` blocks upper layers from calling HAL directly |
 | 5 | the unified interface triple-backend | FreeRTOS / RT-Thread / NULL, trimmed by Kconfig |
-| 6 | Dual system backends | compile-time choice of `SYSTEM_C` / `SYSTEM_CPP` |
+| 6 | Single C system backend | `system_c/` is pure C; the command module `SystemCmd` is the only C++ exception (no more C/C++ choice) |
 | 7 | Unified error codes | `status.h`'s `MINI_ERR_*` / `MINI_ERR_*` |
 
 ---
@@ -62,9 +62,9 @@
 | Layer | Preference | Trade-off |
 | :--- | :--- | :--- |
 | **Below the app layer** (HAL / Bus / VFS / board / core / the unified interface) | **C** by default; capable teams may use **Rust** | C has the cleanest link surface and fits vendor SDKs / weak symbols best. Rust suits teams with crisp boundaries willing to maintain FFI; it is not this repo's default path. |
-| **App layer and above** (business services, UI, policy, toolchain side) | **C++** or **Rust** | Expressiveness and type constraints matter more; C++ can plug into this repo's `SYSTEM_CPP` / ETL path. Middleware public headers still avoid hard-binding a C++ runtime. |
+| **App layer and above** (business services, UI, policy, toolchain side) | **C++** or **Rust** | Expressiveness and type constraints matter more; C++ can plug into this repo's ETL path (the command module `SystemCmd` is C++ too). Middleware public headers still avoid hard-binding a C++ runtime. |
 
-This repo offers a `SYSTEM_C` / `SYSTEM_CPP` choice: the system-module language is selected per board; **the southbound stack remains C-ABI-first**.
+The system layer is pure C (`system_c/`); the command module `SystemCmd` is the only C++ exception. **The southbound stack remains C-ABI-first**.
 
 ### RTOS & OS Selection
 
@@ -82,7 +82,7 @@ See [backend_switching.md](backend_switching.md) for behavioral differences such
 | Option | Stance | Rationale |
 | :--- | :---: | :--- |
 | **Cursor** / **VS Code** + clangd | **Recommended** | Fits this repo's `compile_flags.txt` / `ide/stubs`; smooth navigation, completion, diagnostics; AI-assisted middleware editing is productive. |
-| **CLion** | **Recommended** | First-class CMake; strong C/C++ indexing and refactoring; good for large repos and `SYSTEM_CPP`. |
+| **CLion** | **Recommended** | First-class CMake; strong C/C++ indexing and refactoring; good for large repos and C++/ETL projects. |
 | **Qoder** and other modern AI IDEs | **Recommended** | Same category as Cursor: centered on modern language servers + AI integration, keeping pace with this repo's doc/multi-file refactor cadence. |
 | **Zed** | **Recommended (coding only)** | Great clangd-based language service and fast editing; no integrated debug/flash — positioned as a pure code editor. |
 | **CMake + Ninja/Make + GCC/Clang** | **Recommended** | The main path for building and generated artifacts (genconfig / dtc-lite). |

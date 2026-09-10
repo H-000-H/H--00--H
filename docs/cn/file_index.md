@@ -71,7 +71,7 @@
 | `core/include/status.h` | `MINI_ERR_*`、`ERR_PTR` |
 | `core/include/compiler_compat.h` | 可移植属性与 mem API |
 | `core/include/compiler_compat_poison.h` | poison 层 |
-| `core/include/event_bus.h` · `event_bus.hpp` | 事件总线 |
+| `core/include/event_bus.h` | 事件总线 |
 | `core/include/system_log.h` · `production_log.h` | 日志 |
 | `core/src/*.c` | 上述实现 |
 | `core/include/mini_backend.h` | 统一接口总头 |
@@ -79,7 +79,8 @@
 | `core/src/mini_backend_{bare,mini_os,freertos,rtthread}.c` | 四后端 |
 | `（裸机任务走 xtask, C++ 封装已移除）` | 裸机 C++ 任务创建封装（`CONFIG_XTASK_PREEMPT`） |
 | `interrupt/interrupt.{c,h}` | VIRQ |
-| `system_c/` · `system_cpp/` | init、wdt、scrubber、safe_state、task_manager、cmd（Kconfig 选 C 或 C++） |
+| `system_c/` | init、wdt、scrubber、safe_state、task_manager（系统层，纯 C） |
+| `system_cpp/` | 仅 cmd（`SystemCmd`，C++，`CONFIG_SYSTEM_CMD`，默认关） |
 | `time_slice/task/xtask*.{c,h}` | 裸机调度（协调式 `xtask_coop.c` / 抢占式 `xtask_preempt.c` / 共用 `xtask.h`） |
 
 ---

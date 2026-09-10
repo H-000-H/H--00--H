@@ -28,7 +28,7 @@
 | `device.h` | device lookup & I/O |
 | `status.h` | `MINI_OK` / `MINI_ERR_*` |
 | `mini_backend.h` | tasks, locks, queues, delays, log levels |
-| `event_bus.h` / `event_bus.hpp` | pub-sub |
+| `event_bus.h` | pub-sub |
 | `algorithm/buffer` | buffers |
 | `system_log.h` | `SYS_LOGI/W/E` |
 | own headers | — |

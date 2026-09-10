@@ -20,17 +20,27 @@ if(EXISTS "${_MINI_TREE_CONFIG}")
     endif()
 endif()
 
+# 系统运行时为纯 C, 源码位于 ../system_c/src; system_cpp/ 现仅保留可选的命令模块
 add_library(system STATIC
-    "src/safe_state.c"
-    "src/system_init.cpp"
-    "src/system_scrubber.cpp"
-    "src/system_wdt.cpp"
-    "src/task_manager.cpp"
+    "../system_c/src/system_init.c"
+    "../system_c/src/system_scrubber.c"
+    "../system_c/src/system_wdt.c"
+    "../system_c/src/task_manager.c"
+    "../system_c/src/safe_state.c"
 )
+
+# SystemCmd (命令分发器) 是系统层唯一保留的 C++ 模块, 仅 CONFIG_SYSTEM_CMD=y 时编入
+if(EXISTS "${_MINI_TREE_CONFIG}")
+    file(STRINGS "${_MINI_TREE_CONFIG}" _sys_cmd_choice REGEX "^CONFIG_SYSTEM_CMD=y$")
+    if(_sys_cmd_choice)
+        target_sources(system PRIVATE "src/system_cmd.cpp")
+    endif()
+endif()
 
 target_include_directories(system
     PUBLIC
         "include"
+        "${PROJECT_SOURCE_DIR}/system_c/include"
     PRIVATE
         "${PROJECT_SOURCE_DIR}/hal_bus/include"
         "${PROJECT_SOURCE_DIR}/hal_inst/include"

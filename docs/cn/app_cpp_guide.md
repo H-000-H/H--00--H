@@ -6,7 +6,7 @@
 
 | 项 | 内容 |
 | :--- | :--- |
-| **读者** | 在 app / system_cpp 上层用 C++ 写业务的人 |
+| **读者** | 在 app / 业务上层用 C++ 写业务的人 |
 | **前置** | [coding_style.md](coding_style.md) · [service_spec.md](service_spec.md) |
 | **相关** | [fast_path.md](fast_path.md) · [runtime_services.md](runtime_services.md) |
 

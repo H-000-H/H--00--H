@@ -52,7 +52,7 @@ For a repo structured as "CMake-generated headers + multi-directory middleware +
 | :--- | :--- |
 | **Almost impossible to integrate cleanly** | No first-class CMake; the `BOARD_DTS` / genconfig / dtc-lite / `ide/stubs` workflow has to be moved in by hand or via side scripts |
 | **Weak navigation & indexing** | Weaker than clangd / CLion; include/file lists drift easily without automation |
-| **Poor C++ support** | Weak experience with `SYSTEM_CPP`, ETL, and modern dialects |
+| **Poor C++ support** | Weak experience with `SystemCmd`, ETL, and modern dialects |
 | **Poor AI integration** | Incompatible with the multi-file understanding workflow of Cursor / Qoder |
 | **Hard-to-collaborate project files** | `.uvprojx` conflicts easily and diffs poorly |
 
@@ -130,7 +130,7 @@ Hand-adding files one by one into µVision is **worse**; not recommended.
 
 Even if the deliverable is a Keil project:
 
-- **Coding / Review / AI**: keep using Cursor / VS Code / CLion / Qoder (Keil Studio works too, as it is the VS Code ecosystem).
+- **Coding / Review / AI**: keep using Zed / Cursor / VS Code / CLion / Qoder (Keil Studio works too, as it is the VS Code ecosystem).
 - **µVision**: **not recommended for debugging or writing code** (prefer Keil Studio / a modern IDE even for the debug adapter); build, flashing and daily development stay on the CMake flow — moving the whole workflow to the modern toolchain is just nicer.
 
 Do not make µVision your only editor.

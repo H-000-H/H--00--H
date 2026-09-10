@@ -38,7 +38,7 @@
 | **status / MINI_ERR_*** | unified error codes | `core/include/status.h` |
 | **Brick** | optional open-source capability block (GUI/network/FS…) | [ecosystem.md](ecosystem.md); `mini_tree_link_*` |
 | **vendor / Fetch** | only mini-os / FreeRTOS / RT-Thread / ETL live permanently in `lib/`; TinyUSB / lwIP are config-time FetchContent, the rest link-time | [ecosystem.md](ecosystem.md) §0 |
-| **two-phase ignition** | pre-os → start-tasks → complete → scheduler | `system_init.h` / `system_init.hpp` |
+| **two-phase ignition** | pre-os → start-tasks → complete → scheduler | `system_init.h` |
 
 ---
 

@@ -20,7 +20,7 @@
 | 3 | 编译期 probe | `DRIVER_REGISTER` + dtc-lite 静态表 |
 | 4 | Bus 强制隔离 | `#pragma GCC poison` 防上层直调 HAL |
 | 5 | OS 三栖 | FreeRTOS / RT-Thread / NULL，Kconfig 裁剪 |
-| 6 | 双系统后端 | `SYSTEM_C` / `SYSTEM_CPP` 编译期二选一 |
+| 6 | 系统层单一 C 后端 | `system_c/` 纯 C；命令模块 `SystemCmd` 为唯一 C++ 例外（不再 C/C++ 二选一） |
 | 7 | 统一错误码 | `status.h` 的 `MINI_ERR_*` / `MINI_ERR_*` |
 
 ---
@@ -62,9 +62,9 @@
 | 层次 | 偏好 | 取舍说明 |
 | :--- | :--- | :--- |
 | **应用层以下**（HAL / Bus / VFS / board / core）| 默认 **全 C**；有能力团队可上 **Rust** | C 链接面最干净、与厂商 SDK / 弱符号最合拍。Rust 适合边界清晰、愿维护 FFI 的团队，不作为本仓默认路径。 |
-| **应用层及以上**（业务服务、UI、策略、工具链侧）| **C++** 或 **Rust** | 表达力与类型约束更重要；C++ 可与本仓 `SYSTEM_CPP` / ETL 路径衔接。中间件公共头仍避免强绑 C++ 运行时。 |
+| **应用层及以上**（业务服务、UI、策略、工具链侧）| **C++** 或 **Rust** | 表达力与类型约束更重要；C++ 可与本仓 ETL 路径衔接（命令模块 `SystemCmd` 亦为 C++）。中间件公共头仍避免强绑 C++ 运行时。 |
 
-本仓提供 `SYSTEM_C` / `SYSTEM_CPP` 二选一：系统模块语言可按板级选；**南向栈仍以 C ABI 为主**。
+系统层为纯 C（`system_c/`），命令模块 `SystemCmd` 为唯一 C++ 例外；**南向栈仍以 C ABI 为主**。
 
 ### RTOS / OS 选型
 
@@ -82,7 +82,7 @@
 | 选项 | 态度 | 理由 |
 | :--- | :---: | :--- |
 | **Cursor** / **VS Code** + clangd | **推荐** | 与本仓 `compile_flags.txt` / `ide/stubs` 合拍；跳转、补全、诊断顺畅；AI 辅助改中间件效率高。 |
-| **CLion** | **推荐** | CMake 一等公民；C/C++ 索引与重构强；适合大仓库与 `SYSTEM_CPP`。 |
+| **CLion** | **推荐** | CMake 一等公民；C/C++ 索引与重构强；适合大仓库与 C++/ETL 工程。 |
 | **Qoder** 等现代 AI IDE | **推荐** | 与 Cursor 同类：以现代语言服务 + AI 集成为中心，跟得上本仓文档/多文件重构节奏。 |
 | **Zed** | **推荐（只写代码）** | clangd 语言服务 + 快速编辑体验好；无调试/烧录一体化，定位为纯代码编辑器。 |
 | **CMake + Ninja/Make + GCC/Clang** | **推荐** | 构建与生成物（genconfig / dtc-lite）的主路径。 |

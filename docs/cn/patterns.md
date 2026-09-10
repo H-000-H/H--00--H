@@ -67,7 +67,7 @@
 | 3 | `system_init_complete()` | 释放全局中断 |
 | 4 | 调度或裸机循环 | `vTaskStartScheduler` / `rt_system_scheduler_start` / `mini_tree_system_loop` |
 
-C++ 侧 `mini_tree::system_pre_os_init()` / `system_start_tasks()` 与之对应，最后同样调 `system_init_complete()`。
+上述 API 均为 `extern "C"`（系统层为纯 C）；C++ 工程直接调用同一套 C API，无独立 C++ 版本。
 
 ### 为什么顺序不可变（论证）
 

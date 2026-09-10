@@ -105,7 +105,6 @@ if(NOT _kconfig_sync_rc EQUAL 0)
 endif()
 
 file(STRINGS "${KCONFIG_DOT}" MINI_OS_ENTRY REGEX "^CONFIG_OS_(MINI_OS|FREERTOS|RTTHREAD|BARE)=y$")
-file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ENTRY REGEX "^CONFIG_SYSTEM_(C|CPP)=y$")
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_ON REGEX "^CONFIG_SYSTEM=y$")
 if(CONFIG_SYSTEM_ON)
     set(MINI_TREE_SYSTEM ON)
@@ -119,10 +118,9 @@ if(NOT CONFIG_EVENT_BUS_ON OR NOT MINI_TREE_SYSTEM)
 else()
     set(MINI_TREE_EVENT_BUS ON)
 endif()
-# SystemCmd: 默认关, 仅显式 "CONFIG_SYSTEM_CMD=y" 才编入
+# SystemCmd: 默认关, 仅显式 "CONFIG_SYSTEM_CMD=y" 才编入 (系统层唯一保留的 C++ 模块)
 file(STRINGS "${KCONFIG_DOT}" CONFIG_SYSTEM_CMD_ON REGEX "^CONFIG_SYSTEM_CMD=y$")
-# SYSTEM_CMD 仅 SYSTEM_CPP 后端有效
-if(CONFIG_SYSTEM_CMD_ON AND CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
+if(CONFIG_SYSTEM_CMD_ON AND MINI_TREE_SYSTEM)
     set(MINI_TREE_SYSTEM_CMD ON)
 else()
     set(MINI_TREE_SYSTEM_CMD OFF)
@@ -209,25 +207,17 @@ endif()
 
 
 if(MINI_TREE_SYSTEM)
-    if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
-        set(SYSTEM_SRCS
-            "system_cpp/src/system_init.cpp"
-            "system_cpp/src/system_scrubber.cpp"
-            "system_cpp/src/system_wdt.cpp"
-            "system_cpp/src/task_manager.cpp"
-            "system_cpp/src/safe_state.c"
-        )
-        if(MINI_TREE_SYSTEM_CMD)
-            list(APPEND SYSTEM_SRCS "system_cpp/src/system_cmd.cpp")
-        endif()
-    else()
-        set(SYSTEM_SRCS
-            "system_c/src/system_init.c"
-            "system_c/src/system_scrubber.c"
-            "system_c/src/system_wdt.c"
-            "system_c/src/task_manager.c"
-            "system_cpp/src/safe_state.c"
-        )
+    # 系统运行时恒为纯 C (system_c/); safe_state 亦为 C, 同属 system_c/
+    set(SYSTEM_SRCS
+        "system_c/src/system_init.c"
+        "system_c/src/system_scrubber.c"
+        "system_c/src/system_wdt.c"
+        "system_c/src/task_manager.c"
+        "system_c/src/safe_state.c"
+    )
+    # SystemCmd (命令分发器) 是系统层唯一保留的 C++ 模块, 仅 CONFIG_SYSTEM_CMD=y 时编入
+    if(MINI_TREE_SYSTEM_CMD)
+        list(APPEND SYSTEM_SRCS "system_cpp/src/system_cmd.cpp")
     endif()
 endif()
 
@@ -556,8 +546,9 @@ endif()
 
 
 target_compile_definitions(mini_tree PUBLIC ${MINI_OS_DEFINE})
-if(CONFIG_SYSTEM_ENTRY STREQUAL "CONFIG_SYSTEM_CPP=y")
-    target_compile_definitions(mini_tree PRIVATE CONFIG_SYSTEM_CPP)
+# 系统层唯一的 C++ 模块是 SystemCmd (命令分发器); 编入时对其施加 no-rtti/no-exceptions
+# (嵌入式禁用异常与 RTTI, 与 ETL_NO_STL 一致)。COMPILE_LANGUAGE:CXX 保证只作用于 .cpp。
+if(MINI_TREE_SYSTEM_CMD)
     if(MSVC)
         target_compile_options(mini_tree PRIVATE
             $<$<COMPILE_LANGUAGE:CXX>:/GR->
