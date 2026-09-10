@@ -13,7 +13,7 @@
 
 - TinyUSB is pulled via FetchContent (`mini_tree_link_tinyusb`, see [ecosystem.md](ecosystem.md)); not vendored under `lib/`.
 - The board `dtsi/` provides the USB controller node (see `board/dtsi/example-soc.dtsi`).
-- An `CONFIG_ESP_*` backend is selected (USB interrupts need the the unified interface interrupt wrapper).
+- An `CONFIG_ESP_*` backend is selected (the USB ISR exit requests a context switch via the unified interface's `mini_yield_from_isr()`).
 
 ---
 
@@ -42,7 +42,7 @@
 
 ## 4. Interrupts & the unified interface
 
-USB interrupts go through the VIRQ wrapper in `interrupt/interrupt.{c,h}` and then to the the unified interface interrupt; under bare metal (`CONFIG_OS_BARE`) they are dispatched by the `time_slice` scheduler. See [backend_switching.md](backend_switching.md).
+USB interrupts go through the VIRQ wrapper in `interrupt/interrupt.{c,h}` and, at ISR exit, request a context switch via the unified interface's `mini_yield_from_isr()`; under bare metal (`CONFIG_OS_BARE`) they are dispatched by the `time_slice` scheduler. See [backend_switching.md](backend_switching.md).
 
 ---
 

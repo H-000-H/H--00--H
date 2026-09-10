@@ -40,7 +40,7 @@
 | Forbidden | Why |
 | :--- | :--- |
 | `hal_*.h` (in business code) | breaks layering; go through device/vfs |
-| `FreeRTOS.h` / `rtthread.h` (in business code) | use the unified interface for backend portability |
+| `FreeRTOS.h` / `rtthread.h` (in business code) | **recommended** to use native kernel APIs directly (not forced); `mini_backend.h` is only an optional convenience for in-tree code |
 | Vendor register headers | not portable |
 | ad-hoc `malloc` / `printf` / `memset` | may be poisoned; use `COMPAT_MEM_*` / pools |
 
@@ -74,7 +74,7 @@ Conventions:
 
 ## 4. Tasks & Synchronization
 
-- Create tasks via `mini_task_create` / `mini_task_create_handle` (never raw `xTaskCreate`).
+- Create tasks: business code is recommended to use native kernel APIs directly (e.g. `xTaskCreate` / `rt_thread_create`), or the optional `mini_task_create` wrapper from `mini_backend.h`; in-tree code uses `mini_backend.h` uniformly.
   Bare-metal exception: the C API always returns `MINI_ERR_NOTSUPP`; create tasks through the
   C++ overload in `mini_backend.h` (`CONFIG_XTASK_PREEMPT`, on by default) or `xscheduler_task_create` directly.
   **Under preemptive (`XTASK_PREEMPT=y`)**: the C++ overload is still provided but switches to the `priority` branch (`stack_size` reused as the period); you may also use `xscheduler_task_create` directly (shared `xtask.h`).
@@ -97,10 +97,10 @@ Conventions:
 
 ## 6. Checklist
 
-- [ ] no `hal_`, vendor, or raw RTOS headers in business `.c`
+- [ ] no `hal_` or vendor headers in business `.c` (raw RTOS headers are allowed in business code — native APIs recommended)
 - [ ] every `device_*` return value handled
 - [ ] no logging or mutex-taking in ISRs
-- [ ] re-test priorities & stacks after switching the unified interface
+- [ ] re-test priorities & stacks after switching the backend (CONFIG_OS_*)
 
 ---
 

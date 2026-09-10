@@ -81,7 +81,7 @@ The root `CMakeLists.txt` runs the same logic during the configure stage (the ES
 | :--- | :--- | :--- |
 | Platform | `PLATFORM_ARM_CM4F` etc. | architecture hint (paired with the toolchain) |
 | Multi-core | `CPU_CORES` / `AMP_MODE` | 1=single core; 2=AMP |
-| OS 后端 | `OS_BARE` / `MINI_OS` / `FREERTOS` / `RTTHREAD` | runtime backend: bare-metal (cooperative / preemptive) / mini-os (in-tree, Cortex-M only) / FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
+| OS 后端 | `OS_BARE` / `OS_MINI_OS` / `OS_FREERTOS` / `OS_RTTHREAD` | runtime backend: bare-metal (cooperative / preemptive) / mini-os (in-tree, Cortex-M only) / FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
 | the unified interface Capacity | `OS_BARE_MAX_QUEUES` (base queue count, +1 auto when EventBus on) / `OS_BARE_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | queue & heap RAM (backend-scoped) |
 | System | `SYSTEM` / `SYSTEM_CPP` / `SYSTEM_C` | master switch (default on) + language backend |
 | Log | `SYS_LOG_USE_PRINTF` / `the unified interface` | `SYS_LOG*` backend |

@@ -13,7 +13,7 @@
 
 - TinyUSB 经 FetchContent 拉取（`mini_tree_link_tinyusb`，见 [ecosystem.md](ecosystem.md)）；不在 `lib/` vendor 内。
 - 板级 `dtsi/` 提供 USB 控制器节点（参考 `board/dtsi/example-soc.dtsi`）。
-- `CONFIG_ESP_*` 后端已选（USB 中断需 统一接口 中断封装）。
+- `CONFIG_ESP_*` 后端已选（USB 中断在 ISR 出口经 统一接口 的 `mini_yield_from_isr()` 请求上下文切换）。
 
 ---
 
@@ -42,7 +42,7 @@
 
 ## 4. 中断与 统一接口
 
-USB 中断经 `interrupt/interrupt.{c,h}` 的 VIRQ 封装后转 统一接口 中断；裸机（`CONFIG_OS_BARE`）下由 `time_slice` 调度处理。详见 [backend_switching.md](backend_switching.md)。
+USB 中断经 `interrupt/interrupt.{c,h}` 的 VIRQ 封装后，在 ISR 出口调用 统一接口 的 `mini_yield_from_isr()` 请求上下文切换；裸机（`CONFIG_OS_BARE`）下由 `time_slice` 调度处理。详见 [backend_switching.md](backend_switching.md)。
 
 ---
 

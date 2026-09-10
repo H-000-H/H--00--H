@@ -40,7 +40,7 @@
 | 禁止 | 原因 |
 | :--- | :--- |
 | `hal_*.h`（业务里） | 破坏分层；应走 device/vfs |
-| `FreeRTOS.h` / `rtthread.h`（业务里） | 应走 统一接口，便于切后端 |
+| `FreeRTOS.h` / `rtthread.h`（业务里） | **推荐**直接使用内核原生 API（非强制）；`mini_backend.h` 仅作为仓内代码的便利封装，业务层可不依赖 |
 | 厂商寄存器头 | 不可移植 |
 | 随意 `malloc` / `printf` / `memset` | 可能被 `compiler_compat_poison` 毒杀；用 `COMPAT_MEM_*` / 池 |
 
@@ -74,7 +74,7 @@ return ret;
 
 ## 4. 任务与同步
 
-- 创建任务：`mini_task_create` / `mini_task_create_handle`（不要直接 `xTaskCreate`）。
+- 创建任务：业务层**推荐**直接使用内核原生 API（如 `xTaskCreate` / `rt_thread_create`），也可用 `mini_backend.h` 的 `mini_task_create` 封装（可选）；仓内代码统一走 `mini_backend.h`。
   裸机例外：C API 恒返回 `MINI_ERR_NOTSUPP`，任务创建走 `mini_backend.h` 的 C++ 重载
   `mini_task_create`（`CONFIG_XTASK_PREEMPT`，默认开启）或直接 `xscheduler_task_create`。
   **抢占式 (`CONFIG_XTASK_PREEMPT=y`) 时**: C++ 重载仍提供, 但签名切换为带 `priority` 的分支（`stack_size` 复用为周期）; 也可直接走 `xscheduler_task_create` 原生 API (`xtask.h` 共用).
@@ -97,10 +97,10 @@ return ret;
 
 ## 6. 检查清单
 
-- [ ] 业务 `.c` 无 `hal_` / 厂商 / 原生 RTOS 头
+- [ ] 业务 `.c` 无 `hal_` / 厂商头（原生 RTOS 头在业务层允许，推荐直接使用）
 - [ ] 所有 `device_*` 返回值有处理
 - [ ] 无在 ISR 打日志或拿 mutex
-- [ ] 切 统一接口 后重测优先级与栈
+- [ ] 切换后端（CONFIG_OS_*）后重测优先级与栈
 
 ---
 

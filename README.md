@@ -61,6 +61,8 @@ mini_tree is a platform-agnostic embedded middleware using a Linux-style Device 
 | `CONFIG_OS_FREERTOS` | 抢占式 / Preemptive | FreeRTOS v11.3.0 |
 | `CONFIG_OS_RTTHREAD` | 抢占式 / Preemptive | RT-Thread v5.3.0 |
 
+> 该统一接口仅面向**仓内代码**（board / vfs / bus / core / system / net），用于屏蔽后端差异；**应用业务层建议直接使用各内核原生 API**（FreeRTOS / RT-Thread / mini-os / 裸机），非强制。/ This unified interface targets in-tree code only; **application code is recommended to use each kernel's native API directly**, not forced.
+
 裸机后端 (`CONFIG_OS_BARE`) 从 `Kconfig.mini_tree` "裸机调度器" 选择中选取一种调度器（`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`，默认 `XTASK_COOP`）。两种实现共享同一套 `xtask.h` API 表面，且在 CMake (`MINI_TREE_XTASK_*`) 和 `#ifdef` 层面互斥 —— 调用方代码透明切换：
 
 The bare-metal backend (`CONFIG_OS_BARE`) picks one scheduler from the `Kconfig.mini_tree` "bare-metal scheduler" choice (`XTASK_NONE` / `XTASK_COOP` / `XTASK_PREEMPT`, default `XTASK_COOP`). Both implementations share the same `xtask.h` API surface and are mutually exclusive at both CMake (`MINI_TREE_XTASK_*`) and `#ifdef` level — caller code switches transparently:

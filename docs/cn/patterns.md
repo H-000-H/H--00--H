@@ -415,7 +415,7 @@ void my_task_cb(x_task* t)          /* 注册到 xtask，周期 5ms */
 
 ### RTOS 后端的差异
 
-切到 `CONFIG_OS_FREERTOS` / `RTTHREAD` 后，`mini_delay_ms` 是**真正的休眠**（任务挂起、让出 CPU），可以放心阻塞；但同一套状态机代码在裸机/RTOS 都能跑，属于"可移植的最低公共分母"写法。
+切到 `CONFIG_OS_FREERTOS` / `CONFIG_OS_RTTHREAD` 后，`mini_delay_ms` 是**真正的休眠**（任务挂起、让出 CPU），可以放心阻塞；但同一套状态机代码在裸机/RTOS 都能跑，属于"可移植的最低公共分母"写法。
 
 ### 常见坑
 

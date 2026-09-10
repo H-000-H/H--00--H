@@ -3,7 +3,7 @@
 > **AMP is part of the optional bricks — use it on demand**: single-core is a complete baseline for development; enable dual-core/hetero only when needed, and assemble the secondary-core image & shared-memory layout yourself.
 >
 > How `CPU_CORES`, `AMP_MODE` and `hal_cpu_*` (in `hal/amp`) fit together.
-> **The full secondary-core image and shared-memory layout are provided by the platform project**; this repo only defines the HAL contract and the unified interface spinlock behavior differences.
+> **The full secondary-core image and shared-memory layout are provided by the platform project**; this repo only defines the HAL contract and backend spinlock behavior differences.
 
 | Item | Content |
 | :--- | :--- |

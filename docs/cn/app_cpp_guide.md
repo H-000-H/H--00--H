@@ -107,7 +107,7 @@
 - **禁止应用层 goto** — 破坏结构化控制流；用函数拆分与状态机
 - **禁止 `new`/`delete`** — 堆不确定、碎片化；用静态/定容 ETL 与对象池
 - **禁止 `malloc`/`free`/`realloc`** — 同堆问题；全部静态或池化
-- **禁止应用层直接调 `hal_*` 或厂商 SDK** — service_spec：只走 device/VFS/EventBus/统一接口
+- **禁止应用层直接调 `hal_*` 或厂商 SDK** — 破坏分层；业务代码建议走 device/VFS/EventBus，需要 OS 能力时直接用内核原生 API（应用层不在中间件强制范围内）
 - **禁止 ISR 里 mutex/malloc/打印/重逻辑** — fast_path 红线，易死锁与抖动
 - **开启 `DEVICE_WARN_UNUSED_RESULT` 后禁止忽略 `device_*` 返回值** — 该开关默认关闭（应用层可宽松）；开启后忽略 `device_open/read/write/ioctl` 返回值会报警。底层 HAL/bus 的 `MINI_WARN_UNUSED_RESULT` 默认开启始终强制，确需忽略用 `MINI_IGNORE_RESULT()`
 - **禁止 C 风格 VLA** — 栈大小运行期不定，易溢出

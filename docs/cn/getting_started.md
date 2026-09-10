@@ -81,7 +81,7 @@ python3 tools/genconfig.py Kconfig build/generated/kconfig/mini_tree --config .c
 | :--- | :--- | :--- |
 | Platform | `PLATFORM_ARM_CM4F` 等 | 架构提示（与工具链配合） |
 | Multi-core | `CPU_CORES` / `AMP_MODE` | 1=单核；2=AMP |
-| OS 后端 | `OS_BARE` / `MINI_OS` / `FREERTOS` / `RTTHREAD` | 运行时后端：裸机 / mini-os（自研，仅 Cortex-M）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
+| OS 后端 | `OS_BARE` / `OS_MINI_OS` / `OS_FREERTOS` / `OS_RTTHREAD` | 运行时后端：裸机 / mini-os（自研，仅 Cortex-M）/ FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
 | 后端容量 | `OS_BARE_MAX_QUEUES`（基础队列数，EventBus 开自动 +1）/ `OS_BARE_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | 队列/堆内存（仅对应后端可见） |
 | System | `SYSTEM` / `SYSTEM_CPP` / `SYSTEM_C` | 总开关（默认自开）+ 语言后端 |
 | Log | `SYS_LOG_USE_PRINTF` / `统一接口` | `SYS_LOG*` 后端 |

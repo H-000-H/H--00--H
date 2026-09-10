@@ -11,9 +11,9 @@
 
 ## 0. One-Line Overview
 
-- **English**: Platform-agnostic embedded middleware using a Linux-style Device Tree & Driver Model to unify peripheral access across Bare-Metal / mini-os / FreeRTOS / RT-Thread; zero vendor SDK lock-in.
+- **English**: Platform-agnostic embedded middleware using a Linux-style Device Tree & Driver Model to provide consistent peripheral access across Bare-Metal / mini-os / FreeRTOS / RT-Thread; no forced OS abstraction (upper layers use each kernel's native API); zero vendor SDK lock-in.
 
-Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`, `the unified interface (NULL/MINI_OS/FREERTOS/RTTHREAD)`, `VFS`, `BUS`, `HAL`, `EventBus`, `VIRQ`.
+Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`, `the unified interface (mini_backend.h; backends CONFIG_OS_BARE / CONFIG_OS_MINI_OS / CONFIG_OS_FREERTOS / CONFIG_OS_RTTHREAD)`, `VFS`, `BUS`, `HAL`, `EventBus`, `VIRQ`.
 
 ---
 
@@ -40,7 +40,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | `usb_tusb_port.md` | TinyUSB board-level contract (`usb_tusb_port`) | P1 (USB) | [en](usb_tusb_port.md) |
 | `amp.md` | Dual-core heterogeneous AMP | P2 | [en](amp.md) |
 | `mini-os.md` | In-tree mini-os kernel: scheduler/time wheels/PI/heap/port/three-tier config/integration wiring/memory figures | P1 | [en](mini-os.md) |
-| `backend_switching.md` | OS backend switching (NULL/MINI_OS/FREERTOS/RTTHREAD; priority semantics vary by backend) | P1 | [en](backend_switching.md) |
+| `backend_switching.md` | OS backend switching (CONFIG_OS_BARE / CONFIG_OS_MINI_OS / CONFIG_OS_FREERTOS / CONFIG_OS_RTTHREAD; priority semantics vary by backend) | P1 | [en](backend_switching.md) |
 | `net.md` | Network protocol stack glue: coreMQTT v5 thin wrapper / TCP / transport adapter / PPP·USB NIC / `NET_*` error codes | P1 (network) | [en](net.md) |
 
 ### 1.3 Application & Coding
@@ -91,7 +91,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 | Topic | English |
 | :--- | :--- |
 | Product drivers | 39, in `drivers/<chip>/{include,src}`, GLOB-scanned |
-| OS backends | `CONFIG_OS_BARE` (bare-metal, default) / `MINI_OS` (in-tree lib/mini-os, Cortex-M only) / `FREERTOS` (v11.3.0) / `RTTHREAD` (v5.3.0) |
+| OS backends | `CONFIG_OS_BARE` (bare-metal, default) / `CONFIG_OS_MINI_OS` (in-tree lib/mini-os, Cortex-M only) / `CONFIG_OS_FREERTOS` (v11.3.0) / `CONFIG_OS_RTTHREAD` (v5.3.0) |
 | Targets | Cortex-M0/M0+/M3/M4F/M7 · RISC-V 32-bit · dual-core AMP |
 | Peripheral coverage | Bus-based 6 (SPI/I2C/I2S/UART/CAN/USB) · Bus-less 7 (GPIO/ADC/DAC/TIM/RTC/IWDG/WWDG) · HAL-Only: AMP/Storage/Platform Safety/**SDIO (reserved)** |
 | Error codes | `MINI_OK=0`; `MINI_ERR_*` (full name, see `status.h`); `device_find` failure returns `ERR_PTR` not `NULL` |

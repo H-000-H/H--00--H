@@ -415,7 +415,7 @@ Key points:
 
 ### Difference on RTOS Backends
 
-After switching to `CONFIG_OS_FREERTOS` / `RTTHREAD`, `mini_delay_ms` is **real sleep** (task suspended, CPU released) and blocking is fine; the same state-machine code runs on both bare metal and RTOS - a portable lowest-common-denominator style.
+After switching to `CONFIG_OS_FREERTOS` / `CONFIG_OS_RTTHREAD`, `mini_delay_ms` is **real sleep** (task suspended, CPU released) and blocking is fine; the same state-machine code runs on both bare metal and RTOS - a portable lowest-common-denominator style.
 
 ### Common Pitfalls
 

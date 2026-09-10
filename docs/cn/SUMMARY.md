@@ -11,9 +11,9 @@
 
 ## 0. 前言
 
-- **中文**：平台无关的嵌入式中间件，采用 Linux 风格设备树与驱动模型，统一裸机 / mini-os / FreeRTOS / RT-Thread 上的外设访问；不绑定任何厂商 SDK。
+- **中文**：平台无关的嵌入式中间件，采用 Linux 风格设备树与驱动模型，为裸机 / mini-os / FreeRTOS / RT-Thread 提供一致的外设访问，OS 层不强制抽象（上层走各内核原生 API）；不绑定任何厂商 SDK。
 
-关键术语保留原文：`Device Tree (DTS/DTSI)`、`DRIVER_REGISTER`、`dtc-lite`、`统一接口 (NULL/MINI_OS/FREERTOS/RTTHREAD)`、`VFS`、`BUS`、`HAL`、`EventBus`、`VIRQ`。
+关键术语保留原文：`Device Tree (DTS/DTSI)`、`DRIVER_REGISTER`、`dtc-lite`、`统一接口 (mini_backend.h；后端 CONFIG_OS_BARE / CONFIG_OS_MINI_OS / CONFIG_OS_FREERTOS / CONFIG_OS_RTTHREAD)`、`VFS`、`BUS`、`HAL`、`EventBus`、`VIRQ`。
 
 ---
 
@@ -40,7 +40,7 @@
 | `usb_tusb_port.md` | TinyUSB 板级契约（`usb_tusb_port`） | P1（USB） | [cn](usb_tusb_port.md) |
 | `amp.md` | 双核 AMP（异构多核） | P2 | [cn](amp.md) |
 | `mini-os.md` | mini-os 自研内核：调度器/时间轮/PI/堆/port/三层配置/集成接线/内存实测 | P1 | [cn](mini-os.md) |
-| `backend_switching.md` | OS 后端切换（NULL/MINI_OS/FREERTOS/RTTHREAD；优先级语义随后端变化） | P1 | [cn](backend_switching.md) |
+| `backend_switching.md` | OS 后端切换（CONFIG_OS_BARE / CONFIG_OS_MINI_OS / CONFIG_OS_FREERTOS / CONFIG_OS_RTTHREAD；优先级语义随后端变化） | P1 | [cn](backend_switching.md) |
 | `net.md` | 网络协议栈胶水：coreMQTT v5 薄包装 / TCP / 传输层适配 / PPP·USB 网卡 / `NET_*` 错误码 | P1（网络） | [cn](net.md) |
 
 ### 1.3 应用编写与编码
@@ -91,7 +91,7 @@
 | 主题 | 中文 |
 | :--- | :--- |
 | 产品驱动 | 39 个，在 `drivers/<chip>/{include,src}`，GLOB 扫描 |
-| OS 后端 | `CONFIG_OS_BARE`（裸机，默认）/ `MINI_OS`（lib/mini-os 自研，Cortex-M 专用）/ `FREERTOS`（v11.3.0）/ `RTTHREAD`（v5.3.0） |
+| OS 后端 | `CONFIG_OS_BARE`（裸机，默认）/ `CONFIG_OS_MINI_OS`（lib/mini-os 自研，Cortex-M 专用）/ `CONFIG_OS_FREERTOS`（v11.3.0）/ `CONFIG_OS_RTTHREAD`（v5.3.0） |
 | 目标架构 | Cortex-M0/M0+/M3/M4F/M7 · RISC-V 32-bit · 双核 AMP |
 | 外设覆盖 | 总线层 6（SPI/I2C/I2S/UART/CAN/USB）· 无总线层 7（GPIO/ADC/DAC/TIM/RTC/IWDG/WWDG）· HAL-Only：AMP/Storage/Platform Safety/**SDIO（预留 reserved）** |
 | 错误码 | `MINI_OK=0`；`MINI_ERR_*`（全名，见 `status.h`）；`device_find` 失败返回 `ERR_PTR` 而非 `NULL` |
