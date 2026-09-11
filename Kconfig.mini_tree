@@ -1081,6 +1081,131 @@ config USB
         endmenu
 endmenu
 
+menu "Bootloader / OTA (mini-ota)"
+
+    config MINI_OTA
+        bool "mini-ota bootloader / OTA"
+        default n
+        depends on PLATFORM_ARM_CM7 || PLATFORM_ARM_CM4F || PLATFORM_ARM_CM3 || PLATFORM_ARM_CM0
+        help
+          把 lib/mini-ota 编入并链接到 mini_tree (bootutil 启动/下载/校验/激活/回滚
+          + algorithm CRC/SHA/AES)。仅 Cortex-M (arch/arm/cortex-m)。
+          本菜单所有 CONFIG_* 直接进 config.h, 由 mini-ota 的 boot_config.h 消费;
+          CMake 经 .config 的 CONFIG_MINI_OTA 桥接 add_subdirectory(lib/mini-ota),
+          并把 config.h / compiler_compat.h 注入 mini_ota 的 include 路径。
+
+          Build and link lib/mini-ota into mini_tree (bootutil boot/download/
+          verify/activate/rollback + algorithm CRC/SHA/AES). Cortex-M only.
+          Every CONFIG_* below lands in config.h and is consumed by mini-ota's
+          boot_config.h; CMake bridges via CONFIG_MINI_OTA and injects
+          config.h / compiler_compat.h into the mini_ota include path.
+
+    config OTA_DUAL_PARTITION
+        bool "Dual-partition (A/B) OTA with rollback"
+        default n
+        depends on MINI_OTA
+        help
+          A/B 双分区能力 (boot_config.h: OTA_DUAL_PARTITION)。
+          开启时 flash 需含 image_0/image_1 两个应用分区, 配合
+          mini_boot_confirm_ota()/回滚流程; 关闭为单分区覆盖升级。
+
+          A/B dual-partition capability (OTA_DUAL_PARTITION). Requires
+          image_0/image_1 app partitions plus confirm/rollback; off means
+          single-partition overwrite upgrade.
+
+    config IMAGE_CRYPTO
+        int "Image crypto SHA/GCM/CBC/CBC_SHA (needs mbedtls): 0=off 1=on"
+        range 0 1
+        default 1
+        depends on MINI_OTA
+        help
+          boot_config.h: IMAGE_CRYPTO_ENABLE。1 编入 SHA/HMAC/AES 分支并链接
+          mbedtls, 支持 SHA/GCM/CBC/CBC_SHA 镜像; 0 只保留 CRC 模式,
+          mbedtls 与 aes/sha/hmac.c 均不编入 (体积裁剪用)。
+
+          IMAGE_CRYPTO_ENABLE: 1 compiles the SHA/HMAC/AES branches and links
+          mbedtls (SHA/GCM/CBC/CBC_SHA images); 0 keeps CRC only and drops
+          mbedtls + aes/sha/hmac.c.
+
+    config FLASH_START_ADDR
+        hex "Flash base address"
+        default 0x08000000
+        depends on MINI_OTA
+        help
+          boot_config.h: FLASH_START_ADDR。芯片内部 flash 基址。
+          Flash base address (FLASH_START_ADDR).
+
+    config SRAM_START_ADDR
+        hex "SRAM start address"
+        default 0x20000000
+        depends on MINI_OTA
+        help
+          boot_config.h: SRAM_START_ADDR。跳转前校验 app 向量表初始 SP 是否落在
+          合法 RAM; 必须与板级链接脚本一致。
+          SRAM base (SRAM_START_ADDR) for app vector-table SP validation;
+          must match the board linker script.
+
+    config SRAM_SIZE
+        hex "SRAM size (bytes)"
+        default 0x20000
+        depends on MINI_OTA
+        help
+          boot_config.h: SRAM_SIZE。SRAM 总字节数, 与板级链接脚本一致。
+          Total SRAM size in bytes (SRAM_SIZE).
+
+    config MINI_BOOT_LOAD_MAX
+        int "OTA download chunk / page size (bytes)"
+        default 512
+        range 64 8192
+        depends on MINI_OTA
+        help
+          boot_config.h: MINI_BOOT_LOAD_MAX。下载钩子单次请求上限 (默认页大小)。
+          Max bytes requested per download-hook call (default page size).
+
+    comment "Image CRC model — must match tools/main.py packer"
+        depends on MINI_OTA
+
+    config CRC_INIT
+        hex "CRC init value"
+        default 0xFFFFFFFF
+        depends on MINI_OTA
+        help
+          boot_config.h: CRC_MODEL_INIT。必须与 tools/main.py 的 --crc_init 一致。
+          CRC init value; must match the packer's --crc_init.
+
+    config CRC_REFIN
+        int "CRC reflect input: 0/1"
+        range 0 1
+        default 1
+        depends on MINI_OTA
+        help
+          boot_config.h: CRC_MODEL_REFIN (--crc_refin).
+
+    config CRC_REFOUT
+        int "CRC reflect output: 0/1"
+        range 0 1
+        default 1
+        depends on MINI_OTA
+        help
+          boot_config.h: CRC_MODEL_REFOUT (--crc_refout).
+
+    config CRC_XOR_OUT
+        hex "CRC xor-out value"
+        default 0xFFFFFFFF
+        depends on MINI_OTA
+        help
+          boot_config.h: CRC_MODEL_XOR_OUT (--crc_xor_out).
+
+    config CRC_POLY
+        hex "CRC polynomial"
+        default 0x04C11DB7
+        depends on MINI_OTA
+        help
+          boot_config.h: CRC_MODEL_POLY (--crc_poly)。默认即标准 CRC-32。
+          CRC polynomial (--crc_poly); default is standard CRC-32.
+
+endmenu
+
 menu "Board Features"
 
 config PRODUCTION_LOG

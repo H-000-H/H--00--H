@@ -1,7 +1,7 @@
   # mini_tree (generic CMake build for non-ESP-IDF projects)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     cmake_minimum_required(VERSION 3.16)
-    project(mini_tree LANGUAGES C CXX)
+    project(mini_tree LANGUAGES C CXX ASM)
 endif()
 
 # 策略兼容：本文件可被父工程 include，也可独立构建
@@ -166,7 +166,25 @@ else()
     set(MINI_TREE_XTASK_PREEMPT OFF)
 endif()
 
-# HAL 全部为 weak 空实现，板级强符号覆盖；中间件不绑任何厂商 SDK
+# mini-ota (引导/OTA 库, lib/mini-ota): 显式 "CONFIG_MINI_OTA=y" 才编入 (对齐 Kconfig 语义)。
+# 从 .config 桥接, 避免 Kconfig 未回流到 CMake 的 CONFIG_* 宏; 其余 OTA 参数
+# (分区/FLASH/SRAM/CRC/加密) 均由 config.h 直供 boot_config.h, 不经 CMake。
+file(STRINGS "${KCONFIG_DOT}" CONFIG_MINI_OTA_ON REGEX "^CONFIG_MINI_OTA=y$")
+if(CONFIG_MINI_OTA_ON)
+    set(MINI_TREE_OTA ON)
+    # CONFIG_IMAGE_CRYPTO (int 0/1) 决定 mini-ota 是否编入 mbedtls 分支
+    file(STRINGS "${KCONFIG_DOT}" CONFIG_OTA_CRYPTO_ON REGEX "^CONFIG_IMAGE_CRYPTO=1$")
+    if(CONFIG_OTA_CRYPTO_ON)
+        set(MINI_TREE_OTA_CRYPTO ON)
+    else()
+        set(MINI_TREE_OTA_CRYPTO OFF)
+    endif()
+else()
+    set(MINI_TREE_OTA OFF)
+    set(MINI_TREE_OTA_CRYPTO OFF)
+endif()
+
+# HAL 全部为 weak 空实现，板级强符号覆盖；中间件不绑定SDK
 set(HAL_SRCS
     "hal/gpio/hal_gpio.c"
     "hal/spi/hal_spi.c"
@@ -465,6 +483,10 @@ if(MINI_TREE_VIRQ)
     target_sources(mini_tree PRIVATE interrupt/interrupt.c interrupt/interrupt.h)
 endif()
 
+# mini-ota (Kconfig: CONFIG_MINI_OTA) — 引导 + OTA 库, 见 lib/mini-ota/README.md
+if(MINI_TREE_OTA)
+    add_subdirectory(lib/mini-ota)
+endif()
 # 裸机调度器三态 (Kconfig choice: XTASK_NONE / XTASK_COOP / XTASK_PREEMPT):
 #   - NONE   (MINI_TREE_XTASK=OFF):  不编入, 应用层自写 while 循环
 #   - COOP   (PREEMPT=OFF):          编 xtask_coop.c (协调式 round-robin)
@@ -606,4 +628,28 @@ endif()
 
 if(MINI_TREE_USB)
     target_link_libraries(mini_tree PUBLIC tinyusb)
+endif()
+
+if(MINI_TREE_OTA)
+    # 让 mini-ota 的 boot_config.h 直接消费本工程 Kconfig 生成的 config.h (范式同
+    # lib/mini-os): config.h 与 compiler_compat.h 必须都在 include 路径上, 否则
+    # boot_config.h 会退回自带默认值, 菜单里的 OTA 参数不会生效。
+    add_dependencies(mini_ota mini_tree_gen)
+    target_include_directories(mini_ota SYSTEM PRIVATE
+        "${KCONFIG_GEN_DIR}"
+        "${CMAKE_CURRENT_LIST_DIR}/core/include"
+    )
+    # mini-ota 的 arch/arm/cortex-m/cortex_m.S 需 MINI_BOOT_Mx 选择核差异,
+    # 由 Kconfig 平台 (PLATFORM_*) 派生; -mcpu/-mthumb 由工具链文件全局注入。
+    file(STRINGS "${KCONFIG_DOT}" MINI_TREE_OTA_PLATFORM REGEX "^CONFIG_PLATFORM_")
+    if(MINI_TREE_OTA_PLATFORM STREQUAL "CONFIG_PLATFORM_ARM_CM7=y")
+        target_compile_definitions(arch PRIVATE MINI_BOOT_M7=1)
+    elseif(MINI_TREE_OTA_PLATFORM STREQUAL "CONFIG_PLATFORM_ARM_CM4F=y")
+        target_compile_definitions(arch PRIVATE MINI_BOOT_M4=1)
+    elseif(MINI_TREE_OTA_PLATFORM STREQUAL "CONFIG_PLATFORM_ARM_CM3=y")
+        target_compile_definitions(arch PRIVATE MINI_BOOT_M3=1)
+    elseif(MINI_TREE_OTA_PLATFORM STREQUAL "CONFIG_PLATFORM_ARM_CM0=y")
+        target_compile_definitions(arch PRIVATE MINI_BOOT_M0=1)
+    endif()
+    target_link_libraries(mini_tree PUBLIC mini_ota)
 endif()

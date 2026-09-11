@@ -7,6 +7,16 @@
 
 ## [Unreleased] / 未发布
 
+### 接入 mini-ota OTA / 引导体系 / Integrate the mini-ota OTA/bootloader
+
+- **Kconfig 新增 OTA 菜单**：`Bootloader / OTA (mini-ota)`，含总开关 `CONFIG_MINI_OTA`（仅 Cortex-M）、双分区 `CONFIG_OTA_DUAL_PARTITION`、镜像加密 `CONFIG_IMAGE_CRYPTO`（0/1，决定是否链接 mbedtls）、FLASH/SRAM 布局（`CONFIG_FLASH_START_ADDR` / `CONFIG_SRAM_START_ADDR` / `CONFIG_SRAM_SIZE`）、下载块大小 `CONFIG_MINI_BOOT_LOAD_MAX`、CRC 模型（`CONFIG_CRC_INIT` / `CRC_REFIN` / `CRC_REFOUT` / `CRC_XOR_OUT` / `CRC_POLY`）。所有 `CONFIG_*` 经 `config.h` 直供 mini-ota 的 `boot_config.h`。
+- **CMake 合并**：`.config` 的 `CONFIG_MINI_OTA` 桥接 `add_subdirectory(lib/mini-ota)`；把生成的 `config.h` 与 `core/include` 注入 `mini_ota` 目标并加 `mini_tree_gen` 依赖（与 `lib/mini-os` 同范式）；按 `CONFIG_PLATFORM_*` 派生 `MINI_BOOT_Mx` 供给 `arch/arm/cortex-m/cortex_m.S`；`CONFIG_IMAGE_CRYPTO=0` 时不编入 mbedtls 与 aes/sha/hmac。
+- **mini-ota（嵌套仓库）**：加密源码与 mbedcrypto 按 `IMAGE_CRYPTO` 门控；编入 mini_tree 时复用工程级 `mini_tree_link_mbedtls()`（新增 `configs/mbedtls_config.h` 端口垫片），否则回退自带 mbedtls；工具链探测与 `-DCONFIG_SRAM_*` 仅在独立构建生效。
+- **CMake 4.x 修复**：`cmake/mbedtls.cmake` 在 CMake ≥ 4.0 下放宽 `CMAKE_POLICY_VERSION_MINIMUM`，修复 mbedtls 2.28 因子工程 `cmake_minimum_required(<3.5)` 导致的配置失败。
+- `.config` 中 `CONFIG_MINI_OTA` 默认关（按需开启）。
+
+**Integrate the mini-ota OTA/bootloader**: a new Kconfig menu `Bootloader / OTA (mini-ota)` exposes the full `boot_config.h` surface (`CONFIG_MINI_OTA` master switch, dual-partition, `CONFIG_IMAGE_CRYPTO`, FLASH/SRAM layout, `MINI_BOOT_LOAD_MAX`, CRC model), all delivered to mini-ota through the shared `config.h`. CMake bridges `CONFIG_MINI_OTA` to `add_subdirectory(lib/mini-ota)`, injects `config.h` / `core/include` into `mini_ota` (plus a `mini_tree_gen` dependency), derives `MINI_BOOT_Mx` from `CONFIG_PLATFORM_*`, and skips mbedtls/aes/sha/hmac when `CONFIG_IMAGE_CRYPTO=0`. In-tree builds of mini-ota reuse the project-level `mini_tree_link_mbedtls()` (new `configs/mbedtls_config.h` port shim). `cmake/mbedtls.cmake` now relaxes `CMAKE_POLICY_VERSION_MINIMUM` under CMake >= 4.0 to fix mbedtls 2.28 configuration failures. `CONFIG_MINI_OTA` defaults to off.
+
 ### 系统层移除 C++ 后端 / Remove the C++ system-layer backend
 
 - **系统层改为纯 C（命令模块除外）**：删除 `system_cpp/` 下与 `system_c/` 等价的 C++ 实现（`system_init` / `system_wdt` / `system_scrubber` / `task_manager` 的 `.cpp` + `.hpp`）及 `mini_tree::` 命名空间 API；系统层统一走 `system_c/` 的 C API（`mini_tree_pre_os_init()` / `mini_tree_start_tasks()` / `system_init_complete()` / `mini_tree_system_loop()` / `task_manager_create()`）。理由：C/C++ 两套等价 API 的维护成本高于收益。

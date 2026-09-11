@@ -103,6 +103,12 @@
 | ETL | `lib/etl` | 20.48.1 | **上层 C++ 基础** | **默认进库** |
 | EasyLogger | Fetch / `lib/EasyLogger` | 2.2.0 | 日志 | `mini_tree_link_easylogger` |
 
+### 2.5 OTA / 引导
+
+| 库 | 路径 | 版本 | 作用 | 接入方式 |
+| :--- | :--- | :--- | :--- | :--- |
+| mini-ota | `lib/mini-ota` | 随仓 | 引导 + OTA（`bootutil` 下载/校验/激活/回滚 + `algorithm` CRC/SHA/AES） | `CONFIG_MINI_OTA`（Kconfig 菜单；加密走 `CONFIG_IMAGE_CRYPTO`） |
+
 ---
 
 ## 3. 典型积木组合（示例）

@@ -34,6 +34,11 @@ function(mini_tree_link_mbedtls target)
         # 目标前缀: 避免聚合目标 "lib" 与仓库根 lib/ 接口库同名 (CMP0002)
         set(MBEDTLS_TARGET_PREFIX "mini_tree_mbedtls_" CACHE STRING "" FORCE)
         set(MBEDTLS_CONFIG_FILE "${_port}/mbedtls_config.h" CACHE FILEPATH "" FORCE)
+        # 的 CMakeLists 仍声明 3.0,这里临时降低版本
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
+            set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING
+                "Policy version floor for legacy subprojects (mbedtls 2.28)" FORCE)
+        endif()
         add_subdirectory("${_mbedtls_dir}" "${CMAKE_BINARY_DIR}/mini_tree_mbedtls" EXCLUDE_FROM_ALL)
     endif()
 

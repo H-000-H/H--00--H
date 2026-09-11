@@ -125,7 +125,7 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 | :--- | :--- |
 | `display/display_ui_bridge.h` | Entry point for UI library callbacks (LVGL flush / u8g2 SendBuffer), goes through `DISPLAY_CMD_*`, zero third-party library dependencies |
 
-> `lib/` status: only **mini-os, FreeRTOS, RT-Thread, ETL** are vendored; **TinyUSB / lwIP** are fetched at config time, all other bricks at link time.
+> `lib/` status: only **mini-os, FreeRTOS, RT-Thread, ETL** are vendored, plus the in-tree **mini-ota** OTA/bootloader (`CONFIG_MINI_OTA`); **TinyUSB / lwIP** are fetched at config time, all other bricks at link time.
 
 ---
 

@@ -103,6 +103,12 @@ A `lib/...` path is the conventional location; **fetched blocks may exist only i
 | ETL | `lib/etl` | 20.48.1 | **C++ foundation for upper layers** | **ships by default** |
 | EasyLogger | Fetch / `lib/EasyLogger` | 2.2.0 | Logging | `mini_tree_link_easylogger` |
 
+### 2.5 OTA / Bootloader
+
+| Library | Path | Version | Role | Integration |
+| :--- | :--- | :--- | :--- | :--- |
+| mini-ota | `lib/mini-ota` | in-tree | Bootloader + OTA (`bootutil` download/verify/activate/rollback + `algorithm` CRC/SHA/AES) | `CONFIG_MINI_OTA` (Kconfig menu; crypto via `CONFIG_IMAGE_CRYPTO`) |
+
 ---
 
 ## 3. Typical Block Combinations (Examples)
