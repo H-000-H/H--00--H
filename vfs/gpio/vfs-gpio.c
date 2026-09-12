@@ -53,7 +53,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void gpio_priv_pool_bo
  * @param[in] arg 打开参数 (未使用)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_gpio_open(struct device* pdev, void* arg)
+static mt_err_t vfs_gpio_open(struct device* pdev, void* arg)
 {
     struct vfs_gpio_priv* priv;
     struct dev_lifecycle* lc;
@@ -110,7 +110,7 @@ static int vfs_gpio_open(struct device* pdev, void* arg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_gpio_close(struct device* pdev)
+static mt_err_t vfs_gpio_close(struct device* pdev)
 {
     struct vfs_gpio_priv* priv;
     struct dev_lifecycle* lc;
@@ -141,7 +141,7 @@ static int vfs_gpio_close(struct device* pdev)
 /* -------------------------------------------------------------------------- */
 /* ioctl 命令处理函数 — 每个函数封装一个 HAL 调用 */
 /* -------------------------------------------------------------------------- */
-typedef int (*gpio_cmd_handler_t)(struct vfs_gpio_priv* priv, void* arg, size_t arg_len);
+typedef mt_err_t (*gpio_cmd_handler_t)(struct vfs_gpio_priv* priv, void* arg, size_t arg_len);
 
 typedef struct
 {
@@ -155,7 +155,7 @@ typedef struct
  * @param[in] arg_len 参数长度
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int gpio_cmd_toggle(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
+static mt_err_t gpio_cmd_toggle(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
 {
     const struct vfs_gpio_arg* vfs_arg = (const struct vfs_gpio_arg*)arg;
     if (!vfs_arg || arg_len != sizeof(*vfs_arg))
@@ -170,7 +170,7 @@ static int gpio_cmd_toggle(struct vfs_gpio_priv* priv, void* arg, size_t arg_len
  * @param[in] arg_len 参数长度
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int gpio_cmd_set_level(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
+static mt_err_t gpio_cmd_set_level(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
 {
     struct vfs_gpio_arg* vfs_arg = (struct vfs_gpio_arg*)arg;
     if (!vfs_arg || arg_len != sizeof(*vfs_arg))
@@ -186,7 +186,7 @@ static int gpio_cmd_set_level(struct vfs_gpio_priv* priv, void* arg, size_t arg_
  * @param[in] arg_len 参数长度
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int gpio_cmd_get_level(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
+static mt_err_t gpio_cmd_get_level(struct vfs_gpio_priv* priv, void* arg, size_t arg_len)
 {
     struct vfs_gpio_arg* vfs_arg = (struct vfs_gpio_arg*)arg;
     if (!vfs_arg || arg_len != sizeof(*vfs_arg))
@@ -213,7 +213,7 @@ static const gpio_ioctl_map_t s_gpio_ioctl_map[GPIO_CMD_COUNT] = {
  * @param[in] timeout_ms 超时 (未使用)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_gpio_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t vfs_gpio_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct vfs_gpio_priv* priv;
     struct dev_lifecycle* lc;
@@ -268,7 +268,7 @@ static const struct file_operations gpio_fops = {
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_gpio_probe(struct device* pdev)
+static mt_err_t vfs_gpio_probe(struct device* pdev)
 {
     struct vfs_gpio_priv* priv;
     int                   port_val = 0, pin_val = 0, clk_val = 0;
@@ -285,7 +285,7 @@ static int vfs_gpio_probe(struct device* pdev)
     pool_idx = mini_slot_claim(&s_gpio_priv_pool_ctrl);
     if (pool_idx < 0)
     {
-        SYS_LOGE(k_tag, "Failed to claim gpio pool");
+        MT_LOG_ERROR(k_tag, "Failed to claim gpio pool");
         return MINI_ERR_NOMEM;
     }
 
@@ -311,7 +311,7 @@ static int vfs_gpio_probe(struct device* pdev)
 
     if (intr_val != 0 && (virq_idx < 0 || virq_idx >= (int)VIRTUAL_IRQ_BLOCK_SIZE))
     {
-        SYS_LOGE(k_tag, "gpio-intr set but virq-idx invalid (%d)", virq_idx);
+        MT_LOG_ERROR(k_tag, "gpio-intr set but virq-idx invalid (%d)", virq_idx);
         ret = MINI_ERR_INVAL;
         goto err_pool;
     }
@@ -343,7 +343,7 @@ static int vfs_gpio_probe(struct device* pdev)
         goto err_unbind;
     }
 
-    SYS_LOGI(k_tag, "probe OK: port=0x%x pin=0x%x clk=0x%x mode=%d", (unsigned)port_val, (unsigned)pin_val, (unsigned)clk_val, priv->obj.cfg.mode);
+    MT_LOG_INFO(k_tag, "probe OK: port=0x%x pin=0x%x clk=0x%x mode=%d", (unsigned)port_val, (unsigned)pin_val, (unsigned)clk_val, priv->obj.cfg.mode);
     return MINI_OK;
 
 /* 回滚 device_lc_bind + pdev->ops (原 err_mutex 因 io_mutex 存在而得名, 现按其实际职责改名) */
@@ -361,7 +361,7 @@ err_pool:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_gpio_remove(struct device* pdev)
+static mt_err_t vfs_gpio_remove(struct device* pdev)
 {
     struct vfs_gpio_priv* priv;
     struct dev_lifecycle* lc;
@@ -382,7 +382,7 @@ static int vfs_gpio_remove(struct device* pdev)
 
     if (dev_lc_remove_drain(lc, MINI_WAIT_FOREVER) != MINI_OK)
     {
-        SYS_LOGE(k_tag, "remove drain failed");
+        MT_LOG_ERROR(k_tag, "remove drain failed");
         dev_lc_remove_finish(lc);
         return MINI_ERR_IO;
     }

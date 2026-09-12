@@ -46,7 +46,7 @@ typedef struct vfs_dac_arg_t vfs_dac_arg;
  * @param[in] value 目标输出值 (0..4095 对应 12 位分辨率)
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_write_dac_value(hal_dac_device* pdev, uint32_t value)
+MINI_STATIC_INLINE mt_err_t vfs_write_dac_value(hal_dac_device* pdev, uint32_t value)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -59,7 +59,7 @@ MINI_STATIC_INLINE int vfs_write_dac_value(hal_dac_device* pdev, uint32_t value)
  * @param[out] out_val 回传当前输出值
  * @return 成功返回 MINI_OK, pdev 或 out_val 为空返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_read_dac_value(hal_dac_device* pdev, uint32_t* out_val)
+MINI_STATIC_INLINE mt_err_t vfs_read_dac_value(hal_dac_device* pdev, uint32_t* out_val)
 {
     if (!pdev || !out_val)
         return MINI_ERR_INVAL;

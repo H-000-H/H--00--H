@@ -62,9 +62,9 @@ static struct aht20_device* aht20_get_drvdata(struct device* pdev) { return (str
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int aht20_i2c_wr(struct aht20_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t aht20_i2c_wr(struct aht20_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int aht20_i2c_wr(struct aht20_device* dev, const uint8_t* tx, size_t len,
 }
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int aht20_i2c_rd(struct aht20_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t aht20_i2c_rd(struct aht20_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -83,9 +83,9 @@ static int aht20_i2c_rd(struct aht20_device* dev, uint8_t* rx, size_t len, uint3
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int aht20_hw_create(struct aht20_device* dev)
+static mt_err_t aht20_hw_create(struct aht20_device* dev)
 {
     int ret;
     if (!dev)
@@ -175,7 +175,7 @@ static int aht20_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*aht20_ioctl_fn_t)(struct aht20_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*aht20_ioctl_fn_t)(struct aht20_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct aht20_ioctl_map
 {
     aht20_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct aht20_ioctl_map
 /**
  * @brief AHT20_CMD_READ_TEMP_RH 实现：触发测量（80ms）并换算 T/RH
  */
-static int aht20_cmd_read(struct aht20_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t aht20_cmd_read(struct aht20_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t        trig[3] = {0xAC, 0x33, 0x00};
     uint8_t              raw[6];
@@ -214,7 +214,7 @@ static const struct aht20_ioctl_map s_aht20_map[AHT20_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int aht20_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t aht20_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct aht20_device*  dev;
     struct dev_lifecycle* lc;
@@ -249,7 +249,7 @@ static const struct file_operations aht20_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int aht20_probe(struct device* pdev)
+static mt_err_t aht20_probe(struct device* pdev)
 {
     struct aht20_device* dev;
     int                  pool_idx, ret;
@@ -274,7 +274,7 @@ static int aht20_probe(struct device* pdev)
     }
     dev->ops = aht20_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -286,7 +286,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int aht20_remove(struct device* pdev)
+static mt_err_t aht20_remove(struct device* pdev)
 {
     struct aht20_device*  dev;
     struct dev_lifecycle* lc;

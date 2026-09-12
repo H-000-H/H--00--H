@@ -60,7 +60,7 @@
 
 | 文档 | 中文标题 / 关键点 | 优先级 | 链接 |
 | :--- | :--- | :---: | :--- |
-| `debug_monitor.md` | 日志（`SYS_LOG*`/`DRV_LOG*`）、生成物、`compile_commands.json`、clangd | P1 | [cn](debug_monitor.md) |
+| `debug_monitor.md` | 日志（`MT_LOG_*`/`MT_DRV_LOG_*`）、生成物、`compile_commands.json`、clangd | P1 | [cn](debug_monitor.md) |
 | `keil_integration.md` | Keil Studio 支持 / 经典 µVision 不推荐 | P2（IDE） | [cn](keil_integration.md) |
 | `design_decisions.md` | 仍生效的设计决策与作者偏好 | P1 | [cn](design_decisions.md) |
 | `references.md` | 外部对照（ESP VFS / FreeRTOS / Linux / RTT / LVGL / Qt） | P2 | [cn](references.md) |

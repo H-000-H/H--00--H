@@ -562,7 +562,7 @@ MINI_STATIC_INLINE void auto_free_ptr(void* ptr)
  * @param[in] size 内存大小
  * @return MINI_OK 成功, MINI_ERR_INVAL 参数无效
  */
-MINI_STATIC_INLINE int MINI_MEM_SET(void* dest, int src, size_t size)
+MINI_STATIC_INLINE mt_err_t MINI_MEM_SET(void* dest, int src, size_t size)
 {
     if (dest == NULL)
         return MINI_ERR_INVAL;
@@ -584,7 +584,7 @@ MINI_STATIC_INLINE int MINI_MEM_SET(void* dest, int src, size_t size)
  * @param[in] size 内存大小
  * @return MINI_OK 成功, MINI_ERR_INVAL 参数无效
  */
-MINI_STATIC_INLINE int MINI_MEM_COPY(void* dest, const void* src, size_t size)
+MINI_STATIC_INLINE mt_err_t MINI_MEM_COPY(void* dest, const void* src, size_t size)
 {
     if (dest == NULL || src == NULL)
         return MINI_ERR_INVAL;
@@ -606,7 +606,7 @@ MINI_STATIC_INLINE int MINI_MEM_COPY(void* dest, const void* src, size_t size)
  * @param[in] size 内存大小
  * @return MINI_OK 成功, MINI_ERR_INVAL 参数无效
  */
-MINI_STATIC_INLINE int MINI_MEM_MOVE(void* dest, const void* src, size_t size)
+MINI_STATIC_INLINE mt_err_t MINI_MEM_MOVE(void* dest, const void* src, size_t size)
 {
     if (dest == NULL || src == NULL)
         return MINI_ERR_INVAL;

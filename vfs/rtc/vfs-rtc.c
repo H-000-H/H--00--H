@@ -48,7 +48,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void vfs_rtc_pool_boot
  * @param[in] arg 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_rtc_open(struct device* pdev, void* arg)
+static mt_err_t vfs_rtc_open(struct device* pdev, void* arg)
 {
     struct vfs_rtc_priv*  priv;
     struct dev_lifecycle* lc;
@@ -81,7 +81,7 @@ static int vfs_rtc_open(struct device* pdev, void* arg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_rtc_close(struct device* pdev)
+static mt_err_t vfs_rtc_close(struct device* pdev)
 {
     struct vfs_rtc_priv*  priv;
     struct dev_lifecycle* lc;
@@ -110,7 +110,7 @@ static int vfs_rtc_close(struct device* pdev)
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_set_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_set_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     const struct rtc_time_arg* time_arg = (const struct rtc_time_arg*)arg;
     MINI_IGNORE_RESULT(to);
@@ -127,7 +127,7 @@ static int rtc_cmd_set_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_get_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_get_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     struct rtc_time_arg* time_arg = (struct rtc_time_arg*)arg;
     MINI_IGNORE_RESULT(to);
@@ -144,7 +144,7 @@ static int rtc_cmd_get_time(struct vfs_rtc_priv* priv, void* arg, size_t arg_len
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_set_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_set_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     const struct rtc_time_arg* time_arg = (const struct rtc_time_arg*)arg;
     MINI_IGNORE_RESULT(to);
@@ -161,7 +161,7 @@ static int rtc_cmd_set_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg_le
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_cancel_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_cancel_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     MINI_IGNORE_RESULT(arg);
     MINI_IGNORE_RESULT(arg_len);
@@ -177,7 +177,7 @@ static int rtc_cmd_cancel_alarm(struct vfs_rtc_priv* priv, void* arg, size_t arg
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_set_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_set_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     const struct rtc_wakeup_arg* time_arg = (const struct rtc_wakeup_arg*)arg;
     MINI_IGNORE_RESULT(to);
@@ -194,7 +194,7 @@ static int rtc_cmd_set_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t arg_l
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int rtc_cmd_cancel_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_cancel_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     MINI_IGNORE_RESULT(arg);
     MINI_IGNORE_RESULT(arg_len);
@@ -210,7 +210,7 @@ static int rtc_cmd_cancel_wakeup(struct vfs_rtc_priv* priv, void* arg, size_t ar
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK
  */
-static int rtc_cmd_force_stop(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t rtc_cmd_force_stop(struct vfs_rtc_priv* priv, void* arg, size_t arg_len, uint32_t to)
 {
     MINI_IGNORE_RESULT(priv);
     MINI_IGNORE_RESULT(arg);
@@ -220,7 +220,7 @@ static int rtc_cmd_force_stop(struct vfs_rtc_priv* priv, void* arg, size_t arg_l
     return MINI_OK;
 }
 
-typedef int (*rtc_ioctl_fn)(struct vfs_rtc_priv*, void*, size_t, uint32_t);
+typedef mt_err_t (*rtc_ioctl_fn)(struct vfs_rtc_priv*, void*, size_t, uint32_t);
 static const rtc_ioctl_fn s_rtc_ioctl[RTC_CMD_COUNT] = {
     [RTC_CMD_SET_TIME - RTC_CMD_BASE - 1] = rtc_cmd_set_time,     [RTC_CMD_GET_TIME - RTC_CMD_BASE - 1] = rtc_cmd_get_time,
     [RTC_CMD_SET_ALARM - RTC_CMD_BASE - 1] = rtc_cmd_set_alarm,   [RTC_CMD_CANCEL_ALARM - RTC_CMD_BASE - 1] = rtc_cmd_cancel_alarm,
@@ -237,7 +237,7 @@ static const rtc_ioctl_fn s_rtc_ioctl[RTC_CMD_COUNT] = {
  * @param[in] timeout_ms 未使用 (透传给子命令)
  * @return 成功返回 MINI_OK, 未知命令返回 MINI_ERR_INVAL, 失败返回负数错误码
  */
-static int vfs_rtc_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t vfs_rtc_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct vfs_rtc_priv*  priv;
     struct dev_lifecycle* lc;
@@ -274,7 +274,7 @@ static const struct file_operations s_rtc_fops = {
  * @param[in] cfg 输出的 RTC 配置结构指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_rtc_parse_dts(struct device* pdev, struct hal_rtc_config* cfg)
+static mt_err_t vfs_rtc_parse_dts(struct device* pdev, struct hal_rtc_config* cfg)
 {
     int value;
     MINI_MEM_SET(cfg, 0, sizeof(*cfg));
@@ -301,7 +301,7 @@ static int vfs_rtc_parse_dts(struct device* pdev, struct hal_rtc_config* cfg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_rtc_probe(struct device* pdev)
+static mt_err_t vfs_rtc_probe(struct device* pdev)
 {
     struct vfs_rtc_priv* priv;
     int                  idx, ret;
@@ -328,7 +328,7 @@ static int vfs_rtc_probe(struct device* pdev)
         ret = MINI_ERR_IO;
         goto err_hal;
     }
-    SYS_LOGI(k_tag, "probe OK: %s", device_get_name(pdev));
+    MT_LOG_INFO(k_tag, "probe OK: %s", device_get_name(pdev));
     return MINI_OK;
 err_hal:
     MINI_IGNORE_RESULT(hal_rtc_deinit(&priv->rtc));
@@ -342,7 +342,7 @@ err:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_rtc_remove(struct device* pdev)
+static mt_err_t vfs_rtc_remove(struct device* pdev)
 {
     struct vfs_rtc_priv*  priv;
     struct dev_lifecycle* lc;

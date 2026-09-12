@@ -43,7 +43,7 @@ void lwip_diag(const char* fmt, ...)
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    SYS_LOGI("lwIP", "%s", buf);
+    MT_LOG_INFO("lwIP", "%s", buf);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -190,7 +190,7 @@ sys_thread_t sys_thread_new(const char* name, lwip_thread_fn thread, void* arg, 
     int                ret = mini_task_create_handle(name, stacksize, prio, thread, arg, -1, &task_handle);
     if (ret != MINI_OK)
     {
-        SYS_LOGE("lwIP", "Failed to create thread %s: %d", name, ret);
+        MT_LOG_ERROR("lwIP", "Failed to create thread %s: %d", name, ret);
         return SYS_THREAD_NULL;
     }
     return (sys_thread_t)task_handle;

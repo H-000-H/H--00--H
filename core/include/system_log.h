@@ -4,13 +4,14 @@
  *@brief system log 头文件
  *@author H-000-H
  *@details
- *   system_log — 系统日志宏统一入口 (mini_log / ESP-IDF 两后端)
- *   根据 Kconfig CONFIG_SYS_LOG_USE_* 选择后端, 提供 SYS_LOGI/W/E 三级宏
- *   与 DRV_LOG* 驱动日志宏。
+ *   system_log — 系统日志宏统一入口 (mini-log / ESP-IDF 两后端)
+ *   根据 Kconfig CONFIG_SYS_LOG_USE_* 选择后端, 提供 MT_LOG_ERROR/WARN/INFO 三级宏
+ *   与 MT_DRV_LOG_* 驱动日志宏。
  *
- *   mini_log 后端由 core/src/mini_log.c 提供 (与 RTOS 后端无关);
- *   ESP 后端走 esp_log.h。本文件是全仓日志宏的唯一汇聚点, 各模块请用
- *   SYS_LOG* / DRV_LOG*, 不要直接调用 mini_log()。
+ *   非 ESP 后端走随仓库 mini-log (mini-log/inc/log.h): SPSC 环形缓冲 + 可选
+ *   flash 落盘, 由 MINI_LOG_* 宏输出; ESP 后端走 esp_log.h。
+ *   本文件是全仓日志宏的唯一汇聚点, 各模块请用 MT_LOG_* / MT_DRV_LOG_*,
+ *   不要直接调用 mini_log_default_output()。
  */
 
 #ifndef SYSTEM_LOG_H
@@ -19,51 +20,41 @@
 /* Kconfig 生成的配置 — 见 tools/genconfig.py */
 #include "config.h"
 
-#if defined(CONFIG_SYS_LOG_USE_PRINTF)
+#if defined(CONFIG_SYS_LOG_USE_MINI_LOG)
 
-#include "mini_log.h"
+#include "log.h"
 
-#define SYS_LOGI(tag, fmt, ...) mini_log(MINI_LOG_INFO, tag, fmt, ##__VA_ARGS__)
-#define SYS_LOGW(tag, fmt, ...) mini_log(MINI_LOG_WARN, tag, fmt, ##__VA_ARGS__)
-#define SYS_LOGE(tag, fmt, ...) mini_log(MINI_LOG_ERROR, tag, fmt, ##__VA_ARGS__)
+/* mini-log 的 MINI_LOG_x 宏不带 tag; 这里把 tag 作为前缀并入格式串,
+ * 保持全仓 (tag, fmt, ...) 的既有调用约定。 */
+#define MT_LOG_ERROR(tag, fmt, ...) MINI_LOG_E("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_LOG_WARN(tag, fmt, ...) MINI_LOG_W("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_LOG_INFO(tag, fmt, ...) MINI_LOG_I("[%s] " fmt, tag, ##__VA_ARGS__)
 
 #elif defined(CONFIG_SYS_LOG_USE_ESP)
+
 #include "esp_log.h"
-#define SYS_LOGI ESP_LOGI
-#define SYS_LOGW ESP_LOGW
-#define SYS_LOGE ESP_LOGE
-#define DRV_LOGE ESP_LOGE
-#define DRV_LOGW ESP_LOGW
-#define DRV_LOGI ESP_LOGI
-#define DRV_LOGD ESP_LOGD
-#define DRV_LOGV ESP_LOGD
+#define MT_LOG_INFO ESP_LOGI
+#define MT_LOG_WARN ESP_LOGW
+#define MT_LOG_ERROR ESP_LOGE
+#define MT_DRV_LOG_ERROR ESP_LOGE
+#define MT_DRV_LOG_WARN ESP_LOGW
+#define MT_DRV_LOG_INFO ESP_LOGI
+#define MT_DRV_LOG_DEBUG ESP_LOGD
+#define MT_DRV_LOG_VERBOSE ESP_LOGD
 
 #else
 #error "SYS_LOG backend not configured — choose one in Kconfig"
 #endif
 
-#if defined(CONFIG_SYS_LOG_USE_PRINTF)
+#if defined(CONFIG_SYS_LOG_USE_MINI_LOG)
 /* -------------------------------------------------------------------------- */
-/* 驱动日志宏 (DRV_LOG) */
-/* 依赖 production_log 的变体 (LOGE/LOGW) 推送至黑匣子环形缓冲区. */
+/* 驱动日志宏 (MT_DRV_LOG_*) — 统一走 mini-log 控制台链路 */
 /* -------------------------------------------------------------------------- */
-#include "production_log.h" /* IWYU pragma: keep */
-
-#define DRV_LOGE(tag, fmt, ...)                                                                                                                      \
-    do                                                                                                                                               \
-    {                                                                                                                                                \
-        mini_log(MINI_LOG_ERROR, tag, fmt, ##__VA_ARGS__);                                                                                           \
-        production_log_push_fmt(0, tag, fmt, ##__VA_ARGS__);                                                                                         \
-    } while (0)
-#define DRV_LOGW(tag, fmt, ...)                                                                                                                      \
-    do                                                                                                                                               \
-    {                                                                                                                                                \
-        mini_log(MINI_LOG_WARN, tag, fmt, ##__VA_ARGS__);                                                                                            \
-        production_log_push_fmt(1, tag, fmt, ##__VA_ARGS__);                                                                                         \
-    } while (0)
-#define DRV_LOGI(tag, fmt, ...) mini_log(MINI_LOG_INFO, tag, fmt, ##__VA_ARGS__)
-#define DRV_LOGD(tag, fmt, ...) mini_log(MINI_LOG_DEBUG, tag, fmt, ##__VA_ARGS__)
-#define DRV_LOGV(tag, fmt, ...) mini_log(MINI_LOG_DEBUG, tag, fmt, ##__VA_ARGS__)
+#define MT_DRV_LOG_ERROR(tag, fmt, ...) MINI_LOG_E("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_DRV_LOG_WARN(tag, fmt, ...) MINI_LOG_W("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_DRV_LOG_INFO(tag, fmt, ...) MINI_LOG_I("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_DRV_LOG_DEBUG(tag, fmt, ...) MINI_LOG_D("[%s] " fmt, tag, ##__VA_ARGS__)
+#define MT_DRV_LOG_VERBOSE(tag, fmt, ...) MINI_LOG_D("[%s] " fmt, tag, ##__VA_ARGS__)
 #endif
 
 #endif /* SYSTEM_LOG_H */

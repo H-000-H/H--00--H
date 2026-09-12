@@ -16,7 +16,6 @@
 #if defined(CONFIG_OS_FREERTOS)
 
 #define ALLOW_HEAP_ALLOC
-#define ALLOW_STDIO_OUTPUT /* task_create 的 AMP 回退告警走 my_printf_output */
 
 #include "mini_backend.h"
 
@@ -25,8 +24,8 @@
 #include "config.h"
 #include "hal_amp.h"
 #include "mini_slot.h"
-#include "printf_output.h"
 #include "status.h"
+#include "system_log.h"
 #ifdef ESP_PLATFORM
 #include "esp_task_wdt.h"
 #include "freertos/FreeRTOS.h"
@@ -76,7 +75,7 @@ struct mini_mutex
 
 _Static_assert(sizeof(struct mini_mutex) <= MINI_MUTEX_STORAGE_SIZE, "mini_backend_freertos: MINI_MUTEX_STORAGE_SIZE too small");
 
-static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
+static mt_err_t mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
 {
     if (!mutex)
         return MINI_ERR_INVAL;
@@ -92,7 +91,7 @@ static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
     return mutex->handle ? MINI_OK : MINI_ERR_NOMEM;
 }
 
-static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type)
+static mt_err_t mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_mutex))
         return MINI_ERR_INVAL;
@@ -108,12 +107,12 @@ static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, siz
     return MINI_OK;
 }
 
-int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_PLAIN);
 }
 
-int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_RECURSIVE);
 }
@@ -128,7 +127,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void mini_mutex_pool_boot
     MINI_IGNORE_RESULT(mini_slot_init(&s_mutex_pool_ctrl, s_mutex_used, MINI_MUTEX_POOL_SIZE));
 }
 
-int mini_mutex_create(mini_mutex_t** out)
+mt_err_t mini_mutex_create(mini_mutex_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -150,7 +149,7 @@ int mini_mutex_create(mini_mutex_t** out)
     return MINI_OK;
 }
 
-int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
+mt_err_t mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -167,7 +166,7 @@ int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
     return xSemaphoreTake(mutex->handle, ticks) == pdTRUE ? MINI_OK : MINI_ERR_TIMEOUT;
 }
 
-int mini_mutex_unlock(mini_mutex_t* mtx)
+mt_err_t mini_mutex_unlock(mini_mutex_t* mtx)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -212,13 +211,13 @@ struct mini_sem
 
 _Static_assert(sizeof(struct mini_sem) <= MINI_SEM_STORAGE_SIZE, "mini_backend_freertos: MINI_SEM_STORAGE_SIZE too small");
 
-static int mini_sem_init(struct mini_sem* sem)
+static mt_err_t mini_sem_init(struct mini_sem* sem)
 {
     sem->handle = xSemaphoreCreateBinaryStatic(&sem->sem_buf);
     return sem->handle ? MINI_OK : MINI_ERR_NOMEM;
 }
 
-int mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
+mt_err_t mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_sem))
         return MINI_ERR_INVAL;
@@ -241,7 +240,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_SEM_POOL) static void mini_sem_pool_boot(v
     MINI_IGNORE_RESULT(mini_slot_init(&s_sem_pool_ctrl, s_sem_used, MINI_SEM_POOL_SIZE));
 }
 
-int mini_sem_create_binary(mini_sem_t** out)
+mt_err_t mini_sem_create_binary(mini_sem_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -262,7 +261,7 @@ int mini_sem_create_binary(mini_sem_t** out)
     return MINI_OK;
 }
 
-int mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
+mt_err_t mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
 {
     if (!sem)
         return MINI_ERR_INVAL;
@@ -393,9 +392,7 @@ MINI_STATIC_INLINE void mini_note_core_fallback(const char* name, int* core_id)
 #if CONFIG_CPU_CORES > 1
     if (*core_id > 0)
     {
-        my_printf_output("[mini_backend] WARN: task '%s' requested Core %d, "
-                         "but AMP Core 1 has no OS scheduler. Falling back to Core 0.\n",
-                         name, *core_id);
+        MT_LOG_WARN("mini_backend", "task '%s' requested Core %d, but AMP Core 1 has no OS scheduler. Falling back to Core 0.", name, *core_id);
         *core_id = 0;
     }
 #else
@@ -404,7 +401,7 @@ MINI_STATIC_INLINE void mini_note_core_fallback(const char* name, int* core_id)
 #endif
 }
 
-int mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
+mt_err_t mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
                             mini_task_handle_t* out_handle)
 {
     if (!out_handle || !entry)
@@ -464,7 +461,7 @@ uint32_t mini_task_get_stack_watermark(mini_task_handle_t task)
 /* -------------------------------------------------------------------------- */
 /* 调度器启动 / ISR 出口                                                       */
 /* -------------------------------------------------------------------------- */
-int mini_scheduler_start(void)
+mt_err_t mini_scheduler_start(void)
 {
     vTaskStartScheduler();
     return MINI_OK; /* 正常情况下不返回 */
@@ -486,7 +483,7 @@ void* mini_malloc(size_t size) { return malloc(size); }
 
 void* mini_calloc(size_t count, size_t size) { return calloc(count, size); }
 
-int mini_free(void* ptr)
+mt_err_t mini_free(void* ptr)
 {
     free(ptr);
     return MINI_OK;

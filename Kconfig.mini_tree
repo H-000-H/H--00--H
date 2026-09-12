@@ -783,18 +783,22 @@ endmenu
 menu "System Log"
 choice
     prompt "Log backend"
-    default SYS_LOG_USE_PRINTF
+    default SYS_LOG_USE_MINI_LOG
     help
       选择系统日志输出后端。
 
       Select system log output backend.
 
-config SYS_LOG_USE_PRINTF
-    bool "Direct printf"
+config SYS_LOG_USE_MINI_LOG
+    bool "mini-log (SPSC ring buffer)"
     help
-      通过普通 printf 输出日志。
+      通过随仓库 mini-log (mini-log/) 输出日志:
+      SPSC 无锁环形缓冲 + 回调/stdout 控制台链路, 可选 flash 落盘
+      (MINI_LOG_USE_FLASH, 需板级注册 flash ops)。
 
-      Output via plain printf.
+      Output via the bundled mini-log library (mini-log/): an SPSC lock-free
+      ring buffer with a callback/stdout console path and an optional flash
+      sink (MINI_LOG_USE_FLASH, requires board-side flash ops registration).
 
 config SYS_LOG_USE_ESP
     bool "ESP-IDF esp_log (ESP_LOG*, IDF only)"
@@ -808,6 +812,97 @@ config SYS_LOG_USE_ESP
       ESP-IDF builds only (esp_log.h does not exist outside IDF).
 
 endchoice
+endmenu
+
+# ── mini-log (随仓库) 配置 — 仅日志后端为 mini-log 时生效 ──
+menu "mini-log"
+    depends on SYS_LOG_USE_MINI_LOG
+
+config MINI_LOG_MAX_LEN
+    int "mini-log: max length of a formatted line (bytes)"
+    default 128
+    range 32 512
+    help
+      单条格式化最大长度 MINI_LOG_MAX_LEN。
+      约束: ALIGN(10 + MINI_LOG_MAX_LEN - 1) <= MINI_LOG_FLASH_RING_SIZE,
+      否则所有 flash 记录都会被 TOO_LONG 拒绝。
+
+      Max length of one formatted line.
+
+config MINI_LOG_RING_SIZE
+    int "mini-log: console ring size (bytes, power of two)"
+    default 1024
+    range 64 32768
+    help
+      控制台日志环容量, 必须为 2 的幂 (否则编译期 #error)。
+
+      Console ring size in bytes; must be a power of two.
+
+config MINI_LOG_AUTO_FLUSH
+    bool "mini-log: console auto flush"
+    default y
+    help
+      写入控制台环后立即输出 (MINI_LOG_AUTO_FLUSH)。
+      关闭则需手动 MINI_LOG_FLUSH()。
+
+      Flush the console ring immediately after each write.
+
+config MINI_LOG_COLOR_ENABLE
+    bool "mini-log: ANSI color"
+    default y
+    help
+      终端 ANSI 颜色开关 (MINI_LOG_COLOR_ENABLE)。
+
+      Enable ANSI color codes.
+
+config MINI_LOG_USE_FLASH
+    bool "mini-log: flash sink"
+    default y
+    help
+      启用 flash 落盘链路 (MINI_LOG_USE_FLASH)。
+      需板级调用 mini_log_flash_register_cxt() 注册 flash ops。
+
+      Enable the flash logging sink (needs board-side ops registration).
+
+config MINI_LOG_FLASH_RING_SIZE
+    int "mini-log: flash ring size (bytes, power of two)"
+    default 512
+    range 64 32768
+    depends on MINI_LOG_USE_FLASH
+    help
+      flash 暂存环容量, 必须为 2 的幂。
+
+      Flash staging ring size; must be a power of two.
+
+config MINI_LOG_FLASH_AUTO_FLUSH
+    bool "mini-log: flash auto flush"
+    default n
+    depends on MINI_LOG_USE_FLASH
+    help
+      flash 写入后立即落盘 (MINI_LOG_FLASH_AUTO_FLUSH); 常开影响实时性。
+
+      Flush to flash immediately after each write.
+
+config MINI_LOG_DEFAULT_ALIGIN
+    int "mini-log: flash default write alignment (bytes)"
+    default 4
+    range 0 256
+    depends on MINI_LOG_USE_FLASH
+    help
+      默认写入对齐粒度 (MINI_LOG_DEFAULT_ALIGIN); 须为 0 或 2 的幂。
+
+      Default flash write granularity; must be 0 or a power of two.
+
+config MINI_LOG_MAGIC
+    int "mini-log: flash frame magic (16-bit)"
+    default 4
+    range 0 65535
+    depends on MINI_LOG_USE_FLASH
+    help
+      flash 记录帧魔数 (MINI_LOG_MAGIC, 16 位)。
+
+      Flash frame magic (16-bit).
+
 endmenu
 
 menu "System Runtime"
@@ -1207,24 +1302,6 @@ menu "Bootloader / OTA (mini-ota)"
 endmenu
 
 menu "Board Features"
-
-config PRODUCTION_LOG
-    bool "Production log"
-    default n
-    help
-      开启生产级日志。
-
-      Enable production-level logging.
-
-config PRODUCTION_LOG_SLOT_COUNT
-    int "Production log slot count"
-    default 32
-    range 8 256
-    depends on PRODUCTION_LOG
-    help
-      生产日志环形缓冲深度（槽位数）。
-
-      Production-log ring buffer depth (slots).
 
 config SAFETY_SHUTDOWN
     bool "Safety shutdown"

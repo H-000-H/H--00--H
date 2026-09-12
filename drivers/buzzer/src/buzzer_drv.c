@@ -67,9 +67,9 @@ static struct buzzer_device* buzzer_get_drvdata(struct device* pdev) { return (s
 
 /**
  * @brief 首次 open 时打开对应后端（TIM 或 GPIO）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int buzzer_hw_create(struct buzzer_device* dev)
+static mt_err_t buzzer_hw_create(struct buzzer_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -170,7 +170,7 @@ static int buzzer_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*buzzer_ioctl_fn_t)(struct buzzer_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*buzzer_ioctl_fn_t)(struct buzzer_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct buzzer_ioctl_map
 {
     buzzer_ioctl_fn_t handler;
@@ -179,7 +179,7 @@ struct buzzer_ioctl_map
 /**
  * @brief BUZZER_CMD_BEEP 实现：PWM 占空比或 GPIO 电平控制，可带时长
  */
-static int buzzer_cmd_beep(struct buzzer_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t buzzer_cmd_beep(struct buzzer_device* dev, void* arg, size_t len, uint32_t ms)
 {
     int      on;
     uint32_t dur;
@@ -210,7 +210,7 @@ static const struct buzzer_ioctl_map s_buzzer_map[BUZZER_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int buzzer_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t buzzer_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct buzzer_device* dev;
     struct dev_lifecycle* lc;
@@ -245,7 +245,7 @@ static const struct file_operations buzzer_fops = {
 /**
  * @brief probe：claim 池项、绑定 pwm/beep-gpio 并挂 fops
  */
-static int buzzer_probe(struct device* pdev)
+static mt_err_t buzzer_probe(struct device* pdev)
 {
     struct buzzer_device* dev;
     int                   pool_idx, ret;
@@ -276,7 +276,7 @@ static int buzzer_probe(struct device* pdev)
     }
     dev->ops = buzzer_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -288,7 +288,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int buzzer_remove(struct device* pdev)
+static mt_err_t buzzer_remove(struct device* pdev)
 {
     struct buzzer_device* dev;
     struct dev_lifecycle* lc;

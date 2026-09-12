@@ -108,6 +108,7 @@ target_include_directories(board
         "${GENERATED_BOARD_DIR}"
     PRIVATE
         "${PROJECT_SOURCE_DIR}/core/include"
+        "${PROJECT_SOURCE_DIR}/mini-log/inc"
 )
 
 target_link_libraries(board

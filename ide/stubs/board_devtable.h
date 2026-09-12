@@ -31,8 +31,8 @@ struct device* board_dev_get(device_id_t id);
 const device_id_t* board_probe_order(void);
 int                board_probe_order_count(void);
 
-typedef int (*probe_fn_t)(struct device*);
-typedef int (*remove_fn_t)(struct device*);
+typedef mt_err_t (*probe_fn_t)(struct device*);
+typedef mt_err_t (*remove_fn_t)(struct device*);
 probe_fn_t  board_probe_get_fn(device_id_t id);
 remove_fn_t board_remove_get_fn(device_id_t id);
 

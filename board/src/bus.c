@@ -45,7 +45,7 @@ static device_id_t device_to_id(const struct device* pdev)
  * @param[in] hw_ctx 硬件上下文指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct bus_controller_ops* ctlr_ops, void* hw_ctx)
+mt_err_t bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct bus_controller_ops* ctlr_ops, void* hw_ctx)
 {
     device_id_t id;
 
@@ -69,7 +69,7 @@ int bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct 
  * @param[out] out 输出 bus_controller 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int bus_controller_get(const struct device* pdev, struct bus_controller** out)
+mt_err_t bus_controller_get(const struct device* pdev, struct bus_controller** out)
 {
     device_id_t id;
 
@@ -93,7 +93,7 @@ int bus_controller_get(const struct device* pdev, struct bus_controller** out)
  * @param[out] out 输出 bus_controller 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int bus_controller_of(const struct device* pdev, struct bus_controller** out)
+mt_err_t bus_controller_of(const struct device* pdev, struct bus_controller** out)
 {
     struct device* parent;
     device_id_t    id;

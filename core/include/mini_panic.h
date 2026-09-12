@@ -22,7 +22,7 @@
 #define MINI_PANIC_H
 
 #include "compiler_compat.h"
-#include "mini_log.h"
+#include "log.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -60,7 +60,7 @@ void system_safety_hardware_shutdown(const char* reason);
 #define MINI_PANIC(fmt, ...)                                                                                                                         \
     do                                                                                                                                               \
     {                                                                                                                                                \
-        mini_log_fatal(fmt, ##__VA_ARGS__);                                                                                                          \
+        mini_log_default_output("[FATAL ERROR] " fmt "\r\n", ##__VA_ARGS__);                                                                        \
         system_safety_hardware_shutdown("MINI_PANIC");                                                                                               \
         while (1)                                                                                                                                    \
         {                                                                                                                                            \
@@ -81,7 +81,7 @@ void system_safety_hardware_shutdown(const char* reason);
     {                                                                                                                                                \
         if (!(cond))                                                                                                                                 \
         {                                                                                                                                            \
-            mini_log_critical_assert(__FILE__, __LINE__, fmt, ##__VA_ARGS__);                                                                        \
+            mini_log_default_output("[1 FAILED] %s:%d: " fmt "\r\n", __FILE__, __LINE__, ##__VA_ARGS__);                                            \
             system_safety_hardware_shutdown("MINI_CRITICAL_ASSERT");                                                                                 \
             while (1)                                                                                                                                \
             {                                                                                                                                        \

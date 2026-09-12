@@ -60,7 +60,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_can_priv_pool_in
  * @param[in] cfg 配置结构指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_can_priv_parse_dts(struct device* pdev, struct hal_can_bus_config* cfg)
+static mt_err_t vfs_can_priv_parse_dts(struct device* pdev, struct hal_can_bus_config* cfg)
 {
     int can_base = 0, can_clk = 0;
     int tx_port = 0, tx_pin = 0, tx_clk = 0, tx_af = 0;
@@ -153,7 +153,7 @@ static int vfs_can_priv_parse_dts(struct device* pdev, struct hal_can_bus_config
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_can_priv_probe(struct device* pdev)
+static mt_err_t vfs_can_priv_probe(struct device* pdev)
 {
     struct vfs_can_priv* priv;
     int                  pool_idx;
@@ -184,7 +184,7 @@ static int vfs_can_priv_probe(struct device* pdev)
         goto err_bus;
     }
 
-    SYS_LOGI(k_host_tag, "probe OK: %s", device_get_name(pdev));
+    MT_LOG_INFO(k_host_tag, "probe OK: %s", device_get_name(pdev));
     return MINI_OK;
 
 err_bus:
@@ -199,7 +199,7 @@ err_pool:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_can_priv_remove(struct device* pdev)
+static mt_err_t vfs_can_priv_remove(struct device* pdev)
 {
     struct vfs_can_priv*  priv;
     struct dev_lifecycle* lc;
@@ -230,7 +230,7 @@ static int vfs_can_priv_remove(struct device* pdev)
     ret = can_bus_host_deinit(pdev);
     if (ret != MINI_OK)
     {
-        SYS_LOGE(k_host_tag, "host remove busy: %s (ret=%d)", device_get_name(pdev), ret);
+        MT_LOG_ERROR(k_host_tag, "host remove busy: %s (ret=%d)", device_get_name(pdev), ret);
         dev_lc_remove_finish(lc);
         return ret;
     }
@@ -269,7 +269,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void can_vfs_client_po
 /**
  * @brief CAN Client 打开: bus_open → can_hook_on_open (弱钩子, 无覆盖即透传)
  */
-static int can_vfs_open(struct device* pdev, void* arg)
+static mt_err_t can_vfs_open(struct device* pdev, void* arg)
 {
     struct dev_lifecycle* lc;
     int                   first;
@@ -315,7 +315,7 @@ static int can_vfs_open(struct device* pdev, void* arg)
 /**
  * @brief CAN Client 关闭: can_hook_on_close → bus_close (hook 失败只记账, 仍关硬件)
  */
-static int can_vfs_close(struct device* pdev)
+static mt_err_t can_vfs_close(struct device* pdev)
 {
     struct dev_lifecycle* lc;
     int                   last;
@@ -343,7 +343,7 @@ static int can_vfs_close(struct device* pdev)
 }
 
 /** RX 钩子: filter_match 拒绝 → AGAIN; 通过后 on_rx */
-static int can_vfs_apply_rx_hooks(struct device* pdev, struct can_frame* frame)
+static mt_err_t can_vfs_apply_rx_hooks(struct device* pdev, struct can_frame* frame)
 {
     int ret;
 
@@ -457,7 +457,7 @@ static int can_vfs_read(struct device* pdev, void* buffer, size_t len, uint32_t 
     return ret;
 }
 
-typedef int (*can_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
+typedef mt_err_t (*can_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
 
 struct can_ioctl_map
 {
@@ -472,7 +472,7 @@ struct can_ioctl_map
  * @param[in] timeout_ms 超时毫秒数
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-static int can_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t can_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct can_transfer_arg* ta = (struct can_transfer_arg*)arg;
     int                      ret;
@@ -498,7 +498,7 @@ static int can_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint
  * @param[in] timeout_ms 超时毫秒数 (未用)
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-static int can_cmd_set_filter(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t can_cmd_set_filter(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct can_filter_arg* fa = (struct can_filter_arg*)arg;
 
@@ -517,7 +517,7 @@ static int can_cmd_set_filter(struct device* pdev, void* arg, size_t arg_len, ui
  * @param[in] timeout_ms 超时毫秒数 (未用)
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-static int can_cmd_get_state(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t can_cmd_get_state(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct can_state_arg* sa = (struct can_state_arg*)arg;
 
@@ -537,7 +537,7 @@ static const struct can_ioctl_map s_can_ioctl_map[CAN_CMD_COUNT] = {
 /**
  * @brief CAN Client ioctl 派发入口
  */
-static int can_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t can_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct dev_lifecycle* lc;
     int32_t               offset;
@@ -577,7 +577,7 @@ static const struct file_operations can_vfs_fops = {
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int can_vfs_probe(struct device* pdev)
+static mt_err_t can_vfs_probe(struct device* pdev)
 {
     struct can_vfs_client* priv;
     struct can_bus_client* bus_cli;
@@ -609,7 +609,7 @@ static int can_vfs_probe(struct device* pdev)
         goto err_pool;
     }
 
-    SYS_LOGI(k_client_tag, "probe OK: %s", device_get_name(pdev));
+    MT_LOG_INFO(k_client_tag, "probe OK: %s", device_get_name(pdev));
     return MINI_OK;
 
 err_pool:
@@ -624,7 +624,7 @@ err_pool:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int can_vfs_remove(struct device* pdev)
+static mt_err_t can_vfs_remove(struct device* pdev)
 {
     struct can_vfs_client* priv;
     struct dev_lifecycle*  lc;

@@ -60,7 +60,7 @@ Key terms kept verbatim: `Device Tree (DTS/DTSI)`, `DRIVER_REGISTER`, `dtc-lite`
 
 | Document | English Title / Key Points | Priority | Links |
 | :--- | :--- | :---: | :--- |
-| `debug_monitor.md` | Logging (`SYS_LOG*`/`DRV_LOG*`), generated artifacts, `compile_commands.json`, clangd | P1 | [en](debug_monitor.md) |
+| `debug_monitor.md` | Logging (`MT_LOG_*`/`MT_DRV_LOG_*`), generated artifacts, `compile_commands.json`, clangd | P1 | [en](debug_monitor.md) |
 | `keil_integration.md` | Keil Studio supported / classic µVision not recommended | P2 (IDE) | [en](keil_integration.md) |
 | `design_decisions.md` | Design decisions still in force | P1 | [en](design_decisions.md) |
 | `references.md` | External references (ESP VFS / FreeRTOS / Linux / RTT / LVGL / Qt) | P2 | [en](references.md) |

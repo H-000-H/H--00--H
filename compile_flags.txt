@@ -1,11 +1,12 @@
 -std=gnu17
 -DCONFIG_OS_BARE=1
--DCONFIG_SYS_LOG_USE_PRINTF=1
+-DCONFIG_SYS_LOG_USE_MINI_LOG=1
 -DETL_NO_STL
 -I.
 -Iide/stubs
 -Ilib/etl/include
 -Icore/include
+-Imini-log/inc
 -Iboard/include
 -Iboard
 -Iboard/dt-bindings

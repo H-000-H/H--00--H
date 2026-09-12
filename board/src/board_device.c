@@ -19,7 +19,6 @@
 #include "event_bus.h"
 #include "hal_amp.h"
 #include "mini_backend.h"
-#include "mini_log.h"
 #include "safe_state.h"
 #include "status.h"
 #include <stdint.h>
@@ -78,7 +77,7 @@ static int device_status_can_transit(enum device_status from, enum device_status
  * @brief 初始化设备树运行时实例表 (device/lock/lifecycle)
  * @return 有设备返回 MINI_OK, 无设备返回 MINI_ERR_IO
  */
-int device_tree_init(void)
+mt_err_t device_tree_init(void)
 {
     for (int index = 0; index < DEV_ID_COUNT; index++)
     {
@@ -333,7 +332,7 @@ static int safe_parse_int32(const char* str, int* out)
  * @param[out] val 输出整型值
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_get_prop_int(const struct device* pdev, const char* key, int* val)
+mt_err_t device_get_prop_int(const struct device* pdev, const char* key, int* val)
 {
     if (!pdev || !pdev->node || !key || !val)
         return MINI_ERR_INVAL;
@@ -358,7 +357,7 @@ int device_get_prop_int(const struct device* pdev, const char* key, int* val)
  * @param[out] max_len 数组最大容量
  * @return 成功返回解析元素个数, 失败返回负数错误码
  */
-int device_get_prop_int_array(const struct device* pdev, const char* key, int* out_arr, int max_len)
+mt_err_t device_get_prop_int_array(const struct device* pdev, const char* key, int* out_arr, int max_len)
 {
     if (!pdev || !pdev->node || !key || !out_arr || max_len <= 0)
         return MINI_ERR_INVAL;
@@ -413,7 +412,7 @@ int device_get_prop_int_array(const struct device* pdev, const char* key, int* o
  * @param[out] val 输出字符串指针 (指向 node 内存储)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_get_prop_str(const struct device* pdev, const char* key, const char** val)
+mt_err_t device_get_prop_str(const struct device* pdev, const char* key, const char** val)
 {
     if (!pdev || !pdev->node || !key || !val)
         return MINI_ERR_INVAL;
@@ -436,7 +435,7 @@ int device_get_prop_str(const struct device* pdev, const char* key, const char**
  * @param[out] val 输出整型布尔值 (0/1)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_get_prop_bool(const struct device* pdev, const char* key, int* val) { return device_get_prop_int(pdev, key, val); }
+mt_err_t device_get_prop_bool(const struct device* pdev, const char* key, int* val) { return device_get_prop_int(pdev, key, val); }
 
 /**
  * @brief 获取设备 reg 描述符
@@ -445,7 +444,7 @@ int device_get_prop_bool(const struct device* pdev, const char* key, int* val) {
  * @param[out] out 输出 reg 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_get_reg(const struct device* pdev, int idx, const struct device_reg** out)
+mt_err_t device_get_reg(const struct device* pdev, int idx, const struct device_reg** out)
 {
     if (!pdev || !pdev->node || !out)
         return MINI_ERR_INVAL;
@@ -464,7 +463,7 @@ int device_get_reg(const struct device* pdev, int idx, const struct device_reg**
  * @param[out] out 输出 irq 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_get_irq(const struct device* pdev, int idx, const struct device_irq** out)
+mt_err_t device_get_irq(const struct device* pdev, int idx, const struct device_irq** out)
 {
     if (!pdev || !pdev->node || !out)
         return MINI_ERR_INVAL;
@@ -530,7 +529,7 @@ enum device_criticality device_get_criticality(const struct device* pdev)
  * @param[in] status 目标状态
  * @return 成功返回 MINI_OK, 非法迁移返回 MINI_ERR_INVAL
  */
-int device_set_status(struct device* pdev, enum device_status status)
+mt_err_t device_set_status(struct device* pdev, enum device_status status)
 {
     int ret = MINI_OK;
 
@@ -555,7 +554,7 @@ int device_set_status(struct device* pdev, enum device_status status)
  * @param[in] priv 私有数据指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int device_set_priv(struct device* pdev, void* priv)
+mt_err_t device_set_priv(struct device* pdev, void* priv)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -637,7 +636,7 @@ int device_get_count(void) { return board_dev_count(); }
  * @param[in] arg 传递给驱动 open/init 的参数
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_open(struct device* pdev, void* arg)
+mt_err_t device_open(struct device* pdev, void* arg)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -673,7 +672,7 @@ int device_open(struct device* pdev, void* arg)
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_close(struct device* pdev)
+mt_err_t device_close(struct device* pdev)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -706,7 +705,7 @@ int device_close(struct device* pdev)
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK 或驱动返回值, 失败返回负数错误码
  */
-int device_write(struct device* pdev, const void* buf, size_t len, uint32_t timeout_ms)
+mt_err_t device_write(struct device* pdev, const void* buf, size_t len, uint32_t timeout_ms)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -731,7 +730,7 @@ int device_write(struct device* pdev, const void* buf, size_t len, uint32_t time
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回已读字节数或 MINI_OK, 失败返回负数错误码
  */
-int device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms)
+mt_err_t device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -757,7 +756,7 @@ int device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms)
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK 或驱动返回值, 失败返回负数错误码
  */
-int device_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+mt_err_t device_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -779,7 +778,7 @@ int device_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_suspend(struct device* pdev)
+mt_err_t device_suspend(struct device* pdev)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -813,7 +812,7 @@ int device_suspend(struct device* pdev)
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_resume(struct device* pdev)
+mt_err_t device_resume(struct device* pdev)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -850,7 +849,7 @@ int device_resume(struct device* pdev)
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_BUSY 或 MINI_ERR_INVAL
  */
-int device_lock(struct device* pdev)
+mt_err_t device_lock(struct device* pdev)
 {
     if (!pdev)
         return MINI_ERR_INVAL;
@@ -864,7 +863,7 @@ int device_lock(struct device* pdev)
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_unlock(struct device* pdev)
+mt_err_t device_unlock(struct device* pdev)
 {
     if (!pdev || !pdev->lock)
         return MINI_ERR_INVAL;

@@ -52,7 +52,7 @@ typedef struct mini_slot
  * @param[in] slot_count 槽位数量
  * @return 成功返回 MINI_OK; 参数非法返回 MINI_ERR_INVAL
  */
-int mini_slot_init(mini_slot_t* pool, volatile uint8_t* used_slots, size_t slot_count) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_slot_init(mini_slot_t* pool, volatile uint8_t* used_slots, size_t slot_count) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 申请一个空闲槽位
@@ -67,7 +67,7 @@ int mini_slot_claim(mini_slot_t* pool) MINI_WARN_UNUSED_RESULT;
  * @param[in] slot_index 槽位下标
  * @return 成功返回 MINI_OK; 下标越界返回 MINI_ERR_INVAL
  */
-int mini_slot_release(mini_slot_t* pool, int slot_index) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_slot_release(mini_slot_t* pool, int slot_index) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 查询槽位是否被占用

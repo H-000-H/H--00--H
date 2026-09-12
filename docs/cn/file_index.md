@@ -72,7 +72,7 @@
 | `core/include/compiler_compat.h` | 可移植属性与 mem API |
 | `core/include/compiler_compat_poison.h` | poison 层 |
 | `core/include/event_bus.h` | 事件总线 |
-| `core/include/system_log.h` · `production_log.h` | 日志 |
+| `core/include/system_log.h` | 日志 |
 | `core/src/*.c` | 上述实现 |
 | `core/include/mini_backend.h` | 统一接口总头 |
 | `core/include/mini_backend.h` | 裸机后端辅助接口 + C++ 任务重载声明（`CONFIG_XTASK_PREEMPT`） |

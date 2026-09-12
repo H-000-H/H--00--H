@@ -6,7 +6,8 @@
  *@details
  *   @note        所有接口设计为平台无关，由具体芯片平台(如 STM32, ESP32, CH307)进行底层硬实现。
  *   @note        由于 GPIO 是快速热路径外设所以 GPIO 的初始化与配置应该尽量在硬件直投层完成
- *   @note        文件约定：返回值不允许void，必须使用int，并且错误码必须使用VFS.h中的错误码
+ *   @note        文件约定：返回值不允许void；错误码返回类型统一用 mt_err_t (定义见 status.h)，
+ *                仅"字节数/计数"这类非错误码返回值才用 int
  *   @note        获取参数不能直接返回，必须通过指针参数传递
  *   @note
  *禁止使用enum，enum的问题dts已经解决没必要在hal层重复定义去映射enum不直观而且麻烦还容易出错
@@ -76,7 +77,7 @@ typedef struct
  * @param[in] level 目标电平 (1=高, 0=低)
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_fast_set_level(hal_gpio_dev_t* pdev, int level);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_fast_set_level(hal_gpio_dev_t* pdev, int level);
 
 /**
  * @brief 快路径: 读取 GPIO 当前输入/输出引脚的实际电平状态
@@ -84,14 +85,14 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_fast_set_level(hal_gpio_dev_t* pdev, int le
  * @param[out] level_out 用于回传电平的指针 (1=高, 0=低)
  * @return 成功返回 MINI_OK, pdev 或 level_out 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_fast_get_level(hal_gpio_dev_t* pdev, int* level_out);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_fast_get_level(hal_gpio_dev_t* pdev, int* level_out);
 
 /**
  * @brief 快路径: 翻转 GPIO 输出电平
  * @param[in] pdev GPIO 对象指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_fast_toggle(hal_gpio_dev_t* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_fast_toggle(hal_gpio_dev_t* pdev);
 /* -------------------------------------------------------------------------- */
 
 /*HAL API (基于对象指针)*/
@@ -101,14 +102,14 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_fast_toggle(hal_gpio_dev_t* pdev);
  * @param[in] pdev GPIO 对象指针
  * @return 成功返回 MINI_OK, pdev 或内部配置为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_init(hal_gpio_dev_t* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_init(hal_gpio_dev_t* pdev);
 
 /**
  * @brief GPIO 释放
  * @param[in] pdev GPIO 对象指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_deinit(hal_gpio_dev_t* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_deinit(hal_gpio_dev_t* pdev);
 
 /**
  * @brief GPIO 设置模式
@@ -116,7 +117,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_deinit(hal_gpio_dev_t* pdev);
  * @param[in] mode 模式宏值 (如 LL_GPIO_MODE_OUTPUT)
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_mode(hal_gpio_dev_t* pdev, uint32_t mode);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_mode(hal_gpio_dev_t* pdev, uint32_t mode);
 
 /**
  * @brief GPIO 获取当前模式
@@ -124,7 +125,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_set_mode(hal_gpio_dev_t* pdev, uint32_t mod
  * @param[in] mode 用于回传当前模式宏值的指针
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_get_mode(hal_gpio_dev_t* pdev, uint32_t* mode);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_get_mode(hal_gpio_dev_t* pdev, uint32_t* mode);
 
 /**
  * @brief GPIO 设置上拉/下拉
@@ -132,7 +133,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_get_mode(hal_gpio_dev_t* pdev, uint32_t* mo
  * @param[in] pull 上拉/下拉宏值 (如 LL_GPIO_PULL_UP)
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_pull(hal_gpio_dev_t* pdev, uint32_t pull);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_pull(hal_gpio_dev_t* pdev, uint32_t pull);
 
 /**
  * @brief GPIO 获取当前上拉/下拉配置
@@ -140,7 +141,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_set_pull(hal_gpio_dev_t* pdev, uint32_t pul
  * @param[in] pull 用于回传上拉/下拉宏值的指针
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_get_pull(hal_gpio_dev_t* pdev, uint32_t* pull);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_get_pull(hal_gpio_dev_t* pdev, uint32_t* pull);
 
 /**
  * @brief GPIO 设置速度
@@ -148,7 +149,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_get_pull(hal_gpio_dev_t* pdev, uint32_t* pu
  * @param[in] speed 速度宏值 (如 LL_GPIO_SPEED_FREQ_HIGH)
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_speed(hal_gpio_dev_t* pdev, uint32_t speed);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_speed(hal_gpio_dev_t* pdev, uint32_t speed);
 
 /**
  * @brief GPIO 获取当前速度配置
@@ -156,7 +157,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_set_speed(hal_gpio_dev_t* pdev, uint32_t sp
  * @param[in] speed 用于回传速度宏值的指针
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_get_speed(hal_gpio_dev_t* pdev, uint32_t* speed);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_get_speed(hal_gpio_dev_t* pdev, uint32_t* speed);
 
 /**
  * @brief GPIO 设置输出类型
@@ -164,7 +165,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_get_speed(hal_gpio_dev_t* pdev, uint32_t* s
  * @param[out] output_type 输出类型宏值 (如 LL_GPIO_OUTPUT_PUSHPULL)
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_output_type(hal_gpio_dev_t* pdev, uint32_t output_type);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_output_type(hal_gpio_dev_t* pdev, uint32_t output_type);
 
 /**
  * @brief GPIO 获取当前输出类型配置
@@ -172,7 +173,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_set_output_type(hal_gpio_dev_t* pdev, uint3
  * @param[out] output_type 用于回传输出类型宏值的指针
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_get_output_type(hal_gpio_dev_t* pdev, uint32_t* output_type);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_get_output_type(hal_gpio_dev_t* pdev, uint32_t* output_type);
 
 /**
  * @brief GPIO 设置复用功能寄存器值(AFR)
@@ -180,7 +181,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_get_output_type(hal_gpio_dev_t* pdev, uint3
  * @param[in] af 复用功能宏值 (如 LL_GPIO_AF_1)
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_af(hal_gpio_dev_t* pdev, uint32_t af);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_af(hal_gpio_dev_t* pdev, uint32_t af);
 
 /**
  * @brief GPIO 获取当前引脚的复用功能寄存器值(AFR)
@@ -188,7 +189,7 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_set_af(hal_gpio_dev_t* pdev, uint32_t af);
  * @param[in] af 用于回传复用功能宏值的指针
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_get_af(hal_gpio_dev_t* pdev, uint32_t* af);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_get_af(hal_gpio_dev_t* pdev, uint32_t* af);
 
 /**
  * @brief GPIO 设置复用功能并自动将引脚切换为复用模式
@@ -196,18 +197,18 @@ int MINI_WARN_UNUSED_RESULT hal_gpio_get_af(hal_gpio_dev_t* pdev, uint32_t* af);
  * @param[in] af 复用功能宏值
  * @return 成功返回 MINI_OK
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_set_af_mode(hal_gpio_dev_t* pdev, uint32_t af);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_set_af_mode(hal_gpio_dev_t* pdev, uint32_t af);
 
 /**
  * @brief 使能硬件 GPIO 中断 → 仅 interrupt_virtual_dispatch(VIRQ(gpio, virq_idx))
  * @note  产品驱动用 interrupt_virtual_register 挂上下半部；禁止直挂业务 ISR
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_irq_enable(hal_gpio_dev_t* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_irq_enable(hal_gpio_dev_t* pdev);
 
 /**
  * @brief 关闭该脚硬件 GPIO 中断路由
  */
-int MINI_WARN_UNUSED_RESULT hal_gpio_irq_disable(hal_gpio_dev_t* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_gpio_irq_disable(hal_gpio_dev_t* pdev);
 /* -------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

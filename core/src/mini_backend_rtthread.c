@@ -83,7 +83,7 @@ struct mini_mutex
 
 _Static_assert(sizeof(struct mini_mutex) <= MINI_MUTEX_STORAGE_SIZE, "mini_backend_rtthread: MINI_MUTEX_STORAGE_SIZE too small");
 
-static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type, const char* name)
+static mt_err_t mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type, const char* name)
 {
     if (!mutex)
         return MINI_ERR_INVAL;
@@ -96,7 +96,7 @@ static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type, con
     return MINI_ERR_INVAL;
 }
 
-static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type, const char* name)
+static mt_err_t mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type, const char* name)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_mutex))
         return MINI_ERR_INVAL;
@@ -112,12 +112,12 @@ static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, siz
     return MINI_OK;
 }
 
-int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_PLAIN, "mini_mtx");
 }
 
-int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_RECURSIVE, "mini_rmtx");
 }
@@ -132,7 +132,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void mini_mutex_pool_boot
     MINI_IGNORE_RESULT(mini_slot_init(&s_mutex_pool_ctrl, s_mutex_used, MINI_MUTEX_POOL_SIZE));
 }
 
-int mini_mutex_create(mini_mutex_t** out)
+mt_err_t mini_mutex_create(mini_mutex_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -154,7 +154,7 @@ int mini_mutex_create(mini_mutex_t** out)
     return MINI_OK;
 }
 
-int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
+mt_err_t mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -168,7 +168,7 @@ int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
     return rt_sem_take(&mutex->u.sem, ticks) == RT_EOK ? MINI_OK : MINI_ERR_TIMEOUT;
 }
 
-int mini_mutex_unlock(mini_mutex_t* mtx)
+mt_err_t mini_mutex_unlock(mini_mutex_t* mtx)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -208,7 +208,7 @@ struct mini_sem
 
 _Static_assert(sizeof(struct mini_sem) <= MINI_SEM_STORAGE_SIZE, "mini_backend_rtthread: MINI_SEM_STORAGE_SIZE too small");
 
-static int mini_sem_init(struct mini_sem* sem)
+static mt_err_t mini_sem_init(struct mini_sem* sem)
 {
     if (rt_sem_init(&sem->sem, "mini_sem", 0, RT_IPC_FLAG_PRIO) != RT_EOK)
         return MINI_ERR_NOMEM;
@@ -217,7 +217,7 @@ static int mini_sem_init(struct mini_sem* sem)
     return MINI_OK;
 }
 
-int mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
+mt_err_t mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_sem))
         return MINI_ERR_INVAL;
@@ -240,7 +240,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_SEM_POOL) static void mini_sem_pool_boot(v
     MINI_IGNORE_RESULT(mini_slot_init(&s_sem_pool_ctrl, s_sem_used, MINI_SEM_POOL_SIZE));
 }
 
-int mini_sem_create_binary(mini_sem_t** out)
+mt_err_t mini_sem_create_binary(mini_sem_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -261,7 +261,7 @@ int mini_sem_create_binary(mini_sem_t** out)
     return MINI_OK;
 }
 
-int mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
+mt_err_t mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
 {
     if (!sem)
         return MINI_ERR_INVAL;
@@ -447,7 +447,7 @@ MINI_STATIC_INLINE rt_uint8_t mini_clamp_task_priority(uint32_t priority)
     return (rt_uint8_t)priority;
 }
 
-int mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
+mt_err_t mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
                             mini_task_handle_t* out_handle)
 {
     if (!out_handle || !entry)
@@ -518,7 +518,7 @@ uint32_t mini_task_get_stack_watermark(mini_task_handle_t task)
 /* -------------------------------------------------------------------------- */
 /* 调度器启动 / ISR 出口                                                       */
 /* -------------------------------------------------------------------------- */
-int mini_scheduler_start(void)
+mt_err_t mini_scheduler_start(void)
 {
     rt_system_scheduler_start();
     return MINI_OK; /* 正常情况下不返回 */
@@ -545,7 +545,7 @@ void* mini_calloc(size_t count, size_t size)
     return rt_calloc(count, size);
 }
 
-int mini_free(void* ptr)
+mt_err_t mini_free(void* ptr)
 {
     rt_free(ptr);
     return MINI_OK;

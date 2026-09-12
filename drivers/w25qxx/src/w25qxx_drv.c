@@ -61,9 +61,9 @@ static struct w25qxx_device* w25qxx_get_drvdata(struct device* pdev) { return (s
 
 /**
  * @brief SPI 全双工传输（AUTO 模式）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int w25qxx_spi_xfer(struct w25qxx_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t w25qxx_spi_xfer(struct w25qxx_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     struct spi_transfer_arg arg;
     if (!dev || !dev->spi_dev || len == 0U)
@@ -77,9 +77,9 @@ static int w25qxx_spi_xfer(struct w25qxx_device* dev, const uint8_t* tx, uint8_t
 
 /**
  * @brief 首次 open 时打开 SPI 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int w25qxx_hw_create(struct w25qxx_device* dev)
+static mt_err_t w25qxx_hw_create(struct w25qxx_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -168,7 +168,7 @@ static int w25qxx_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*w25qxx_ioctl_fn_t)(struct w25qxx_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*w25qxx_ioctl_fn_t)(struct w25qxx_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct w25qxx_ioctl_map
 {
     w25qxx_ioctl_fn_t handler;
@@ -177,7 +177,7 @@ struct w25qxx_ioctl_map
 /**
  * @brief W25QXX_CMD_READ_JEDEC_ID 实现：发 0x9F 读 3B 厂商 ID
  */
-static int w25qxx_cmd_jedec(struct w25qxx_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t w25qxx_cmd_jedec(struct w25qxx_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     uint8_t              tx[4] = {0x9F, 0, 0, 0}, rx[4] = {0};
     struct w25qxx_jedec* jedec = (struct w25qxx_jedec*)arg;
@@ -197,7 +197,7 @@ static const struct w25qxx_ioctl_map s_w25qxx_map[W25QXX_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int w25qxx_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t w25qxx_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct w25qxx_device* dev;
     struct dev_lifecycle* lc;
@@ -232,7 +232,7 @@ static const struct file_operations w25qxx_fops = {
 /**
  * @brief probe：claim 池项、绑定父 SPI 设备并挂 fops
  */
-static int w25qxx_probe(struct device* pdev)
+static mt_err_t w25qxx_probe(struct device* pdev)
 {
     struct w25qxx_device* dev;
     int                   pool_idx, ret;
@@ -257,7 +257,7 @@ static int w25qxx_probe(struct device* pdev)
     }
     dev->ops = w25qxx_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -269,7 +269,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int w25qxx_remove(struct device* pdev)
+static mt_err_t w25qxx_remove(struct device* pdev)
 {
     struct w25qxx_device* dev;
     struct dev_lifecycle* lc;

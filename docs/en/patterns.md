@@ -74,7 +74,7 @@ These APIs are all `extern "C"` (the system layer is pure C); C++ projects call 
 1. **`device_tree_init` must precede every device access**: the runtime instance tables (`device` / recursive mutex pool / `dev_lifecycle`) are static arrays, but each lock must be created via `mini_mutex_create_static_recursive`; nothing may touch `device_*` before that.
 2. **Stage 1 must disable global interrupts**: during probe, `device_open` genuinely enables peripheral interrupts (NVIC), while VIRQ tables / bottom-half work may not be fully registered yet. Interrupts stay off until every ISR dependency is ready; `system_init_complete()` releases them uniformly.
 3. **EventBus must exist first**: failed probe paths call `device_ops_unregister` → `event_bus_post(EVENT_SYS_DEVICE_REMOVED, ...)`; the event queue must already exist.
-4. **Probe is in stage 2, not stage 1**: probe opens devices, logs, and on failure triggers `MINI_PANIC` per criticality (needs `printf_output` and safe_state ready); those dependencies are only complete at the end of stage 1.
+4. **Probe is in stage 2, not stage 1**: probe opens devices, logs, and on failure triggers `MINI_PANIC` per criticality (needs mini-log and safe_state ready); those dependencies are only complete at the end of stage 1.
 5. **Interrupts enable before the scheduler starts**: on RTOS paths, interrupts are re-enabled before `vTaskStartScheduler` so that interrupts firing at scheduler startup have a task context to land in.
 
 ### Common Pitfalls

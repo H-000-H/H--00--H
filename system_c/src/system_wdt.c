@@ -26,7 +26,7 @@ static bool                s_iwdg_active = false;
  * @param[in] timeout_ms 超时
  * @return MINI_OK 成功; MINI_ERR_IO 硬件初始化/启动失败
  */
-int system_wdt_init_iwdg(uint32_t timeout_ms)
+mt_err_t system_wdt_init_iwdg(uint32_t timeout_ms)
 {
     struct hal_iwdg_config cfg;
 
@@ -42,7 +42,7 @@ int system_wdt_init_iwdg(uint32_t timeout_ms)
         return MINI_ERR_IO;
 
     s_iwdg_active = true;
-    SYS_LOGI(k_tag, "IWDG started, timeout=%ums", (unsigned)timeout_ms);
+    MT_LOG_INFO(k_tag, "IWDG started, timeout=%ums", (unsigned)timeout_ms);
     return MINI_OK;
 }
 
@@ -54,7 +54,7 @@ void system_wdt_iwdg_set_long_timeout(void)
     if (!s_iwdg_active)
         return;
     MINI_IGNORE_RESULT(hal_iwdg_set_long_timeout(&s_iwdg));
-    SYS_LOGI(k_tag, "IWDG extended to hardware max (~32768ms) for OTA");
+    MT_LOG_INFO(k_tag, "IWDG extended to hardware max (~32768ms) for OTA");
 }
 
 /**
@@ -65,7 +65,7 @@ void system_wdt_iwdg_restore_timeout(void)
     if (!s_iwdg_active)
         return;
     MINI_IGNORE_RESULT(hal_iwdg_restore_timeout(&s_iwdg));
-    SYS_LOGI(k_tag, "IWDG restored to %ums", (unsigned)s_iwdg.normal_timeout_ms);
+    MT_LOG_INFO(k_tag, "IWDG restored to %ums", (unsigned)s_iwdg.normal_timeout_ms);
 }
 
 /**
@@ -92,13 +92,13 @@ static size_t                     s_stack_entry_count = 0;
  * @param[in] alarm_threshold_bytes 阈值
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_NOSPC 表满
  */
-int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes)
+mt_err_t system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes)
 {
     if (task == NULL || alarm_threshold_bytes == 0)
         return MINI_ERR_INVAL;
     if (s_stack_entry_count >= BOARD_STACK_MONITOR_MAX_TASKS)
     {
-        SYS_LOGE(k_tag, "stack monitor: max entries (%d) reached", BOARD_STACK_MONITOR_MAX_TASKS);
+        MT_LOG_ERROR(k_tag, "stack monitor: max entries (%d) reached", BOARD_STACK_MONITOR_MAX_TASKS);
         return MINI_ERR_NOSPC;
     }
 
@@ -123,15 +123,15 @@ void system_wdt_stack_check_all(void)
 
         if (wm_bytes == 0)
         {
-            SYS_LOGE(k_tag, "FAIL: task '%s' stack overflowed (wm=0)!", mini_task_get_name(entry->task));
+            MT_LOG_ERROR(k_tag, "FAIL: task '%s' stack overflowed (wm=0)!", mini_task_get_name(entry->task));
             continue;
         }
 
         if (wm_bytes < entry->alarm_threshold_bytes)
-            SYS_LOGE(k_tag, "STACK CRITICAL: '%s' watermark %u bytes < alarm %u", mini_task_get_name(entry->task), (unsigned)wm_bytes,
+            MT_LOG_ERROR(k_tag, "STACK CRITICAL: '%s' watermark %u bytes < alarm %u", mini_task_get_name(entry->task), (unsigned)wm_bytes,
                      (unsigned)entry->alarm_threshold_bytes);
         else if (wm_bytes < entry->alarm_threshold_bytes * 2)
-            SYS_LOGW(k_tag, "STACK WARN: '%s' watermark %u bytes (alarm=%u)", mini_task_get_name(entry->task), (unsigned)wm_bytes,
+            MT_LOG_WARN(k_tag, "STACK WARN: '%s' watermark %u bytes (alarm=%u)", mini_task_get_name(entry->task), (unsigned)wm_bytes,
                      (unsigned)entry->alarm_threshold_bytes);
     }
 }
@@ -141,13 +141,13 @@ void system_wdt_stack_check_all(void)
  * @param[in] timeout_ms 忽略
  * @return MINI_OK 成功
  */
-int system_wdt_init(uint32_t timeout_ms)
+mt_err_t system_wdt_init(uint32_t timeout_ms)
 {
     (void)timeout_ms;
     if (s_initialized)
         return MINI_OK;
     s_initialized = true;
-    SYS_LOGI(k_tag, "TWDT placeholder started");
+    MT_LOG_INFO(k_tag, "TWDT placeholder started");
     return MINI_OK;
 }
 
@@ -156,7 +156,7 @@ int system_wdt_init(uint32_t timeout_ms)
  * @param[in] task 任务
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_AGAIN 未初始化
  */
-int system_wdt_subscribe(mini_task_handle_t task)
+mt_err_t system_wdt_subscribe(mini_task_handle_t task)
 {
     if (task == NULL)
         return MINI_ERR_INVAL;
@@ -170,7 +170,7 @@ int system_wdt_subscribe(mini_task_handle_t task)
  * @param[in] task 任务
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_AGAIN 未初始化
  */
-int system_wdt_unsubscribe(mini_task_handle_t task)
+mt_err_t system_wdt_unsubscribe(mini_task_handle_t task)
 {
     if (task == NULL)
         return MINI_ERR_INVAL;

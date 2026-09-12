@@ -79,7 +79,6 @@ The bare-metal backend (`CONFIG_OS_BARE`) picks one scheduler from the `Kconfig.
 - **VIRQ** — 虚拟中断块，上半部 / 下半部（SPSC 延迟队列）。/ Virtual IRQ blocks, top-half / bottom-half (SPSC deferred queue).
 - **Buffer（fifo_spsc / double_buffer）** — 无锁 SPSC 环形 FIFO 与双缓冲。/ Lock-free SPSC ring FIFO & double buffer.
 - **Safe State** — 关机回调、看门狗、Flash 校验器（可选积木）。/ Shutdown callbacks, watchdogs, flash scrubber (optional brick).
-- **Production Log** — 黑匣子故障记录，用于现场诊断。/ Black-box fault recording for field diagnostics.
 
 ---
 
@@ -100,8 +99,8 @@ The bare-metal backend (`CONFIG_OS_BARE`) picks one scheduler from the `Kconfig.
 > **FetchContent（按需拉取）/ (on demand)：**
 > TinyUSB · lwIP · cJSON · LVGL · u8g2 · littlefs · FatFs · SFUD · Mbed TLS · coreMQTT · coreHTTP · nanopb · miniz · MCUBoot · FreeModbus · libmodbus · CMSIS-DSP · MultiButton · EasyFlash · EasyLogger · FlashDB
 
-> **内置于 `lib/` / Vendored in `lib/`：**
-> **mini-os**（自研最小 RTOS 内核 / in-tree minimal RTOS kernel）· FreeRTOS · RT-Thread · **ETL**（无堆 C++ 容器，始终链接 / heap-free C++ containers, always linked）
+> **内置于仓内 / Vendored in-tree：**
+> **mini-os**（`lib/mini-os`，自研最小 RTOS 内核 / in-tree minimal RTOS kernel）· FreeRTOS（`lib/freeRTOS`）· RT-Thread（`lib/rtthread`）· **ETL**（`lib/etl`，无堆 C++ 容器，始终链接 / heap-free C++ containers, always linked）· **mini-log**（`mini-log/`，SPSC 环形缓冲 + 可选 flash 落盘的日志引擎 / SPSC ring-buffer logging engine with an optional flash sink）
 
 ---
 

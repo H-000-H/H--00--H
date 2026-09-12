@@ -31,7 +31,7 @@ extern "C"
  * @param[in] len 读取长度
  * @return MINI_OK 成功; MINI_ERR_INVAL 地址越界; weak stub 返回 MINI_ERR_NOTSUPP
  */
-int hal_flash_read(uint32_t addr, uint8_t* buf, size_t len);
+mt_err_t hal_flash_read(uint32_t addr, uint8_t* buf, size_t len);
 /* -------------------------------------------------------------------------- */
 
 /*应用程序地址与大小*/

@@ -19,7 +19,7 @@
 
 ### `SYS_LOG backend not configured`
 
-`config.h` (or `ide/stubs/config.h`) must define `CONFIG_SYS_LOG_USE_PRINTF` or another log backend.
+`config.h` (or `ide/stubs/config.h`) must define `CONFIG_SYS_LOG_USE_MINI_LOG` or `CONFIG_SYS_LOG_USE_ESP`.
 
 ### `device_id_t` / `DEV_ID_COUNT` Unknown
 

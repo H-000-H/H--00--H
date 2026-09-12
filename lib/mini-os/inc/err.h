@@ -9,8 +9,10 @@
 /**
  * @brief Error codes if config.h and compiler_compat.h are available using status.h otherwise using
  * self defined error codes
- * @note numbers are negative to distinguish from success codes and self error codes different from
- * status.h
+ * @note numbers are negative to distinguish from success codes.
+ *       Both branches are numerically identical: status.h owns the numbering
+ *       (MINI_ERR_INVAL=-1 .. MINI_ERR_STATE=-13) and the fallback list below repeats the
+ *       exact same values, so MINI_OS_ERR_* <-> MINI_ERR_* needs no conversion at all.
  */
 #include "redef.h"
 // clang-format off
@@ -29,6 +31,7 @@
 #define MINI_OS_ERR_DEFER MINI_ERR_DEFER       /**<dependency not ready, retry later */
 #define MINI_OS_ERR_NODEV MINI_ERR_NODEV       /**<device removed or not exist */
 #define MINI_OS_ERR_NOTSUPP MINI_ERR_NOTSUPP   /**<operation not supported/implemented */
+#define MINI_OS_ERR_STATE MINI_ERR_STATE       /**<invalid state transition */
 #else
 #define MINI_OS_OK 0
 #define MINI_OS_ERR_INVAL -1                    /**<invalid parameter */

@@ -61,9 +61,9 @@ static struct pcf8574_device* pcf8574_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int pcf8574_i2c_wr(struct pcf8574_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t pcf8574_i2c_wr(struct pcf8574_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -71,9 +71,9 @@ static int pcf8574_i2c_wr(struct pcf8574_device* dev, const uint8_t* tx, size_t 
 }
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int pcf8574_i2c_rd(struct pcf8574_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t pcf8574_i2c_rd(struct pcf8574_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -82,9 +82,9 @@ static int pcf8574_i2c_rd(struct pcf8574_device* dev, uint8_t* rx, size_t len, u
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int pcf8574_hw_create(struct pcf8574_device* dev)
+static mt_err_t pcf8574_hw_create(struct pcf8574_device* dev)
 {
     int ret;
     if (!dev)
@@ -174,7 +174,7 @@ static int pcf8574_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*pcf8574_ioctl_fn_t)(struct pcf8574_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*pcf8574_ioctl_fn_t)(struct pcf8574_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct pcf8574_ioctl_map
 {
     pcf8574_ioctl_fn_t handler;
@@ -183,7 +183,7 @@ struct pcf8574_ioctl_map
 /**
  * @brief PCF8574_CMD_WRITE 实现：写 8bit 输出口
  */
-static int pcf8574_cmd_write(struct pcf8574_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t pcf8574_cmd_write(struct pcf8574_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     uint8_t val;
     if (!dev->hw_ready || !arg || len != sizeof(uint8_t))
@@ -194,7 +194,7 @@ static int pcf8574_cmd_write(struct pcf8574_device* dev, void* arg, size_t len, 
 /**
  * @brief PCF8574_CMD_READ 实现：读 8bit 输入口
  */
-static int pcf8574_cmd_read(struct pcf8574_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t pcf8574_cmd_read(struct pcf8574_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     if (!dev->hw_ready || !arg || len != sizeof(uint8_t))
         return MINI_ERR_INVAL;
@@ -209,7 +209,7 @@ static const struct pcf8574_ioctl_map s_pcf8574_map[PCF8574_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int pcf8574_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t pcf8574_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct pcf8574_device* dev;
     struct dev_lifecycle*  lc;
@@ -244,7 +244,7 @@ static const struct file_operations pcf8574_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int pcf8574_probe(struct device* pdev)
+static mt_err_t pcf8574_probe(struct device* pdev)
 {
     struct pcf8574_device* dev;
     int                    pool_idx, ret;
@@ -269,7 +269,7 @@ static int pcf8574_probe(struct device* pdev)
     }
     dev->ops = pcf8574_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -281,7 +281,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int pcf8574_remove(struct device* pdev)
+static mt_err_t pcf8574_remove(struct device* pdev)
 {
     struct pcf8574_device* dev;
     struct dev_lifecycle*  lc;

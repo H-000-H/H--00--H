@@ -43,7 +43,7 @@ void hal_cpu_baremetal_entry(void);
  * @brief 获取当前核心 ID
  * @return 核心编号 (0=主核, 1=从核)
  */
-int hal_cpu_get_id(void);
+mt_err_t hal_cpu_get_id(void);
 /* -------------------------------------------------------------------------- */
 
 /*ISR 检测 inline*/

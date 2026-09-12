@@ -80,7 +80,7 @@ static int rs485_de(struct rs485_modbus_device* dev, int tx)
  * @param[out] rx  接收缓冲（NULL 则不接收）
  * @param[out] rx_len 期望接收长度
  * @param[in] timeout_ms  超时 ms
- * @return 实际接收字节数（>=0），或 VFS_ERR_*
+ * @return 实际接收字节数（>=0），或 MINI_ERR_*
  */
 static int rs485_modbus_uart_xchg(struct rs485_modbus_device* dev, const uint8_t* tx, size_t tx_len, uint8_t* rx, size_t rx_len, uint32_t timeout_ms)
 {
@@ -115,9 +115,9 @@ static uint16_t rs485_modbus_crc(const uint8_t* data, size_t count)
 
 /**
  * @brief 首次 open 时打开 UART 与方向控制 GPIO 并绑定参数
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int rs485_modbus_hw_create(struct rs485_modbus_device* dev)
+static mt_err_t rs485_modbus_hw_create(struct rs485_modbus_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -216,7 +216,7 @@ static int rs485_modbus_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*rs485_modbus_ioctl_fn_t)(struct rs485_modbus_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*rs485_modbus_ioctl_fn_t)(struct rs485_modbus_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct rs485_modbus_ioctl_map
 {
     rs485_modbus_ioctl_fn_t handler;
@@ -225,7 +225,7 @@ struct rs485_modbus_ioctl_map
 /**
  * @brief RS485_MODBUS_CMD_READ_HOLDING 实现：03 功能码读保持寄存器并回填
  */
-static int rs485_modbus_cmd_read(struct rs485_modbus_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t rs485_modbus_cmd_read(struct rs485_modbus_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct modbus_read* rd = (struct modbus_read*)arg;
     uint8_t             req[8];
@@ -255,7 +255,7 @@ static int rs485_modbus_cmd_read(struct rs485_modbus_device* dev, void* arg, siz
 /**
  * @brief RS485_MODBUS_CMD_WRITE_SINGLE 实现：06 功能码写单寄存器
  */
-static int rs485_modbus_cmd_write(struct rs485_modbus_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t rs485_modbus_cmd_write(struct rs485_modbus_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct modbus_write* wr = (struct modbus_write*)arg;
     uint8_t              req[8];
@@ -285,7 +285,7 @@ static const struct rs485_modbus_ioctl_map s_rs485_modbus_map[RS485_MODBUS_CMD_C
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int rs485_modbus_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t rs485_modbus_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct rs485_modbus_device* dev;
     struct dev_lifecycle*       lc;
@@ -320,7 +320,7 @@ static const struct file_operations rs485_modbus_fops = {
 /**
  * @brief probe：claim 池项、绑定父 UART 设备与 DE 引脚并挂 fops
  */
-static int rs485_modbus_probe(struct device* pdev)
+static mt_err_t rs485_modbus_probe(struct device* pdev)
 {
     struct rs485_modbus_device* dev;
     int                         pool_idx, ret;
@@ -351,7 +351,7 @@ static int rs485_modbus_probe(struct device* pdev)
     }
     dev->ops = rs485_modbus_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -363,7 +363,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int rs485_modbus_remove(struct device* pdev)
+static mt_err_t rs485_modbus_remove(struct device* pdev)
 {
     struct rs485_modbus_device* dev;
     struct dev_lifecycle*       lc;

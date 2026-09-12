@@ -23,13 +23,13 @@
 
 | API | Header | Notes |
 | :--- | :--- | :--- |
-| `SYS_LOGI/W/E` | `system_log.h` | System level; backend selected by Kconfig |
-| `DRV_LOG*` | same (via production_log) | Driver path; watch the pool and performance |
+| `MT_LOG_ERROR/WARN/INFO` | `system_log.h` | System level; backend selected by Kconfig |
+| `MT_DRV_LOG_*` | same | Driver path; watch the pool and performance |
 
 Backends:
 
-- `CONFIG_SYS_LOG_USE_PRINTF`
-- `CONFIG_SYS_LOG_USE_PRINTF`
+- `CONFIG_SYS_LOG_USE_MINI_LOG` (bundled mini-log library, default; SPSC ring buffer + optional flash sink)
+- `CONFIG_SYS_LOG_USE_ESP` (ESP-IDF esp_log)
 - (Optional) ESP paths compile only under their macros
 
 Do not spam INFO on hot paths; see [fast_path.md](fast_path.md).

@@ -62,9 +62,9 @@ static struct at24c02_device* at24c02_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int at24c02_i2c_wr(struct at24c02_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t at24c02_i2c_wr(struct at24c02_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -73,9 +73,9 @@ static int at24c02_i2c_wr(struct at24c02_device* dev, const uint8_t* tx, size_t 
 
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int at24c02_i2c_rd(struct at24c02_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t at24c02_i2c_rd(struct at24c02_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -84,9 +84,9 @@ static int at24c02_i2c_rd(struct at24c02_device* dev, uint8_t* rx, size_t len, u
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int at24c02_hw_create(struct at24c02_device* dev)
+static mt_err_t at24c02_hw_create(struct at24c02_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -175,7 +175,7 @@ static int at24c02_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*at24c02_ioctl_fn_t)(struct at24c02_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*at24c02_ioctl_fn_t)(struct at24c02_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct at24c02_ioctl_map
 {
     at24c02_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct at24c02_ioctl_map
 /**
  * @brief AT24C02_CMD_READ 实现：设地址后连续读
  */
-static int at24c02_cmd_read(struct at24c02_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t at24c02_cmd_read(struct at24c02_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct at24c02_io_arg* io = (struct at24c02_io_arg*)arg;
     uint8_t                addr;
@@ -200,7 +200,7 @@ static int at24c02_cmd_read(struct at24c02_device* dev, void* arg, size_t len, u
 /**
  * @brief AT24C02_CMD_WRITE 实现：按 16B 页分块写（含写周期延时）
  */
-static int at24c02_cmd_write(struct at24c02_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t at24c02_cmd_write(struct at24c02_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct at24c02_io_arg* io = (struct at24c02_io_arg*)arg;
     uint8_t                page_buf[17];
@@ -231,7 +231,7 @@ static const struct at24c02_ioctl_map s_at24c02_map[AT24C02_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int at24c02_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t at24c02_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct at24c02_device* dev;
     struct dev_lifecycle*  lc;
@@ -266,7 +266,7 @@ static const struct file_operations at24c02_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int at24c02_probe(struct device* pdev)
+static mt_err_t at24c02_probe(struct device* pdev)
 {
     struct at24c02_device* dev;
     int                    pool_idx, ret;
@@ -291,7 +291,7 @@ static int at24c02_probe(struct device* pdev)
     }
     dev->ops = at24c02_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -303,7 +303,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int at24c02_remove(struct device* pdev)
+static mt_err_t at24c02_remove(struct device* pdev)
 {
     struct at24c02_device* dev;
     struct dev_lifecycle*  lc;

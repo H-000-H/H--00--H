@@ -61,9 +61,9 @@ static struct max7219_device* max7219_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief SPI 全双工传输（AUTO 模式）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int max7219_spi_xfer(struct max7219_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t max7219_spi_xfer(struct max7219_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     struct spi_transfer_arg arg;
     if (!dev || !dev->spi_dev || len == 0U)
@@ -77,9 +77,9 @@ static int max7219_spi_xfer(struct max7219_device* dev, const uint8_t* tx, uint8
 
 /**
  * @brief 首次 open 时打开 SPI 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int max7219_hw_create(struct max7219_device* dev)
+static mt_err_t max7219_hw_create(struct max7219_device* dev)
 {
     int ret;
     if (!dev)
@@ -169,7 +169,7 @@ static int max7219_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*max7219_ioctl_fn_t)(struct max7219_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*max7219_ioctl_fn_t)(struct max7219_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct max7219_ioctl_map
 {
     max7219_ioctl_fn_t handler;
@@ -186,7 +186,7 @@ static int max7219_wr(struct max7219_device* dev, uint8_t addr, uint8_t data, ui
 /**
  * @brief MAX7219_CMD_INIT 实现：退出关断 + 全扫描 + 亮度/解码/测试配置
  */
-static int max7219_cmd_init(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t max7219_cmd_init(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     int ret;
     MINI_IGNORE_RESULT(arg);
@@ -210,7 +210,7 @@ static int max7219_cmd_init(struct max7219_device* dev, void* arg, size_t len, u
 /**
  * @brief MAX7219_CMD_SET_DIGIT 实现：写单个位
  */
-static int max7219_cmd_digit(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t max7219_cmd_digit(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct max7219_digit* digit_arg = (struct max7219_digit*)arg;
     if (!dev->hw_ready || !digit_arg || len != sizeof(*digit_arg) || digit_arg->digit < MAX7219_REG_DIGIT0 || digit_arg->digit > MAX7219_REG_DIGIT7)
@@ -220,7 +220,7 @@ static int max7219_cmd_digit(struct max7219_device* dev, void* arg, size_t len, 
 /**
  * @brief MAX7219_CMD_CLEAR 实现：全部位清零
  */
-static int max7219_cmd_clear(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t max7219_cmd_clear(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     int index;
     MINI_IGNORE_RESULT(arg);
@@ -238,7 +238,7 @@ static int max7219_cmd_clear(struct max7219_device* dev, void* arg, size_t len, 
 /**
  * @brief MAX7219_CMD_FLUSH_FB 实现：整帧逐位写入
  */
-static int max7219_cmd_flush_fb(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t max7219_cmd_flush_fb(struct max7219_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct max7219_fb* fb_arg = (struct max7219_fb*)arg;
     int                index;
@@ -263,7 +263,7 @@ static const struct max7219_ioctl_map s_max7219_map[MAX7219_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int max7219_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t max7219_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct max7219_device* dev;
     struct dev_lifecycle*  lc;
@@ -298,7 +298,7 @@ static const struct file_operations max7219_fops = {
 /**
  * @brief probe：claim 池项、绑定父 SPI 设备并挂 fops
  */
-static int max7219_probe(struct device* pdev)
+static mt_err_t max7219_probe(struct device* pdev)
 {
     struct max7219_device* dev;
     int                    pool_idx, ret;
@@ -323,7 +323,7 @@ static int max7219_probe(struct device* pdev)
     }
     dev->ops = max7219_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -335,7 +335,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int max7219_remove(struct device* pdev)
+static mt_err_t max7219_remove(struct device* pdev)
 {
     struct max7219_device* dev;
     struct dev_lifecycle*  lc;

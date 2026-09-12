@@ -89,7 +89,7 @@ Recommended at the `app` layer; mandatory below `app`.
 
 ## 6. Logging
 
-- `SYS_LOGI/W/E` system level; `DRV_LOG*` driver level (see [debug_monitor.md](debug_monitor.md))
+- `MT_LOG_ERROR/WARN/INFO` system level; `MT_DRV_LOG_*` driver level (see [debug_monitor.md](debug_monitor.md))
 - Hot paths only `LOGD`/`LOGV`; don't spam INFO
 - Don't stuff logs in as debug breakpoints
 
@@ -109,7 +109,7 @@ Commonly poisoned APIs and their replacements:
 | Poisoned API | Replacement |
 | :--- | :--- |
 | `malloc` / `free` / `calloc` / `realloc` | static pool / `mini_slot` / `kalloc` |
-| `printf` / `fprintf` / `sprintf` | `SYS_LOG*` |
+| `printf` / `fprintf` / `sprintf` | `MT_LOG_*` |
 | bare `memcpy` / `memset` / `memmove` | `safe_mem*` or explicit length checks |
 | `strcpy` / `strcat` / `strdup` / `strndup` | `safe_str*` |
 | file IO: `fopen` / `fclose` / `fread` / `fwrite` / `fseek` / `tmpfile` / `popen` / `gets` … | use middleware/board-provided IO |

@@ -86,9 +86,9 @@ static struct bme280_device* bme280_get_drvdata(struct device* pdev) { return (s
  * @param[in] tx 发送缓冲
  * @param[in] len 发送长度
  * @param[in] timeout_ms 超时（ms）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bme280_i2c_wr(struct bme280_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t bme280_i2c_wr(struct bme280_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -101,9 +101,9 @@ static int bme280_i2c_wr(struct bme280_device* dev, const uint8_t* tx, size_t le
  * @param[out] rx 接收缓冲
  * @param[in] len 接收长度
  * @param[in] timeout_ms 超时（ms）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bme280_i2c_rd(struct bme280_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t bme280_i2c_rd(struct bme280_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -113,9 +113,9 @@ static int bme280_i2c_rd(struct bme280_device* dev, uint8_t* rx, size_t len, uin
 /**
  * @brief 读连续寄存器（先写起始地址，再读）
  * @param[in] start 起始寄存器地址
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bme280_read_regs(struct bme280_device* dev, uint8_t start, uint8_t* buf, size_t len, uint32_t timeout_ms)
+static mt_err_t bme280_read_regs(struct bme280_device* dev, uint8_t start, uint8_t* buf, size_t len, uint32_t timeout_ms)
 {
     int ret = bme280_i2c_wr(dev, &start, 1, timeout_ms);
     if (ret != MINI_OK)
@@ -125,9 +125,9 @@ static int bme280_read_regs(struct bme280_device* dev, uint8_t start, uint8_t* b
 
 /**
  * @brief 加载全部校准系数（T/P/H）并校验可用
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bme280_load_calib(struct bme280_device* dev, uint32_t timeout_ms)
+static mt_err_t bme280_load_calib(struct bme280_device* dev, uint32_t timeout_ms)
 {
     uint8_t calib_raw[24];
     uint8_t hum_raw[7];
@@ -220,9 +220,9 @@ static uint32_t bme280_compensate_h(struct bme280_device* dev, int32_t adc_h)
 
 /**
  * @brief 首次 open 时初始化硬件：软复位 + 加载校准 + 配置采样
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bme280_hw_create(struct bme280_device* dev)
+static mt_err_t bme280_hw_create(struct bme280_device* dev)
 {
     const uint8_t soft_rst[2] = {BME280_REG_SOFT_RESET, BME280_SOFT_RESET_VAL};
     const uint8_t ctrl_hum[2] = {BME280_REG_CTRL_HUM, BME280_CTRL_HUM_OSRS1};
@@ -329,7 +329,7 @@ static int bme280_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令参数由 map 绑定）
  */
-typedef int (*bme280_ioctl_fn_t)(struct bme280_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*bme280_ioctl_fn_t)(struct bme280_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct bme280_ioctl_map
 {
     bme280_ioctl_fn_t handler;
@@ -338,7 +338,7 @@ struct bme280_ioctl_map
 /**
  * @brief BME280_CMD_READ_ENV 实现：触发强制采样并读取 T/P/H
  */
-static int bme280_cmd_env(struct bme280_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t bme280_cmd_env(struct bme280_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t      ctrl_hum[2] = {BME280_REG_CTRL_HUM, BME280_CTRL_HUM_OSRS1};
     const uint8_t      ctrl_meas[2] = {BME280_REG_CTRL_MEAS, BME280_CTRL_FORCED_X1};
@@ -377,7 +377,7 @@ static const struct bme280_ioctl_map s_bme280_map[BME280_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int bme280_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t bme280_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct bme280_device* dev;
     struct dev_lifecycle* lc;
@@ -412,7 +412,7 @@ static const struct file_operations bme280_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int bme280_probe(struct device* pdev)
+static mt_err_t bme280_probe(struct device* pdev)
 {
     struct bme280_device* dev;
     int                   pool_idx, ret;
@@ -437,7 +437,7 @@ static int bme280_probe(struct device* pdev)
     }
     dev->ops = bme280_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -449,7 +449,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int bme280_remove(struct device* pdev)
+static mt_err_t bme280_remove(struct device* pdev)
 {
     struct bme280_device* dev;
     struct dev_lifecycle* lc;

@@ -72,7 +72,7 @@ Also: `hal/amp`, `hal/storage`, `hal/system`, `hal/hal_if_dummy.c` (HAL weak emp
 | `core/include/compiler_compat.h` | portable attributes & mem API |
 | `core/include/compiler_compat_poison.h` | poison layer |
 | `core/include/event_bus.h` | event bus |
-| `core/include/system_log.h` · `production_log.h` | logging |
+| `core/include/system_log.h` | logging |
 | `core/src/*.c` | implementations above |
 | `core/include/mini_backend.h` | the unified interface master header |
 | `core/include/mini_backend.h` | bare-metal helper header + C++ task overload declaration |

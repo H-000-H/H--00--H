@@ -106,7 +106,7 @@ void hal_systick_irq_handler(void) { x_scheduler_tick(&g_scheduler, (unsigned in
  * @param[in] irq_num 号
  * @return MINI_IRQ_ENTRY_NOBOTTOM
  */
-int scheduler_tim_isr_top(void* context, uint16_t irq_num)
+mt_err_t scheduler_tim_isr_top(void* context, uint16_t irq_num)
 {
     MINI_IGNORE_RESULT(irq_num);
     struct x_coop_priv* priv = (struct x_coop_priv*)context;
@@ -153,7 +153,7 @@ x_task_handle_t xscheduler_task_create(x_task* task, const char* name, void (*cb
  * @param[in] ms 毫秒
  * @return MINI_OK
  */
-int x_scheduler_tick(x_scheduler* sched, unsigned int ms)
+mt_err_t x_scheduler_tick(x_scheduler* sched, unsigned int ms)
 {
     if (!sched)
         return MINI_ERR_INVAL;
@@ -166,7 +166,7 @@ int x_scheduler_tick(x_scheduler* sched, unsigned int ms)
  * @param[in] sched 调度器
  * @return MINI_OK
  */
-int x_task_run(x_scheduler* sched)
+mt_err_t x_task_run(x_scheduler* sched)
 {
     if (!sched)
         return MINI_ERR_INVAL;

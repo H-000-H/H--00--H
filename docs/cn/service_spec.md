@@ -30,7 +30,7 @@
 | `mini_backend.h` | 任务、锁、队列、延时、日志级别配合 |
 | `event_bus.h` | 发布订阅 |
 | `algorithm/buffer` | 缓冲 |
-| `system_log.h` | `SYS_LOGI/W/E` |
+| `system_log.h` | `MT_LOG_ERROR/WARN/INFO` |
 | 业务自身头 | — |
 
 ---

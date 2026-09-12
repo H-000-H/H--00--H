@@ -62,9 +62,9 @@ static struct sg90_device* sg90_get_drvdata(struct device* pdev) { return (struc
 
 /**
  * @brief 首次 open 时打开 TIM 并下发初始 PWM
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sg90_hw_create(struct sg90_device* dev)
+static mt_err_t sg90_hw_create(struct sg90_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -153,7 +153,7 @@ static int sg90_close(struct device* pdev)
     return MINI_OK;
 }
 
-typedef int (*sg90_ioctl_fn_t)(struct sg90_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*sg90_ioctl_fn_t)(struct sg90_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct sg90_ioctl_map
 {
     sg90_ioctl_fn_t handler;
@@ -162,7 +162,7 @@ struct sg90_ioctl_map
 /**
  * @brief SG90_CMD_SET_ANGLE 实现：角度映射占空比并经 TIM 快路径下发
  */
-static int sg90_cmd_angle(struct sg90_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t sg90_cmd_angle(struct sg90_device* dev, void* arg, size_t len, uint32_t ms)
 {
     int deg;
     MINI_IGNORE_RESULT(ms);
@@ -185,7 +185,7 @@ static const struct sg90_ioctl_map s_sg90_map[SG90_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int sg90_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t sg90_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct sg90_device*   dev;
     struct dev_lifecycle* lc;
@@ -220,7 +220,7 @@ static const struct file_operations sg90_fops = {
 /**
  * @brief probe：claim 池项、绑定父 TIM 设备并挂 fops
  */
-static int sg90_probe(struct device* pdev)
+static mt_err_t sg90_probe(struct device* pdev)
 {
     struct sg90_device* dev;
     int                 pool_idx, ret;
@@ -252,7 +252,7 @@ static int sg90_probe(struct device* pdev)
     }
     dev->ops = sg90_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -264,7 +264,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int sg90_remove(struct device* pdev)
+static mt_err_t sg90_remove(struct device* pdev)
 {
     struct sg90_device*   dev;
     struct dev_lifecycle* lc;

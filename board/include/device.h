@@ -136,16 +136,22 @@ struct device_node
 /* -------------------------------------------------------------------------- */
 /* VFS 操作表 */
 /* -------------------------------------------------------------------------- */
+/**
+ * @brief 设备操作函数表
+ * @note init/open/close/ioctl/suspend/resume 返回错误码, 类型为 mt_err_t (0 = MINI_OK);
+ *       write/read 是"已传输字节数或负数错误码"的混合契约, 保持 int —— 实现方不得改成
+ *       mt_err_t, 否则回调类型不兼容 (见 status.h 的类型约定)。
+ */
 struct file_operations
 {
-    int (*init)(struct device* pdev);                                                           /**< 设备初始化 */
-    int (*open)(struct device* pdev, void* arg);                                                /**< 打开设备 */
-    int (*close)(struct device* pdev);                                                          /**< 关闭设备 */
-    int (*write)(struct device* pdev, const void* buffer, size_t len, uint32_t timeout_ms);     /**< 写数据 */
-    int (*read)(struct device* pdev, void* buffer, size_t len, uint32_t timeout_ms);            /**< 读数据 */
-    int (*ioctl)(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms); /**< 控制命令 */
-    int (*suspend)(struct device* pdev);                                                        /**< 挂起设备 */
-    int (*resume)(struct device* pdev);                                                         /**< 恢复设备 */
+    mt_err_t (*init)(struct device* pdev);                                                           /**< 设备初始化 */
+    mt_err_t (*open)(struct device* pdev, void* arg);                                                /**< 打开设备 */
+    mt_err_t (*close)(struct device* pdev);                                                          /**< 关闭设备 */
+    int (*write)(struct device* pdev, const void* buffer, size_t len, uint32_t timeout_ms);     /**< 写数据: 已写字节数或负数 MINI_ERR_* (混合契约) */
+    int (*read)(struct device* pdev, void* buffer, size_t len, uint32_t timeout_ms);            /**< 读数据: 已读字节数或负数 MINI_ERR_* (混合契约) */
+    mt_err_t (*ioctl)(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms); /**< 控制命令 */
+    mt_err_t (*suspend)(struct device* pdev);                                                        /**< 挂起设备 */
+    mt_err_t (*resume)(struct device* pdev);                                                         /**< 恢复设备 */
 };
 
 /* -------------------------------------------------------------------------- */
@@ -223,7 +229,7 @@ struct device* device_get_phandle_dev(const struct device* pdev, const char* key
  * @param[out] val 回传属性值
  * @return 成功返回 MINI_OK, 属性缺失返回 MINI_ERR_NODEV
  */
-int device_get_prop_int(const struct device* pdev, const char* key, int* val) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_prop_int(const struct device* pdev, const char* key, int* val) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 读取 int 数组属性
  * @param[in] pdev 设备对象指针
@@ -232,7 +238,7 @@ int device_get_prop_int(const struct device* pdev, const char* key, int* val) DE
  * @param[in] max_len 数组容量
  * @return 成功返回 MINI_OK, 属性缺失或超长返回 MINI_ERR_NODEV
  */
-int device_get_prop_int_array(const struct device* pdev, const char* key, int* out_arr, int max_len) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_prop_int_array(const struct device* pdev, const char* key, int* out_arr, int max_len) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 读取字符串属性
  * @param[in] pdev 设备对象指针
@@ -240,7 +246,7 @@ int device_get_prop_int_array(const struct device* pdev, const char* key, int* o
  * @param[out] val 回传字符串指针 (指向节点只读内存)
  * @return 成功返回 MINI_OK, 属性缺失返回 MINI_ERR_NODEV
  */
-int device_get_prop_str(const struct device* pdev, const char* key, const char** val) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_prop_str(const struct device* pdev, const char* key, const char** val) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 读取 bool 属性
  * @param[in] pdev 设备对象指针
@@ -248,7 +254,7 @@ int device_get_prop_str(const struct device* pdev, const char* key, const char**
  * @param[out] val 回传布尔值 (0/1)
  * @return 成功返回 MINI_OK, 属性缺失返回 MINI_ERR_NODEV
  */
-int device_get_prop_bool(const struct device* pdev, const char* key, int* val) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_prop_bool(const struct device* pdev, const char* key, int* val) DEVICE_WARN_UNUSED_RESULT;
 
 /**
  * @brief 获取设备名称
@@ -285,7 +291,7 @@ enum device_criticality device_get_criticality(const struct device* pdev);
  * @param[out] out 回传 reg 条目指针
  * @return 成功返回 MINI_OK, 索引越界返回 MINI_ERR_INVAL
  */
-int device_get_reg(const struct device* pdev, int idx, const struct device_reg** out) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_reg(const struct device* pdev, int idx, const struct device_reg** out) DEVICE_WARN_UNUSED_RESULT;
 
 /* -------------------------------------------------------------------------- */
 /* 读取第 idx 条 interrupt 条目（按 #interrupt-cells 分组） */
@@ -297,7 +303,7 @@ int device_get_reg(const struct device* pdev, int idx, const struct device_reg**
  * @param[out] out 回传 interrupt 条目指针
  * @return 成功返回 MINI_OK, 索引越界返回 MINI_ERR_INVAL
  */
-int device_get_irq(const struct device* pdev, int idx, const struct device_irq** out) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_get_irq(const struct device* pdev, int idx, const struct device_irq** out) DEVICE_WARN_UNUSED_RESULT;
 
 /* -------------------------------------------------------------------------- */
 /* 运行时状态管理 */
@@ -308,7 +314,7 @@ int device_get_irq(const struct device* pdev, int idx, const struct device_irq**
  * @param[in] status 设备状态
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int device_set_status(struct device* pdev, enum device_status status) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_set_status(struct device* pdev, enum device_status status) DEVICE_WARN_UNUSED_RESULT;
 
 /**
  * @brief 设置设备私有数据
@@ -316,7 +322,7 @@ int device_set_status(struct device* pdev, enum device_status status) DEVICE_WAR
  * @param[in] priv 私有数据指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int device_set_priv(struct device* pdev, void* priv) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_set_priv(struct device* pdev, void* priv) DEVICE_WARN_UNUSED_RESULT;
 
 /**
  * @brief 获取设备私有数据
@@ -352,7 +358,7 @@ int device_get_count(void);
  * @brief 加载设备树并全量静态分配设备实例
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_tree_init(void) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_tree_init(void) DEVICE_WARN_UNUSED_RESULT;
 
 /* -------------------------------------------------------------------------- */
 /* 设备锁（device_tree_init 中已完成全量静态分配） */
@@ -362,13 +368,13 @@ int device_tree_init(void) DEVICE_WARN_UNUSED_RESULT;
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_lock(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_lock(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 解锁设备
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_unlock(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_unlock(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
 
 /* -------------------------------------------------------------------------- */
 /* 驱动卸载清理 */
@@ -407,13 +413,13 @@ void device_lc_bind(struct device* pdev);
  * @param[in] arg 打开参数 (可为 NULL)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_open(struct device* pdev, void* arg) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_open(struct device* pdev, void* arg) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 关闭设备 (持锁)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_close(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_close(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 写数据 (持锁)
  * @param[in] pdev 设备对象指针
@@ -422,7 +428,7 @@ int device_close(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
  * @param[in] timeout_ms 超时毫秒数
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_write(struct device* pdev, const void* buf, size_t len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_write(struct device* pdev, const void* buf, size_t len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 读数据 (持锁)
  * @param[in] pdev 设备对象指针
@@ -431,7 +437,7 @@ int device_write(struct device* pdev, const void* buf, size_t len, uint32_t time
  * @param[in] timeout_ms 超时毫秒数
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 执行控制命令 (持锁)
  * @param[in] pdev 设备对象指针
@@ -441,19 +447,19 @@ int device_read(struct device* pdev, void* buf, size_t len, uint32_t timeout_ms)
  * @param[in] timeout_ms 超时毫秒数
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 挂起设备 (持锁)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_suspend(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_suspend(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
 /**
  * @brief 恢复设备 (持锁)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int device_resume(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
+mt_err_t device_resume(struct device* pdev) DEVICE_WARN_UNUSED_RESULT;
 
 #ifdef __cplusplus
 }

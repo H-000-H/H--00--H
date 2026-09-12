@@ -31,8 +31,7 @@
 | :--- | :--- |
 | `CONFIG_SYSTEM_WDT` | framework watchdog (on by default) |
 | `CONFIG_SAFETY_SHUTDOWN` | safe-shutdown callbacks (off by default) |
-| `CONFIG_SYS_LOG_USE_PRINTF` / `_ESP` / `_ESP` | `SYS_LOG*` backend selection (logging off saves the most) |
-| `CONFIG_PRODUCTION_LOG` | black-box fault recording (off by default) |
+| `CONFIG_SYS_LOG_USE_MINI_LOG` / `CONFIG_SYS_LOG_USE_ESP` | `MT_LOG_*` backend selection (bundled mini-log / ESP-IDF esp_log; logging off saves the most) |
 | `CONFIG_EVENT_BUS` / `CONFIG_SYSTEM_CMD` / `CONFIG_SYSTEM_SCRUBBER` | optional-feature master switches (off by default) |
 | `CONFIG_BUILD_DISASM` | disassembly post-build (on by default; turn off as needed) |
 

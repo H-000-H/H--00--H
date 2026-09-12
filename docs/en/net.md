@@ -88,6 +88,8 @@ Upper protocol modules (transport_glue, mqtt_client) uniformly use `NET_*` error
 
 Lower-level errors are translated to `NET_*` at the wrapper boundary; application code never sees lwIP internals.
 
+> ⚠ `NET_ERR_*` is **private** to the net wrapper (negative-errno semantics) and does **not** share values with `status.h`'s `MINI_ERR_*` (self-owned sector numbering). Never compare codes across namespaces; translate at this wrapper boundary.
+
 ---
 
 ## 4. Module Descriptions

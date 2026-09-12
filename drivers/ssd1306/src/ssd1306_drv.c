@@ -61,9 +61,9 @@ static struct ssd1306_device* ssd1306_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ssd1306_i2c_wr(struct ssd1306_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t ssd1306_i2c_wr(struct ssd1306_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int ssd1306_i2c_wr(struct ssd1306_device* dev, const uint8_t* tx, size_t 
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ssd1306_hw_create(struct ssd1306_device* dev)
+static mt_err_t ssd1306_hw_create(struct ssd1306_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -163,7 +163,7 @@ static int ssd1306_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*ssd1306_ioctl_fn_t)(struct ssd1306_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*ssd1306_ioctl_fn_t)(struct ssd1306_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct ssd1306_ioctl_map
 {
     ssd1306_ioctl_fn_t handler;
@@ -181,7 +181,7 @@ static int ssd1306_wr_ctrl(struct ssd1306_device* dev, uint8_t ctrl, uint8_t val
 /**
  * @brief DISPLAY_CMD_CLEAR 实现：逐页填充指定值（0=灭 1=亮）
  */
-static int ssd1306_cmd_clear(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_clear(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_clear_arg* darg = (const struct display_clear_arg*)arg;
     uint8_t                         page_buf[1 + SSD1306_WIDTH];
@@ -212,7 +212,7 @@ static int ssd1306_cmd_clear(struct ssd1306_device* dev, void* arg, size_t len, 
 /**
  * @brief DISPLAY_CMD_GET_INFO 实现：返回面板几何与像素格式
  */
-static int ssd1306_cmd_get_info(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_get_info(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     struct display_info_arg* info = (struct display_info_arg*)arg;
     MINI_IGNORE_RESULT(dev);
@@ -228,7 +228,7 @@ static int ssd1306_cmd_get_info(struct ssd1306_device* dev, void* arg, size_t le
 /**
  * @brief DISPLAY_CMD_FILL_RECT 实现：单色屏仅支持全屏矩形
  */
-static int ssd1306_cmd_fill_rect(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_fill_rect(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_rect_arg* darg = (const struct display_rect_arg*)arg;
     struct display_clear_arg       clear_arg;
@@ -243,7 +243,7 @@ static int ssd1306_cmd_fill_rect(struct ssd1306_device* dev, void* arg, size_t l
 /**
  * @brief DISPLAY_CMD_DRAW_AREA 实现：单色屏仅支持整帧 page-major 位图
  */
-static int ssd1306_cmd_draw_area(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_draw_area(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_draw_arg* darg = (const struct display_draw_arg*)arg;
     int                            page;
@@ -280,7 +280,7 @@ static int ssd1306_cmd_draw_area(struct ssd1306_device* dev, void* arg, size_t l
 /**
  * @brief DISPLAY_CMD_FLUSH 实现：整帧 page-major 位图
  */
-static int ssd1306_cmd_flush(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_flush(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_draw_arg* darg = (const struct display_draw_arg*)arg;
     if (!dev->hw_ready || !darg || len != sizeof(*darg) || darg->format != DISPLAY_FMT_MONO_1BPP || !darg->data)
@@ -291,7 +291,7 @@ static int ssd1306_cmd_flush(struct ssd1306_device* dev, void* arg, size_t len, 
 /**
  * @brief DISPLAY_CMD_SET_BRIGHTNESS 实现：亮度映射为对比度
  */
-static int ssd1306_cmd_set_brightness(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ssd1306_cmd_set_brightness(struct ssd1306_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_bright_arg* darg = (const struct display_bright_arg*)arg;
     uint32_t                         timeout_ms = ms ? ms : 100U;
@@ -314,7 +314,7 @@ static const struct ssd1306_ioctl_map s_ssd1306_map[DISPLAY_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int ssd1306_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t ssd1306_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct ssd1306_device* dev;
     struct dev_lifecycle*  lc;
@@ -349,7 +349,7 @@ static const struct file_operations ssd1306_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int ssd1306_probe(struct device* pdev)
+static mt_err_t ssd1306_probe(struct device* pdev)
 {
     struct ssd1306_device* dev;
     int                    pool_idx, ret;
@@ -374,7 +374,7 @@ static int ssd1306_probe(struct device* pdev)
     }
     dev->ops = ssd1306_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -386,7 +386,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int ssd1306_remove(struct device* pdev)
+static mt_err_t ssd1306_remove(struct device* pdev)
 {
     struct ssd1306_device* dev;
     struct dev_lifecycle*  lc;

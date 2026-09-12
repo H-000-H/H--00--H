@@ -62,7 +62,7 @@ static struct sn65hvd230_device* sn65hvd230_get_drvdata(struct device* pdev) { r
 /**
  * @brief 打开 GPIO 设备并绑定参数（失败回滚关闭）
  */
-static int sn65hvd230_gpio_on(struct sn65hvd230_device* dev, struct device* g, struct vfs_gpio_arg* a)
+static mt_err_t sn65hvd230_gpio_on(struct sn65hvd230_device* dev, struct device* g, struct vfs_gpio_arg* a)
 {
     int ret = device_open(g, NULL);
     if (ret != MINI_OK)
@@ -78,9 +78,9 @@ static int sn65hvd230_gpio_on(struct sn65hvd230_device* dev, struct device* g, s
 
 /**
  * @brief 首次 open 时打开 GPIO 并绑定参数
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sn65hvd230_hw_create(struct sn65hvd230_device* dev)
+static mt_err_t sn65hvd230_hw_create(struct sn65hvd230_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -167,7 +167,7 @@ static int sn65hvd230_close(struct device* pdev)
     return MINI_OK;
 }
 
-typedef int (*sn65hvd230_ioctl_fn_t)(struct sn65hvd230_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*sn65hvd230_ioctl_fn_t)(struct sn65hvd230_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct sn65hvd230_ioctl_map
 {
     sn65hvd230_ioctl_fn_t handler;
@@ -176,7 +176,7 @@ struct sn65hvd230_ioctl_map
 /**
  * @brief SN65HVD230_CMD_SET_STANDBY 实现：待机/正常模式切换
  */
-static int sn65hvd230_cmd(struct sn65hvd230_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t sn65hvd230_cmd(struct sn65hvd230_device* dev, void* arg, size_t len, uint32_t ms)
 {
     MINI_IGNORE_RESULT(ms);
     if (!dev->hw_ready || !arg || len != sizeof(int))
@@ -192,7 +192,7 @@ static const struct sn65hvd230_ioctl_map s_sn65hvd230_map[SN65HVD230_CMD_COUNT] 
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int sn65hvd230_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t sn65hvd230_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct sn65hvd230_device* dev;
     struct dev_lifecycle*     lc;
@@ -227,7 +227,7 @@ static const struct file_operations sn65hvd230_fops = {
 /**
  * @brief probe：claim 池项、绑定待机 GPIO 并挂 fops
  */
-static int sn65hvd230_probe(struct device* pdev)
+static mt_err_t sn65hvd230_probe(struct device* pdev)
 {
     struct sn65hvd230_device* dev;
     int                       pool_idx, ret;
@@ -252,7 +252,7 @@ static int sn65hvd230_probe(struct device* pdev)
     }
     dev->ops = sn65hvd230_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -264,7 +264,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int sn65hvd230_remove(struct device* pdev)
+static mt_err_t sn65hvd230_remove(struct device* pdev)
 {
     struct sn65hvd230_device* dev;
     struct dev_lifecycle*     lc;

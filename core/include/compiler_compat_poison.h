@@ -20,9 +20,9 @@
  *
  * 豁免须在任意 #include 之前定义:
  *   ALLOW_HEAP_ALLOC   — calloc / free / malloc / realloc
- *   ALLOW_STDIO_OUTPUT — vprintf / my_printf_output
+ *   ALLOW_STDIO_OUTPUT — vprintf
  *
- * 典型豁免: printf_output.c, mini_log.c,
+ * 典型豁免: mini-log/src/log.c (独立日志库, 自带 stdio 输出, 不引入本 poison 头),
  *           mini_backend_bare.c (内存三函数转发 libc 堆),
  *           mini_backend_freertos.c, mini_backend_mini_os.c, mini_backend_rtthread.c
  *
@@ -43,7 +43,7 @@
 #endif
 
 #if !defined(ALLOW_STDIO_OUTPUT)
-#pragma GCC poison vprintf my_printf_output
+#pragma GCC poison vprintf
 #endif
 
 #endif /* __GNUC__ */

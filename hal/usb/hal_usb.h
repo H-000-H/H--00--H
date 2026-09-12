@@ -78,35 +78,35 @@ struct hal_usb_bus_host
  * @brief 初始化 OTG 时钟、DP/DM AF、NVIC 优先级 (不启 Cube PCD)
  * @param[in] host host 对象
  * @param[in] cfg  DTSI 直投配置
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-int hal_usb_bus_host_init(struct hal_usb_bus_host* host, const struct hal_usb_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_usb_bus_host_init(struct hal_usb_bus_host* host, const struct hal_usb_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 反初始化: 关 IRQ、关时钟、恢复 GPIO
  * @param[in] host host 对象
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-int hal_usb_bus_host_deinit(struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_usb_bus_host_deinit(struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 使能 OTG NVIC 中断
  * @param[in] host host 对象
- * @return MINI_OK 成功; 负的 VFS_ERR_* 表示失败
+ * @return MINI_OK 成功; 负的 MINI_ERR_* 表示失败
  */
-int hal_usb_irq_enable(const struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_usb_irq_enable(const struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 禁止 OTG NVIC 中断
  * @param[in] host host 对象
- * @return MINI_OK 成功; 负的 VFS_ERR_* 表示失败
+ * @return MINI_OK 成功; 负的 MINI_ERR_* 表示失败
  */
-int hal_usb_irq_disable(const struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_usb_irq_disable(const struct hal_usb_bus_host* host) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 按 dma_enable 与请求模式解析实际传输路径
  * @param[in] host      已 init 的 host
  * @param[in] xfer_mode HAL_USB_XFER_AUTO / POLL / DMA
- * @return HAL_USB_XFER_POLL / HAL_USB_XFER_DMA, 或负数 VFS_ERR_*
+ * @return HAL_USB_XFER_POLL / HAL_USB_XFER_DMA, 或负数 MINI_ERR_*
  */
-int hal_usb_resolve_xfer_mode(const struct hal_usb_bus_host* host, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_usb_resolve_xfer_mode(const struct hal_usb_bus_host* host, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 
 #ifdef __cplusplus
 }

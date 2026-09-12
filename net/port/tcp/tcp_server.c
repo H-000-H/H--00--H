@@ -70,7 +70,7 @@ static void tcp_server_error_callback(void* arg, err_t err)
     struct client_session* session = (struct client_session*)arg;
     if (session != NULL)
     {
-        SYS_LOGE(k_tag, "session [%d] err occurred: %d\r\n", session->id, err);
+        MT_LOG_ERROR(k_tag, "session [%d] err occurred: %d\r\n", session->id, err);
         /* lwIP 在调用本回调前已释放 pcb, 回调随 pcb 一并失效,
          * 无需也无法再解绑回调, 只复位会话状态, 绝不能再碰 pcb */
         release_session(session, false);
@@ -99,7 +99,7 @@ static err_t tcp_server_receive_callback(void* arg, struct tcp_pcb* pcb, struct 
     /* 1. 客户端正常关闭连接 (收到 FIN) */
     if (buf == NULL)
     {
-        SYS_LOGI(k_tag, "session [%d] client disconnected\r\n", session->id);
+        MT_LOG_INFO(k_tag, "session [%d] client disconnected\r\n", session->id);
         release_session(session, true); /* 先解绑回调: tcp_close 可能当场释放 pcb */
         if (tcp_close(pcb) != ERR_OK)
             tcp_abort(pcb); /* 关闭失败(极少见)时中止, 防止 PCB 悬挂泄漏 */
@@ -128,7 +128,7 @@ static err_t tcp_server_receive_callback(void* arg, struct tcp_pcb* pcb, struct 
             total_written = (uint16_t)(total_written + written);
 
             if (written < pbuf_head->len)
-                SYS_LOGW(k_tag, "session [%d] FIFO full, dropped %u bytes\r\n", session->id, (unsigned int)(pbuf_head->len - written));
+                MT_LOG_WARN(k_tag, "session [%d] FIFO full, dropped %u bytes\r\n", session->id, (unsigned int)(pbuf_head->len - written));
         }
         pbuf_head = pbuf_head->next;
     }
@@ -170,7 +170,7 @@ static err_t tcp_server_accept_callback(void* arg, struct tcp_pcb* newpcb, err_t
     /* 连接已满，直接拒绝新连接 */
     if (free_session == NULL)
     {
-        SYS_LOGW(k_tag, "max connections reached (%d), reject client\r\n", MAX_CLIENT_COUNT);
+        MT_LOG_WARN(k_tag, "max connections reached (%d), reject client\r\n", MAX_CLIENT_COUNT);
         tcp_abort(newpcb);
         return ERR_ABRT;
     }
@@ -180,7 +180,7 @@ static err_t tcp_server_accept_callback(void* arg, struct tcp_pcb* newpcb, err_t
     MINI_IGNORE_RESULT(fifo_uni_init(&free_session->rx_fifo, free_session->rx_buf, 1U, CLIENT_RX_BUF_SIZE));
     free_session->is_used = true;
 
-    SYS_LOGI(k_tag, "new client accepted -> session [%d]\r\n", free_session->id);
+    MT_LOG_INFO(k_tag, "new client accepted -> session [%d]\r\n", free_session->id);
 
     /* 绑定 session 实例到 lwIP 回调上下文 arg */
     tcp_arg(newpcb, free_session);
@@ -205,14 +205,14 @@ int tcp_server_init(int port)
     s_listen_pcb = tcp_new();
     if (s_listen_pcb == NULL)
     {
-        SYS_LOGE(k_tag, "tcp_new failed\r\n");
+        MT_LOG_ERROR(k_tag, "tcp_new failed\r\n");
         return ERR_MEM;
     }
 
     ret = tcp_bind(s_listen_pcb, IP_ADDR_ANY, (u16_t)port);
     if (ret != ERR_OK)
     {
-        SYS_LOGE(k_tag, "tcp_bind port %d failed: %d\r\n", port, ret);
+        MT_LOG_ERROR(k_tag, "tcp_bind port %d failed: %d\r\n", port, ret);
         tcp_close(s_listen_pcb);
         s_listen_pcb = NULL;
         return ERR_CONN;
@@ -221,12 +221,12 @@ int tcp_server_init(int port)
     s_listen_pcb = tcp_listen(s_listen_pcb);
     if (s_listen_pcb == NULL)
     {
-        SYS_LOGE(k_tag, "tcp_listen failed\r\n");
+        MT_LOG_ERROR(k_tag, "tcp_listen failed\r\n");
         return ERR_MEM;
     }
 
     tcp_accept(s_listen_pcb, tcp_server_accept_callback);
-    SYS_LOGI(k_tag, "TCP server listening on port %d (Max clients: %d)\r\n", port, MAX_CLIENT_COUNT);
+    MT_LOG_INFO(k_tag, "TCP server listening on port %d (Max clients: %d)\r\n", port, MAX_CLIENT_COUNT);
 
     return ERR_OK;
 }

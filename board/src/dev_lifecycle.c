@@ -94,7 +94,7 @@ int dev_lc_io_active_count(const struct dev_lifecycle* lc)
  * @param[in] lc 生命周期对象指针
  * @return 首次 open 返回 1, 重复 open 返回 0, 失败返回负数错误码
  */
-int dev_lc_open_begin(struct dev_lifecycle* lc)
+mt_err_t dev_lc_open_begin(struct dev_lifecycle* lc)
 {
     if (!lc)
         return MINI_ERR_INVAL;
@@ -134,7 +134,7 @@ void dev_lc_open_abort(struct dev_lifecycle* lc)
  * @param[in] lc 生命周期对象指针
  * @return 末次 close 返回 1, 非末次返回 0, opens<=0 返回 MINI_ERR_IO
  */
-int dev_lc_close_begin(struct dev_lifecycle* lc)
+mt_err_t dev_lc_close_begin(struct dev_lifecycle* lc)
 {
     if (!lc)
         return MINI_ERR_INVAL;
@@ -161,7 +161,7 @@ void dev_lc_close_end(struct dev_lifecycle* lc) { MINI_UNUSED_PARAM(lc); }
  * @param[in] lc 生命周期对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-int dev_lc_io_begin(struct dev_lifecycle* lc)
+mt_err_t dev_lc_io_begin(struct dev_lifecycle* lc)
 {
     if (!lc)
         return MINI_ERR_INVAL;
@@ -207,7 +207,7 @@ void dev_lc_remove_start(struct dev_lifecycle* lc)
  * @param[in] timeout_ms 超时 (毫秒, MINI_WAIT_FOREVER 表示永久等待)
  * @return 成功返回 MINI_OK, 超时返回 MINI_ERR_TIMEOUT, 状态非法返回 MINI_ERR_BUSY
  */
-int dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms)
+mt_err_t dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms)
 {
     if (!lc)
         return MINI_ERR_INVAL;

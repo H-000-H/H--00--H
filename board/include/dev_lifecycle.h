@@ -89,7 +89,7 @@ int dev_lc_io_active_count(const struct dev_lifecycle* lc);
  * @param[in] lc 生命周期状态机指针
  * @return 允许打开返回 MINI_OK, teardown 或未 LIVE 返回 MINI_ERR_NODEV
  */
-int dev_lc_open_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
+mt_err_t dev_lc_open_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 打开操作后段: 递减 opens (与 open_begin 配对)
  * @param[in] lc 生命周期状态机指针
@@ -106,7 +106,7 @@ void dev_lc_open_abort(struct dev_lifecycle* lc);
  * @param[in] lc 生命周期状态机指针
  * @return 允许关闭返回 MINI_OK, 计数非法返回 MINI_ERR_INVAL
  */
-int dev_lc_close_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
+mt_err_t dev_lc_close_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 关闭操作后段: 递增 opens (与 close_begin 配对)
  * @param[in] lc 生命周期状态机指针
@@ -118,7 +118,7 @@ void dev_lc_close_end(struct dev_lifecycle* lc);
  * @param[in] lc 生命周期状态机指针
  * @return 允许 I/O 返回 MINI_OK, teardown 或未 LIVE 返回 MINI_ERR_NODEV
  */
-int dev_lc_io_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
+mt_err_t dev_lc_io_begin(struct dev_lifecycle* lc) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I/O 操作后段: 递减 io_active (与 io_begin 配对)
  * @param[in] lc 生命周期状态机指针
@@ -137,7 +137,7 @@ void dev_lc_remove_start(struct dev_lifecycle* lc);
  * @param[in] timeout_ms 超时毫秒数
  * @return 排空完成返回 MINI_OK, 超时返回 MINI_ERR_TIMEOUT
  */
-int dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t dev_lc_remove_drain(struct dev_lifecycle* lc, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 移除完成: 复位计数器, 回到 UNINITIALIZED

@@ -57,7 +57,7 @@ struct mini_mutex
 
 _Static_assert(sizeof(struct mini_mutex) <= MINI_MUTEX_STORAGE_SIZE, "mini_backend_bare: MINI_MUTEX_STORAGE_SIZE too small");
 
-static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
+static mt_err_t mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
 {
     if (!mutex)
         return MINI_ERR_INVAL;
@@ -71,7 +71,7 @@ static int mini_mutex_init(struct mini_mutex* mutex, mini_mutex_type_t type)
 }
 
 /* AMP: 原子 CAS + depth 递增, 支持跨核竞争; 普通: 关中断后判定, 单核下无竞争 */
-static int mini_mutex_try_acquire(struct mini_mutex* mutex)
+static mt_err_t mini_mutex_try_acquire(struct mini_mutex* mutex)
 {
 #ifdef CONFIG_AMP_MODE
     uint32_t expected = 0;
@@ -114,7 +114,7 @@ static int mini_mutex_try_acquire(struct mini_mutex* mutex)
 #endif
 }
 
-static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type)
+static mt_err_t mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, size_t storage_size, mini_mutex_type_t type)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_mutex))
         return MINI_ERR_INVAL;
@@ -131,17 +131,17 @@ static int mini_mutex_create_static_typed(mini_mutex_t** out, void* storage, siz
     return MINI_OK;
 }
 
-int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_PLAIN);
 }
 
-int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     return mini_mutex_create_static_typed(out, storage, storage_size, MINI_MUTEX_RECURSIVE);
 }
 
-int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
+mt_err_t mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -175,7 +175,7 @@ int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
     }
 }
 
-int mini_mutex_unlock(mini_mutex_t* mtx)
+mt_err_t mini_mutex_unlock(mini_mutex_t* mtx)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -248,7 +248,7 @@ void* mini_calloc(size_t count, size_t size)
     return calloc(count, size);
 }
 
-int mini_free(void* ptr)
+mt_err_t mini_free(void* ptr)
 {
     free(ptr);
     return MINI_OK;
@@ -262,7 +262,7 @@ int mini_free(void* ptr)
  * 裸机的"任务"是 xtask 的 x_scheduler_task_create() (周期回调模型), 与线程入口语义
  * 不通用, 故这里刻意不做转发 —— 转发会让调用方以为拿到的是一个可阻塞的线程。 */
 
-int mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
+mt_err_t mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
                             mini_task_handle_t* out_handle)
 {
     MINI_UNUSED_PARAM(name);

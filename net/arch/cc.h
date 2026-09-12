@@ -79,7 +79,7 @@ void lwip_diag(const char* fmt, ...);
 #define LWIP_PLATFORM_ASSERT(x)                                                                                                                      \
     do                                                                                                                                               \
     {                                                                                                                                                \
-        SYS_LOGE("lwIP", "Assertion \"%s\" failed at line %d in %s", x, __LINE__, __FILE__);                                                         \
+        MT_LOG_ERROR("lwIP", "Assertion \"%s\" failed at line %d in %s", x, __LINE__, __FILE__);                                                         \
         while (1)                                                                                                                                    \
             ;                                                                                                                                        \
     } while (0)

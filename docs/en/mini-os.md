@@ -243,11 +243,11 @@ Every option resolves through the same **three-tier chain** (reference implement
 | Topic | Semantics |
 | :--- | :--- |
 | Priorities | mini-os: smaller number = higher priority (same as RT-Thread, **opposite of FreeRTOS**); by convention each OS backend keeps its native kernel semantics |
-| Error codes | `MINI_OS_ERR_*` matches `MINI_ERR_*` numerically when `config.h`/`status.h` are visible — zero-overhead pass-through; only `MINI_OS_ERR_AGAIN` maps to `MINI_ERR_TIMEOUT` |
+| Error codes | `MINI_OS_ERR_*` is **bit-for-bit identical** to `MINI_ERR_*` (the alias and fallback branches are now equivalent), so it passes through at zero cost; only `MINI_OS_ERR_AGAIN` (non-blocking contention / full-empty queue) is semantically mapped to `MINI_ERR_TIMEOUT` |
 | ISR mode | `*_isr` calls never switch context; `mini_yield_from_isr()` forwards to `mini_os_schedule_yield_isr()` |
 | Object pool | Mutexes/semaphores embed kernel objects statically + an `mini_slot` slot pool; pool critical sections use `mini_os_irq_save/restore` |
 | Scheduler start | `mini_scheduler_start()` first lazily boots the kernel (`schedule_init` + idle thread + SysTick), then starts the scheduler |
-| Scheduler freeze | mini-os has no global suspend-all API; `（已移除）()` degrades to IRQ masking (same one-way freeze semantics as `mini_backend_bare`) |
+| Scheduler freeze | mini-os has no global suspend-all API; `mini_sched_freeze()` degrades to IRQ masking (same one-way freeze semantics as `mini_backend_bare`) |
 
 ### 8.4 Build integration
 

@@ -9,7 +9,8 @@
  *   @note        所有接口设计为平台无关，由具体芯片平台(如 STM32, ESP32, CH307)进行底层硬实现。
  *   @note        由于 ADC 是快速热路径外设所以 ADC 的初始化与配置应该尽量在硬件直投层完成
  *   @note        vfs 层只负责拉取 ADC 的配置并传递给 HAL 层并且对 hal 层提供的 api 进行内联封装
- *   @note        文件约定：返回值不允许void，必须使用int，并且错误码必须使用VFS.h中的错误码
+ *   @note        文件约定：返回值不允许void；错误码返回类型统一用 mt_err_t (定义见 status.h)，
+ *                仅"字节数/计数"这类非错误码返回值才用 int
  *   @note        获取参数不能直接返回，必须通过指针参数传递
  *   @note
  *   adc不走函数指针init或者close,因为adc和tim不一样，adc的模式没有tim那么多，所以不需要像tim那样走函数指针
@@ -214,68 +215,68 @@ typedef struct hal_adc_device
  * @param[in] host 主机配置指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_device_init(hal_adc_device* pdev, hal_adc_platform_unique_config* unique_cfg, hal_adc_host_config* host);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_device_init(hal_adc_device* pdev, hal_adc_platform_unique_config* unique_cfg, hal_adc_host_config* host);
 
 /**
  * @brief 释放 ADC 设备运行时资源
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_device_deinit(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_device_deinit(hal_adc_device* pdev);
 
 /**
  * @brief 初始化 ADC 外设寄存器 (应用 host->config 直投属性)
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_init(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_init(hal_adc_device* pdev);
 /**
  * @brief 关闭全部 ADC 设备通道并复位外设
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_deinit_all_adcx(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_deinit_all_adcx(hal_adc_device* pdev);
 /**
  * @brief 关闭 ADC 设备指定通道
  * @param[in] pdev ADC 设备指针
  * @param[in] channel_id 硬件通道号
  * @return 成功返回 MINI_OK, 通道无效返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_deinit_adcx_channel(hal_adc_device* pdev, uint32_t channel_id);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_deinit_adcx_channel(hal_adc_device* pdev, uint32_t channel_id);
 /**
  * @brief 启动 ADC 连续/单次转换
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_start(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_start(hal_adc_device* pdev);
 /**
  * @brief 停止 ADC 转换并关闭外设
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_stop(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_stop(hal_adc_device* pdev);
 /**
  * @brief 读取指定通道的 ADC 转换值 (poll 模式)
  * @param[in] pdev ADC 设备指针
  * @param[in] channel_num 目标硬件通道号
  * @param[out] out_val 回传转换结果 (12/16 位, 取决于 resolution)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_read_value(hal_adc_device* pdev, uint32_t channel_num, uint16_t* out_val);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_read_value(hal_adc_device* pdev, uint32_t channel_num, uint16_t* out_val);
 /**
  * @brief 轮询等待 ADC 转换完成
  * @param[in] pdev ADC 设备指针
  * @param[out] out_status 回传转换完成状态 (非 0=完成)
  * @return 成功返回 MINI_OK, 超时返回 MINI_ERR_TIMEOUT
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_poll_for_conversion(hal_adc_device* pdev, uint32_t* out_status);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_poll_for_conversion(hal_adc_device* pdev, uint32_t* out_status);
 /**
  * @brief 获取 ADC 设备有效通道数量
  * @param[in] pdev ADC 设备指针
  * @param[out] count 回传当前有效通道总数
  * @return 成功返回 MINI_OK, pdev 或 count 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_get_channel_count(hal_adc_device* pdev, uint32_t* count);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_get_channel_count(hal_adc_device* pdev, uint32_t* count);
 /**
  * @brief 获取 ADC 设备指定索引的通道 ID
  * @param[in] pdev ADC 设备指针
@@ -283,7 +284,7 @@ int MINI_WARN_UNUSED_RESULT hal_adc_get_channel_count(hal_adc_device* pdev, uint
  * @param[out] channel_id 回传硬件通道号
  * @return 成功返回 MINI_OK, 索引越界返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_get_channel_id(hal_adc_device* pdev, int index, uint32_t* channel_id);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_get_channel_id(hal_adc_device* pdev, int index, uint32_t* channel_id);
 /**
  * @brief 获取 ADC 设备指定索引通道的采样时间
  * @param[in] pdev ADC 设备指针
@@ -291,33 +292,33 @@ int MINI_WARN_UNUSED_RESULT hal_adc_get_channel_id(hal_adc_device* pdev, int ind
  * @param[out] sample_time 回传硬件采样周期时间
  * @return 成功返回 MINI_OK, 索引越界返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_get_channel_sample_time(hal_adc_device* pdev, int index, uint32_t* sample_time);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_get_channel_sample_time(hal_adc_device* pdev, int index, uint32_t* sample_time);
 /**
  * @brief 启动 ADC DMA 传输 (无 OS 等待, 依赖 DMA TC 中断)
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, DMA 不可用返回 MINI_ERR_NOTSUPP, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_dma_start(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_dma_start(hal_adc_device* pdev);
 /**
  * @brief 启动 ADC DMA 中断模式传输
  * @param[in] pdev ADC 设备指针
  * @return 成功返回 MINI_OK, DMA 不可用返回 MINI_ERR_NOTSUPP, pdev 为空返回 MINI_ERR_INVAL
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_dma_it_start(hal_adc_device* pdev);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_dma_it_start(hal_adc_device* pdev);
 /**
  * @brief 读取 DMA 中断模式下的转换值
  * @param[in] pdev ADC 设备指针
  * @param[out] out_val 回传转换结果
- * @return 成功返回 MINI_OK, 数据未就绪返回 MINI_ERR_AGAIN, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 数据未就绪返回 MINI_ERR_AGAIN, 失败返回 MINI_ERR_*
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_dma_it_read_value(hal_adc_device* pdev, uint16_t* out_val);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_dma_it_read_value(hal_adc_device* pdev, uint16_t* out_val);
 /**
  * @brief 读取 DMA 模式下的转换值
  * @param[in] pdev ADC 设备指针
  * @param[out] out_val 回传转换结果
- * @return 成功返回 MINI_OK, 数据未就绪返回 MINI_ERR_AGAIN, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 数据未就绪返回 MINI_ERR_AGAIN, 失败返回 MINI_ERR_*
  */
-int MINI_WARN_UNUSED_RESULT hal_adc_dma_read_value(hal_adc_device* pdev, uint16_t* out_val);
+mt_err_t MINI_WARN_UNUSED_RESULT hal_adc_dma_read_value(hal_adc_device* pdev, uint16_t* out_val);
 
 #ifdef __cplusplus
 }

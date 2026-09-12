@@ -65,7 +65,7 @@ typedef enum
 #define VIRQ(name, idx) ((VIRTUAL_IRQ_##name) + (idx))
 #define VIRTUAL_IRQ_BLOCK(x) (VIRTUAL_IRQ_BLOCK_##x)
 
-/**< 上半部回调类型 — 返回非零表示需要 submit 下半部 */
+/**< 上半部回调类型 — 返回非零表示需要 submit 下半部 (MINI_IRQ_ENTRY_*, 不是错误码) */
 typedef int (*interrupt_top_half_t)(void* arg, uint16_t irq_num);
 
 /**< 下半部工作函数类型 */
@@ -208,7 +208,7 @@ MINI_STATIC_INLINE bool bottom_half_in_isr(void) { return hal_is_in_isr() != 0; 
  * @param[in] work  工作项指针
  * @return MINI_OK 成功; MINI_ERR_NOSPC 队列满
  */
-MINI_STATIC_INLINE int bottom_half_submit_rerun(struct fifo_spsc* fifo, struct bottom_half_work* work)
+MINI_STATIC_INLINE mt_err_t bottom_half_submit_rerun(struct fifo_spsc* fifo, struct bottom_half_work* work)
 {
     bool expected = false;
 
@@ -230,7 +230,7 @@ MINI_STATIC_INLINE int bottom_half_submit_rerun(struct fifo_spsc* fifo, struct b
  * 队列满 (work 被丢弃)
  * @note   本函数不执行 work->fn(); 调用方 return-from-ISR 后由消费者 run_pending
  */
-MINI_STATIC_INLINE int bottom_half_submit_from_isr(struct fifo_spsc* fifo, struct bottom_half_work* work)
+MINI_STATIC_INLINE mt_err_t bottom_half_submit_from_isr(struct fifo_spsc* fifo, struct bottom_half_work* work)
 {
     bool expected = false;
 
@@ -289,7 +289,7 @@ MINI_STATIC_INLINE void bottom_half_poller_init(struct bottom_half_poller* polle
  * @note   return-from-ISR 后, 主循环 bottom_half_poller_run() 才 run_pending
  * @return MINI_OK 成功入队; MINI_ERR_INVAL 入参非法; MINI_ERR_NOSPC 队列满
  */
-MINI_STATIC_INLINE int bottom_half_poller_submit(struct bottom_half_poller* poller, struct bottom_half_work* work)
+MINI_STATIC_INLINE mt_err_t bottom_half_poller_submit(struct bottom_half_poller* poller, struct bottom_half_work* work)
 {
     if (!poller)
         return MINI_ERR_INVAL;
@@ -324,7 +324,7 @@ struct bottom_half_task
  * @param[in] sem 二值信号量 (ISR 入队后用于唤醒)
  * @return MINI_OK 成功; MINI_ERR_INVAL 参数非法或 FIFO 初始化失败
  */
-MINI_STATIC_INLINE int bottom_half_task_init(struct bottom_half_task* task, mini_sem_t* sem)
+MINI_STATIC_INLINE mt_err_t bottom_half_task_init(struct bottom_half_task* task, mini_sem_t* sem)
 {
     if (!task || !sem)
         return MINI_ERR_INVAL;
@@ -341,7 +341,7 @@ MINI_STATIC_INLINE int bottom_half_task_init(struct bottom_half_task* task, mini
  * @param[out] px_yield_required ISR 出口是否需要 yield
  * @return MINI_OK 成功入队; MINI_ERR_INVAL 入参非法; MINI_ERR_NOSPC 队列满
  */
-MINI_STATIC_INLINE int bottom_half_task_submit_from_isr(struct bottom_half_task* task, struct bottom_half_work* work, bool* px_yield_required)
+MINI_STATIC_INLINE mt_err_t bottom_half_task_submit_from_isr(struct bottom_half_task* task, struct bottom_half_work* work, bool* px_yield_required)
 {
     if (!task || !task->sem)
         return MINI_ERR_INVAL;
@@ -361,7 +361,7 @@ MINI_STATIC_INLINE int bottom_half_task_submit_from_isr(struct bottom_half_task*
  * @return MINI_OK 成功入队; MINI_ERR_INVAL 入参非法; MINI_ERR_ISR 在 ISR 中调用; MINI_ERR_NOSPC
  * 队列满
  */
-MINI_STATIC_INLINE int bottom_half_task_submit(struct bottom_half_task* task, struct bottom_half_work* work)
+MINI_STATIC_INLINE mt_err_t bottom_half_task_submit(struct bottom_half_task* task, struct bottom_half_work* work)
 {
     if (!task || !task->sem)
         return MINI_ERR_INVAL;
@@ -403,7 +403,7 @@ MINI_STATIC_INLINE void bottom_half_task_entry(void* arg)
  * @param[in] priority 优先级
  * @return 成功返回 MINI_OK, 创建失败返回负数错误码
  */
-MINI_STATIC_INLINE int bottom_half_task_start(struct bottom_half_task* task, const char* name, uint32_t stack_size, uint32_t priority)
+MINI_STATIC_INLINE mt_err_t bottom_half_task_start(struct bottom_half_task* task, const char* name, uint32_t stack_size, uint32_t priority)
 {
     if (!task)
         return MINI_ERR_INVAL;
@@ -462,7 +462,7 @@ void interrupt_hw_disable(int irqn);
  * @param[in] work 工作项指针
  * @return MINI_OK 成功; MINI_ERR_INVAL 入参非法; MINI_ERR_NOSPC 队列满
  */
-int interrupt_bottom_half_submit(struct bottom_half_work* work);
+mt_err_t interrupt_bottom_half_submit(struct bottom_half_work* work);
 
 /**
  * @brief 主循环执行下半部队列

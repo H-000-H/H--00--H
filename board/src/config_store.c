@@ -512,7 +512,7 @@ static bool save_to_storage(uint8_t slot)
  * @brief 初始化配置存储 (加载工厂默认 + 可选持久化槽)
  * @return MINI_OK 初始化成功, MINI_ERR_INVAL JSON 源无效
  */
-int config_store_init(void)
+mt_err_t config_store_init(void)
 {
     s_storage_ready = (hal_storage_init() == MINI_OK);
 
@@ -612,7 +612,7 @@ const char* config_store_get_string(const char* key, const char* default_value)
  * @param[in] value 配置值
  * @return MINI_OK 成功, MINI_ERR_INVAL 表满或参数非法
  */
-int config_store_set_bool(const char* key, bool value)
+mt_err_t config_store_set_bool(const char* key, bool value)
 {
     struct cs_entry* entry = find_entry(key);
     if (!entry)
@@ -631,7 +631,7 @@ int config_store_set_bool(const char* key, bool value)
  * @param[in] value 配置值
  * @return MINI_OK 成功, MINI_ERR_INVAL 表满或参数非法
  */
-int config_store_set_int(const char* key, int value)
+mt_err_t config_store_set_int(const char* key, int value)
 {
     struct cs_entry* entry = find_entry(key);
     if (!entry)
@@ -650,7 +650,7 @@ int config_store_set_int(const char* key, int value)
  * @param[in] value 配置值
  * @return MINI_OK 成功, MINI_ERR_INVAL 表满或参数非法
  */
-int config_store_set_float(const char* key, float value)
+mt_err_t config_store_set_float(const char* key, float value)
 {
     struct cs_entry* entry = find_entry(key);
     if (!entry)
@@ -669,7 +669,7 @@ int config_store_set_float(const char* key, float value)
  * @param[in] value 配置值
  * @return MINI_OK 成功, MINI_ERR_INVAL 表满或参数非法
  */
-int config_store_set_string(const char* key, const char* value)
+mt_err_t config_store_set_string(const char* key, const char* value)
 {
     struct cs_entry* entry = find_entry(key);
     if (!entry)
@@ -694,7 +694,7 @@ void config_store_register_write_hook(config_store_write_hook_t hook) { s_write_
  * @return MINI_OK 提交成功; MINI_ERR_NOSPC 序列化失败; MINI_ERR_IO 写入失败; MINI_ERR_AGAIN
  * 存储未就绪
  */
-int config_store_commit(void)
+mt_err_t config_store_commit(void)
 {
     uint8_t buf[BLOB_MAX];
     size_t  out_len = 0;
@@ -735,7 +735,7 @@ int config_store_commit(void)
  * @brief 恢复工厂默认配置并擦除持久化
  * @return MINI_OK 成功, MINI_ERR_INVAL 加载工厂默认失败, MINI_ERR_IO 写回失败
  */
-int config_store_factory_reset(void)
+mt_err_t config_store_factory_reset(void)
 {
     if (!s_storage_ready)
     {

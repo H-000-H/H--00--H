@@ -61,9 +61,9 @@ static struct hc05_device* hc05_get_drvdata(struct device* pdev) { return (struc
 
 /**
  * @brief UART 双向传输（UART_CMD_TRANSFER）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int hc05_uart_xchg(struct hc05_device* dev, const uint8_t* tx, size_t tx_len, uint8_t* rx, size_t rx_len, uint32_t timeout_ms)
+static mt_err_t hc05_uart_xchg(struct hc05_device* dev, const uint8_t* tx, size_t tx_len, uint8_t* rx, size_t rx_len, uint32_t timeout_ms)
 {
     struct uart_transfer_arg arg;
     if (!dev || !dev->uart_dev)
@@ -77,9 +77,9 @@ static int hc05_uart_xchg(struct hc05_device* dev, const uint8_t* tx, size_t tx_
 
 /**
  * @brief 首次 open 时打开 UART 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int hc05_hw_create(struct hc05_device* dev)
+static mt_err_t hc05_hw_create(struct hc05_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -168,7 +168,7 @@ static int hc05_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*hc05_ioctl_fn_t)(struct hc05_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*hc05_ioctl_fn_t)(struct hc05_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct hc05_ioctl_map
 {
     hc05_ioctl_fn_t handler;
@@ -177,7 +177,7 @@ struct hc05_ioctl_map
 /**
  * @brief HC05_CMD_AT_SEND 实现：UART 发送 AT 命令
  */
-static int hc05_cmd_send(struct hc05_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t hc05_cmd_send(struct hc05_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct hc05_at* at = (struct hc05_at*)arg;
     if (!dev->hw_ready || !at || len != sizeof(*at) || !at->tx || !at->tx_len)
@@ -191,7 +191,7 @@ static const struct hc05_ioctl_map s_hc05_map[HC05_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int hc05_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t hc05_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct hc05_device*   dev;
     struct dev_lifecycle* lc;
@@ -226,7 +226,7 @@ static const struct file_operations hc05_fops = {
 /**
  * @brief probe：claim 池项、绑定父 UART 设备并挂 fops
  */
-static int hc05_probe(struct device* pdev)
+static mt_err_t hc05_probe(struct device* pdev)
 {
     struct hc05_device* dev;
     int                 pool_idx, ret;
@@ -251,7 +251,7 @@ static int hc05_probe(struct device* pdev)
     }
     dev->ops = hc05_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -263,7 +263,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int hc05_remove(struct device* pdev)
+static mt_err_t hc05_remove(struct device* pdev)
 {
     struct hc05_device*   dev;
     struct dev_lifecycle* lc;

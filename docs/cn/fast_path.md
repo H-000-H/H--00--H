@@ -37,7 +37,7 @@
 
 | 禁止 | 原因 |
 | :--- | :--- |
-| `printf` / `SYS_LOGI` 刷屏 | 阻塞、不可重入、拖长关中断时间 |
+| `printf` / `MT_LOG_INFO` 刷屏 | 阻塞、不可重入、拖长关中断时间 |
 | `malloc` / 新删 | 不确定时延；可能 poison |
 | 拿 mutex / 睡 | 死锁或非法 ISR 调用 |
 | `strcmp`、遍历设备树、查找 device | 时延抖动 |

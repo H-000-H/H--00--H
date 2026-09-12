@@ -59,7 +59,7 @@ set(MINI_OS_DEFINE CONFIG_OS_FREERTOS)
 
 # HAL stub 全量编入, 但每个 stub 文件内部已做 #if defined(ESP_PLATFORM) 屏蔽:
 # ESP 构建下文件编译为空 (hal_* 由板级组件提供 strong 实现, 缺失直接链接报错,
-# 杜绝静默 -ENOSYS); 非 ESP 构建保留 weak stub 兜底。
+# 杜绝静默 MINI_ERR_NOTSUPP); 非 ESP 构建保留 weak stub 兜底。
 # 板级需覆盖的引用集 (随 DRIVER_SRCS/SYSTEM_SRCS 变化, 缺失时链接错误会指出):
 #   外设 7: gpio/spi/uart/i2c/can/tim/adc  系统 5: iwdg/storage/flash/usb/platform_safety
 # 注意: hal_cpu_secondary_startup 被 CONFIG_CPU_CORES>1 引用, CPU_CORES=1 时不链接;
@@ -120,12 +120,12 @@ set(CORE_SRCS
     "${MINI_TREE_DIR}/core/src/mini_backend_freertos.c"
     "${MINI_TREE_DIR}/core/src/mini_backend_mini_os.c"
     "${MINI_TREE_DIR}/core/src/mini_backend_rtthread.c"
-    "${MINI_TREE_DIR}/core/src/mini_log.c"
     "${MINI_TREE_DIR}/core/src/mini_panic.c"
     "${MINI_TREE_DIR}/core/src/mini_slot.c"
     "${MINI_TREE_DIR}/core/src/mini_time.c"
-    "${MINI_TREE_DIR}/core/src/production_log.c"
-    "${MINI_TREE_DIR}/core/src/printf_output.c"
+    "${MINI_TREE_DIR}/core/src/status.c"
+    "${MINI_TREE_DIR}/mini-log/src/log.c"
+    "${MINI_TREE_DIR}/mini-log/src/crc.c"
 )
 if(MINI_TREE_EVENT_BUS)
     list(APPEND CORE_SRCS "${MINI_TREE_DIR}/core/src/event_bus.c")
@@ -307,6 +307,7 @@ idf_component_register(
         "${MINI_TREE_DIR}/system_c/include"
         "${MINI_TREE_DIR}/system_cpp/include"
         "${MINI_TREE_DIR}/algorithm/buffer"
+        "${MINI_TREE_DIR}/mini-log/inc"
         "${MINI_TREE_DIR}/interrupt"
         ${_PRODUCT_DRV_INC_DIRS}
         ${_PRODUCT_DRV_SRC_DIRS}

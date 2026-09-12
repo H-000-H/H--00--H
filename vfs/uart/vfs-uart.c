@@ -61,7 +61,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_uart_priv_pool_i
  * @param[in] cfg 配置结构指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_uart_priv_parse_dts(struct device* pdev, struct hal_uart_config* cfg)
+static mt_err_t vfs_uart_priv_parse_dts(struct device* pdev, struct hal_uart_config* cfg)
 {
     /* 硬件直投: DTSI 提供厂商宏值, VFS 零翻译填入 hal_uart_config。 device_get_prop_int 取 int*,
      * 指针/uint32 字段用 int temp + (uintptr_t) cast。 */
@@ -172,7 +172,7 @@ static int vfs_uart_priv_parse_dts(struct device* pdev, struct hal_uart_config* 
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_uart_priv_probe(struct device* pdev)
+static mt_err_t vfs_uart_priv_probe(struct device* pdev)
 {
     struct vfs_uart_priv* priv;
     int                   pool_idx;
@@ -191,7 +191,7 @@ static int vfs_uart_priv_probe(struct device* pdev)
 
     if (vfs_uart_priv_parse_dts(pdev, &priv->cfg) != MINI_OK)
     {
-        SYS_LOGE(k_host_tag, "dts parse failed: %s", device_get_name(pdev));
+        MT_LOG_ERROR(k_host_tag, "dts parse failed: %s", device_get_name(pdev));
         ret = MINI_ERR_INVAL;
         goto err_pool;
     }
@@ -206,7 +206,7 @@ static int vfs_uart_priv_probe(struct device* pdev)
         goto err_bus;
     }
 
-    SYS_LOGI(k_host_tag, "probe OK: %s baud=%lu", device_get_name(pdev), (unsigned long)priv->cfg.baud_rate);
+    MT_LOG_INFO(k_host_tag, "probe OK: %s baud=%lu", device_get_name(pdev), (unsigned long)priv->cfg.baud_rate);
     return MINI_OK;
 
 err_bus:
@@ -221,7 +221,7 @@ err_pool:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_uart_priv_remove(struct device* pdev)
+static mt_err_t vfs_uart_priv_remove(struct device* pdev)
 {
     struct vfs_uart_priv* priv;
     struct dev_lifecycle* lc;
@@ -253,7 +253,7 @@ static int vfs_uart_priv_remove(struct device* pdev)
     ret = uart_bus_host_deinit(pdev);
     if (ret != MINI_OK)
     {
-        SYS_LOGE(k_host_tag, "host_deinit failed: %s", device_get_name(pdev));
+        MT_LOG_ERROR(k_host_tag, "host_deinit failed: %s", device_get_name(pdev));
         dev_lc_remove_finish(lc);
         return ret;
     }
@@ -295,7 +295,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void uart_vfs_pool_ini
  * @param[in] arg 命令参数指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int uart_vfs_open(struct device* pdev, void* arg)
+static mt_err_t uart_vfs_open(struct device* pdev, void* arg)
 {
     struct dev_lifecycle* lc;
     int                   first;
@@ -330,7 +330,7 @@ static int uart_vfs_open(struct device* pdev, void* arg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int uart_vfs_close(struct device* pdev)
+static mt_err_t uart_vfs_close(struct device* pdev)
 {
     struct dev_lifecycle* lc;
     int                   last;
@@ -416,7 +416,7 @@ static int uart_vfs_read(struct device* pdev, void* buf, size_t len, uint32_t ti
 /* -------------------------------------------------------------------------- */
 /*ioctl 命令映射表*/
 /* -------------------------------------------------------------------------- */
-typedef int (*uart_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
+typedef mt_err_t (*uart_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
 
 struct uart_ioctl_map
 {
@@ -431,7 +431,7 @@ struct uart_ioctl_map
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int uart_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t uart_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct uart_transfer_arg* transfer_arg = (const struct uart_transfer_arg*)arg;
 
@@ -454,7 +454,7 @@ static const struct uart_ioctl_map s_uart_ioctl_map[UART_CMD_COUNT] = {
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int uart_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t uart_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct dev_lifecycle* lc;
     int32_t               offset;
@@ -489,7 +489,7 @@ static const struct file_operations uart_vfs_fops = {
     .ioctl = uart_vfs_ioctl,
 };
 
-int uart_vfs_probe(struct device* pdev)
+mt_err_t uart_vfs_probe(struct device* pdev)
 {
     struct uart_vfs_client* priv;
     int                     pool_idx;
@@ -521,7 +521,7 @@ int uart_vfs_probe(struct device* pdev)
         goto err_pool;
     }
 
-    SYS_LOGI(k_tag, "probe OK: %s", device_get_name(pdev));
+    MT_LOG_INFO(k_tag, "probe OK: %s", device_get_name(pdev));
     return MINI_OK;
 
 err_pool:
@@ -531,7 +531,7 @@ err_pool:
     return ret;
 }
 
-int uart_vfs_remove(struct device* pdev)
+mt_err_t uart_vfs_remove(struct device* pdev)
 {
     struct uart_vfs_client* priv;
     struct dev_lifecycle*   lc;

@@ -103,7 +103,7 @@ static void event_bus_dispatch_task(void* param)
         {
             if (mini_mutex_lock(s_bus.sub_lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) != MINI_OK)
             {
-                SYS_LOGE(K_TAG, "Fatal: EventBus dispatch lock timeout — safe shutdown");
+                MT_LOG_ERROR(K_TAG, "Fatal: EventBus dispatch lock timeout — safe shutdown");
                 enter_safe_state("EventBus mutex deadlock");
                 break;
             }
@@ -122,7 +122,7 @@ static void event_bus_dispatch_task(void* param)
         }
     }
 
-    SYS_LOGI(K_TAG, "dispatch task exiting");
+    MT_LOG_INFO(K_TAG, "dispatch task exiting");
     mini_task_self_delete();
 }
 
@@ -134,7 +134,7 @@ static void event_bus_dispatch_task(void* param)
  * @brief 初始化 EventBus
  * @return MINI_OK 成功; MINI_ERR_NOMEM 队列/锁创建失败
  */
-int event_bus_init(void)
+mt_err_t event_bus_init(void)
 {
     if (s_bus.inited)
         return MINI_OK;
@@ -142,20 +142,20 @@ int event_bus_init(void)
     s_bus.queue = mini_queue_create(K_QUEUE_LEN, sizeof(struct event));
     if (s_bus.queue == NULL)
     {
-        SYS_LOGE(K_TAG, "FATAL: mini_queue_create failed — event bus unusable");
+        MT_LOG_ERROR(K_TAG, "FATAL: mini_queue_create failed — event bus unusable");
         return MINI_ERR_NOMEM;
     }
 
     if (mini_mutex_create_static(&s_bus.sub_lock, s_bus.sub_lock_storage, sizeof(s_bus.sub_lock_storage)) != 0 || s_bus.sub_lock == NULL)
     {
-        SYS_LOGE(K_TAG, "FATAL: mutex create failed");
+        MT_LOG_ERROR(K_TAG, "FATAL: mutex create failed");
         mini_queue_delete(s_bus.queue);
         s_bus.queue = NULL;
         return MINI_ERR_NOMEM;
     }
 
     s_bus.inited = true;
-    SYS_LOGI(K_TAG, "event bus initialized, queue=%u slots", (unsigned)K_QUEUE_LEN);
+    MT_LOG_INFO(K_TAG, "event bus initialized, queue=%u slots", (unsigned)K_QUEUE_LEN);
     return MINI_OK;
 }
 
@@ -168,7 +168,7 @@ int event_bus_init(void)
  * @return MINI_OK 成功; MINI_ERR_ISR 中断上下文; MINI_ERR_NOTSUPP 封表;
  *         MINI_ERR_INVAL 参数非法/未初始化; MINI_ERR_TIMEOUT 锁超时; MINI_ERR_NOSPC 表满
  */
-int event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callback, void* user_data)
+mt_err_t event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callback, void* user_data)
 {
     if (hal_is_in_isr())
         return MINI_ERR_ISR;
@@ -183,7 +183,7 @@ int event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callb
 
     if (mini_mutex_lock(s_bus.sub_lock, MINI_LOCK_TIMEOUT_DEFAULT_MS) != MINI_OK)
     {
-        SYS_LOGE(K_TAG, "Fatal: EventBus subscribe lock timeout (possible deadlock)");
+        MT_LOG_ERROR(K_TAG, "Fatal: EventBus subscribe lock timeout (possible deadlock)");
         return MINI_ERR_TIMEOUT;
     }
 
@@ -210,7 +210,7 @@ int event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callb
  * @param[in] px_yield_required ISR 路径下输出是否需要 yield (可为 NULL)
  * @return MINI_OK 入队成功; MINI_ERR_AGAIN 总线未初始化/OS 未就绪; MINI_ERR_NOSPC 队列满
  */
-static int event_bus_post_internal(uint32_t id, uintptr_t arg, bool from_isr, bool* px_yield_required)
+static mt_err_t event_bus_post_internal(uint32_t id, uintptr_t arg, bool from_isr, bool* px_yield_required)
 {
     if (s_bus.queue == NULL || !s_bus.inited)
         return MINI_ERR_AGAIN;
@@ -233,7 +233,7 @@ static int event_bus_post_internal(uint32_t id, uintptr_t arg, bool from_isr, bo
         {
             size_t cur = __atomic_load_n(&s_bus.dropped, __ATOMIC_RELAXED);
             if ((cur % 8) == 0 && cur != 0)
-                SYS_LOGW(K_TAG, "event queue full, dropped=%u", (unsigned)cur);
+                MT_LOG_WARN(K_TAG, "event queue full, dropped=%u", (unsigned)cur);
         }
         return MINI_ERR_NOSPC;
     }
@@ -246,7 +246,7 @@ static int event_bus_post_internal(uint32_t id, uintptr_t arg, bool from_isr, bo
  * @param[in] arg 参数
  * @return MINI_OK 成功; MINI_ERR_ISR 中断上下文调用; 其余同 event_bus_post_internal
  */
-int event_bus_post(uint32_t id, uintptr_t arg)
+mt_err_t event_bus_post(uint32_t id, uintptr_t arg)
 {
     if (hal_is_in_isr())
         return MINI_ERR_ISR;
@@ -261,7 +261,7 @@ int event_bus_post(uint32_t id, uintptr_t arg)
  * @param[in] px_yield_required yield
  * @return MINI_OK 成功; MINI_ERR_AGAIN 未就绪; MINI_ERR_NOSPC 队列满
  */
-int event_bus_post_from_isr(uint32_t id, uintptr_t arg, bool* px_yield_required) { return event_bus_post_internal(id, arg, true, px_yield_required); }
+mt_err_t event_bus_post_from_isr(uint32_t id, uintptr_t arg, bool* px_yield_required) { return event_bus_post_internal(id, arg, true, px_yield_required); }
 
 /**
  * @brief 丢弃计数
@@ -280,11 +280,11 @@ void event_bus_start(void)
     if (mini_task_create_handle("evt_bus", K_DISPATCH_STACK, K_DISPATCH_PRIO, event_bus_dispatch_task, NULL, 0, &s_bus.task) != 0 ||
         s_bus.task == NULL)
     {
-        SYS_LOGW(K_TAG, "dispatch task create failed");
+        MT_LOG_WARN(K_TAG, "dispatch task create failed");
         return;
     }
     MINI_IGNORE_RESULT(system_wdt_subscribe(s_bus.task));
-    SYS_LOGI(K_TAG, "dispatch task started prio %lu", (unsigned long)K_DISPATCH_PRIO);
+    MT_LOG_INFO(K_TAG, "dispatch task started prio %lu", (unsigned long)K_DISPATCH_PRIO);
 }
 
 /**
@@ -311,7 +311,7 @@ void event_bus_stop(void)
 
     if (mini_task_is_running(handle))
     {
-        SYS_LOGW(K_TAG, "dispatch task did not exit, force deleting");
+        MT_LOG_WARN(K_TAG, "dispatch task did not exit, force deleting");
         mini_task_delete(handle);
     }
 

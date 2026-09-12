@@ -62,9 +62,9 @@ static struct sht30_device* sht30_get_drvdata(struct device* pdev) { return (str
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht30_i2c_wr(struct sht30_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t sht30_i2c_wr(struct sht30_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -73,9 +73,9 @@ static int sht30_i2c_wr(struct sht30_device* dev, const uint8_t* tx, size_t len,
 
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht30_i2c_rd(struct sht30_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t sht30_i2c_rd(struct sht30_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -84,9 +84,9 @@ static int sht30_i2c_rd(struct sht30_device* dev, uint8_t* rx, size_t len, uint3
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht30_hw_create(struct sht30_device* dev)
+static mt_err_t sht30_hw_create(struct sht30_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -175,7 +175,7 @@ static int sht30_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*sht30_ioctl_fn_t)(struct sht30_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*sht30_ioctl_fn_t)(struct sht30_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct sht30_ioctl_map
 {
     sht30_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct sht30_ioctl_map
 /**
  * @brief SHT30_CMD_READ_TEMP_RH 实现：触发测量（20ms）并换算 T/RH
  */
-static int sht30_cmd_read(struct sht30_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sht30_cmd_read(struct sht30_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t        cmd[2] = {0x24, 0x00};
     uint8_t              raw[6];
@@ -214,7 +214,7 @@ static const struct sht30_ioctl_map s_sht30_map[SHT30_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int sht30_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t sht30_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct sht30_device*  dev;
     struct dev_lifecycle* lc;
@@ -249,7 +249,7 @@ static const struct file_operations sht30_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int sht30_probe(struct device* pdev)
+static mt_err_t sht30_probe(struct device* pdev)
 {
     struct sht30_device* dev;
     int                  pool_idx, ret;
@@ -274,7 +274,7 @@ static int sht30_probe(struct device* pdev)
     }
     dev->ops = sht30_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -286,7 +286,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int sht30_remove(struct device* pdev)
+static mt_err_t sht30_remove(struct device* pdev)
 {
     struct sht30_device*  dev;
     struct dev_lifecycle* lc;

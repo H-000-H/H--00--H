@@ -30,7 +30,7 @@
 | `mini_backend.h` | tasks, locks, queues, delays, log levels |
 | `event_bus.h` | pub-sub |
 | `algorithm/buffer` | buffers |
-| `system_log.h` | `SYS_LOGI/W/E` |
+| `system_log.h` | `MT_LOG_ERROR/WARN/INFO` |
 | own headers | — |
 
 ---

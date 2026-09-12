@@ -55,7 +55,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_usb_priv_pool_in
  * @param[out] cfg 回传解析后的 USB 主机配置
  * @return 成功返回 MINI_OK, 关键属性缺失返回 MINI_ERR_INVAL
  */
-static int vfs_usb_priv_parse_dts(struct device* pdev, struct hal_usb_bus_config* cfg)
+static mt_err_t vfs_usb_priv_parse_dts(struct device* pdev, struct hal_usb_bus_config* cfg)
 {
     int usb_base = 0, rhport = 0, irqn = 0, vbus = 0, dma_en = 0;
     int dp_port = 0, dp_pin = 0, dp_af = 0;
@@ -91,7 +91,7 @@ static int vfs_usb_priv_parse_dts(struct device* pdev, struct hal_usb_bus_config
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 资源不足返回 MINI_ERR_NOMEM, 失败返回负数错误码
  */
-static int vfs_usb_priv_probe(struct device* pdev)
+static mt_err_t vfs_usb_priv_probe(struct device* pdev)
 {
     struct vfs_usb_priv* priv;
     int                  pool_idx, ret;
@@ -121,7 +121,7 @@ static int vfs_usb_priv_probe(struct device* pdev)
         goto err_bus;
     }
 
-    SYS_LOGI(k_host_tag, "probe OK: %s", device_get_name(pdev));
+    MT_LOG_INFO(k_host_tag, "probe OK: %s", device_get_name(pdev));
     return MINI_OK;
 
 err_bus:
@@ -136,7 +136,7 @@ err_pool:
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 排空/反初始化失败返回负数错误码
  */
-static int vfs_usb_priv_remove(struct device* pdev)
+static mt_err_t vfs_usb_priv_remove(struct device* pdev)
 {
     struct vfs_usb_priv*  priv;
     struct dev_lifecycle* lc;
@@ -203,7 +203,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void vfs_usb_client_pool_
  * @param[in] arg 打开参数 (未用)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int usb_vfs_open(struct device* pdev, void* arg)
+static mt_err_t usb_vfs_open(struct device* pdev, void* arg)
 {
     MINI_IGNORE_RESULT(arg);
     return usb_bus_open(pdev);
@@ -214,7 +214,7 @@ static int usb_vfs_open(struct device* pdev, void* arg)
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int usb_vfs_close(struct device* pdev) { return usb_bus_close(pdev); }
+static mt_err_t usb_vfs_close(struct device* pdev) { return usb_bus_close(pdev); }
 
 /**
  * @brief VFS write 回调: 按客户端类型分发 CDC/ECM/HID 写
@@ -281,7 +281,7 @@ static int usb_vfs_read(struct device* pdev, void* buffer, size_t len, uint32_t 
  * @param[in] arg_len 参数长度
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-static int usb_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
+static mt_err_t usb_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
 {
     struct usb_vfs_client*          priv;
     const struct usb_xfer_mode_arg* ma = (const struct usb_xfer_mode_arg*)arg;
@@ -309,7 +309,7 @@ static int usb_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
  * @param[in] arg_len 参数长度
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-static int usb_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
+static mt_err_t usb_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
 {
     struct usb_vfs_client*    priv;
     struct usb_xfer_mode_arg* ma = (struct usb_xfer_mode_arg*)arg;
@@ -330,7 +330,7 @@ static int usb_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len)
  * @param[in] timeout_ms 超时毫秒数 (未用)
  * @return 成功返回 MINI_OK, 未知命令返回 MINI_ERR_NOTSUPP
  */
-static int usb_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t usb_vfs_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     MINI_IGNORE_RESULT(timeout_ms);
     if (cmd == USB_CMD_SET_XFER_MODE)
@@ -354,7 +354,7 @@ static const struct file_operations s_usb_fops_template = {
  * @param[in] cls 客户端类 (USB_CLIENT_*)
  * @return 成功返回 MINI_OK, 资源不足返回 MINI_ERR_NOMEM, 失败返回负数错误码
  */
-static int usb_vfs_client_probe_cls(struct device* pdev, enum usb_client_class cls)
+static mt_err_t usb_vfs_client_probe_cls(struct device* pdev, enum usb_client_class cls)
 {
     struct usb_vfs_client* priv;
     struct usb_bus_client* bus_cli;
@@ -386,7 +386,7 @@ static int usb_vfs_client_probe_cls(struct device* pdev, enum usb_client_class c
         goto err_pool;
     }
 
-    SYS_LOGI(k_client_tag, "probe OK: %s cls=%d", device_get_name(pdev), (int)cls);
+    MT_LOG_INFO(k_client_tag, "probe OK: %s cls=%d", device_get_name(pdev), (int)cls);
     return MINI_OK;
 
 err_pool:
@@ -401,7 +401,7 @@ err_pool:
  * @param[in] pdev device 指针
  * @return 成功返回 MINI_OK, 排空失败返回负数错误码
  */
-static int usb_vfs_client_remove(struct device* pdev)
+static mt_err_t usb_vfs_client_remove(struct device* pdev)
 {
     struct usb_vfs_client* priv;
     struct dev_lifecycle*  lc;

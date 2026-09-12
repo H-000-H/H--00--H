@@ -30,7 +30,7 @@ mini_task_handle_t task_manager_create(const struct board_task_config* config, v
     if (entry == NULL || config == NULL)
     {
         if (config)
-            SYS_LOGE(k_tag, "task entry is null: %s", config->name);
+            MT_LOG_ERROR(k_tag, "task entry is null: %s", config->name);
         return NULL;
     }
 
@@ -38,7 +38,7 @@ mini_task_handle_t task_manager_create(const struct board_task_config* config, v
     int                ret = mini_task_create_handle(config->name, config->stack_size, config->priority, entry, param, config->core_id, &handle);
     if (ret != 0)
     {
-        SYS_LOGE(k_tag, "failed to create task: %s", config->name);
+        MT_LOG_ERROR(k_tag, "failed to create task: %s", config->name);
         return NULL;
     }
 

@@ -19,7 +19,7 @@
 
 ### `SYS_LOG backend not configured`
 
-`config.h`（或 `ide/stubs/config.h`）需定义 `CONFIG_SYS_LOG_USE_PRINTF` 或其它日志后端。
+`config.h`（或 `ide/stubs/config.h`）需定义 `CONFIG_SYS_LOG_USE_MINI_LOG` 或 `CONFIG_SYS_LOG_USE_ESP`。
 
 ### `device_id_t` / `DEV_ID_COUNT` 未知
 

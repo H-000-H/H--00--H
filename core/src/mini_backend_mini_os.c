@@ -66,7 +66,7 @@ _Static_assert(sizeof(struct mini_mutex) <= MINI_MUTEX_STORAGE_SIZE, "mini_backe
 
 /* 递归性由创建 API 决定且运行期不可变: 非递归版对同 owner 重入返回 BUSY,
  * 会直接把 device_open (持锁后调 device_set_status 再锁一次) 打成失败 */
-static int mini_mutex_init(struct mini_mutex* mutex, bool recursive)
+static mt_err_t mini_mutex_init(struct mini_mutex* mutex, bool recursive)
 {
     if (!mutex)
         return MINI_ERR_INVAL;
@@ -85,7 +85,7 @@ static int mini_mutex_init(struct mini_mutex* mutex, bool recursive)
     return MINI_OK;
 }
 
-int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_mutex))
         return MINI_ERR_INVAL;
@@ -101,7 +101,7 @@ int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_s
     return MINI_OK;
 }
 
-int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
+mt_err_t mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_mutex))
         return MINI_ERR_INVAL;
@@ -127,7 +127,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_RES_POOL) static void mini_mutex_pool_boot
     MINI_IGNORE_RESULT(mini_slot_init(&s_mutex_pool_ctrl, s_mutex_used, MINI_MUTEX_POOL_SIZE));
 }
 
-int mini_mutex_create(mini_mutex_t** out)
+mt_err_t mini_mutex_create(mini_mutex_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -149,7 +149,7 @@ int mini_mutex_create(mini_mutex_t** out)
     return MINI_OK;
 }
 
-int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
+mt_err_t mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -160,7 +160,7 @@ int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms)
     return mini_err_from_mini_os(mini_os_mutex_lock(&mutex->obj, mini_os_timeout(timeout_ms)));
 }
 
-int mini_mutex_unlock(mini_mutex_t* mtx)
+mt_err_t mini_mutex_unlock(mini_mutex_t* mtx)
 {
     if (!mtx)
         return MINI_ERR_INVAL;
@@ -196,14 +196,14 @@ struct mini_sem
 
 _Static_assert(sizeof(struct mini_sem) <= MINI_SEM_STORAGE_SIZE, "mini_backend_mini_os: MINI_SEM_STORAGE_SIZE too small");
 
-static int mini_sem_init(struct mini_sem* sem)
+static mt_err_t mini_sem_init(struct mini_sem* sem)
 {
     if (mini_os_binary_semaphore_create_static(MINI_OS_NULL, &sem->obj) == MINI_OS_NULL)
         return MINI_ERR_NOMEM;
     return MINI_OK;
 }
 
-int mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
+mt_err_t mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size)
 {
     if (!out || !storage || storage_size < sizeof(struct mini_sem))
         return MINI_ERR_INVAL;
@@ -226,7 +226,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_SEM_POOL) static void mini_sem_pool_boot(v
     MINI_IGNORE_RESULT(mini_slot_init(&s_sem_pool_ctrl, s_sem_used, MINI_SEM_POOL_SIZE));
 }
 
-int mini_sem_create_binary(mini_sem_t** out)
+mt_err_t mini_sem_create_binary(mini_sem_t** out)
 {
     if (!out)
         return MINI_ERR_INVAL;
@@ -247,7 +247,7 @@ int mini_sem_create_binary(mini_sem_t** out)
     return MINI_OK;
 }
 
-int mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
+mt_err_t mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms)
 {
     if (!sem)
         return MINI_ERR_INVAL;
@@ -376,7 +376,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_SCHEDULER) static void mini_backend_kernel
 /* -------------------------------------------------------------------------- */
 /* 调度器启动 (显式入口, 由板级 / app 按时序调用)                              */
 /* -------------------------------------------------------------------------- */
-int mini_scheduler_start(void)
+mt_err_t mini_scheduler_start(void)
 {
     /* 顺序不可颠倒: schedule_start 会立刻置 PendSV 并开中断, 控制权随即交给首个
      * 线程, 其后的语句可能永不执行 —— 必须先把 tick 配好。0 = 默认 tick 频率 */
@@ -406,7 +406,7 @@ MINI_STATIC_INLINE uint32_t mini_clamp_stack_size(uint32_t stack_bytes)
     return stack_bytes;
 }
 
-int mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
+mt_err_t mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
                             mini_task_handle_t* out_handle)
 {
     MINI_UNUSED_PARAM(core_id); /* mini-os 单核 */
@@ -479,7 +479,7 @@ void* mini_malloc(size_t size) { return mini_os_malloc(size); }
 
 void* mini_calloc(size_t count, size_t size) { return mini_os_calloc(count, size); }
 
-int mini_free(void* ptr)
+mt_err_t mini_free(void* ptr)
 {
     MINI_IGNORE_RESULT(mini_os_free(ptr));
     return MINI_OK;

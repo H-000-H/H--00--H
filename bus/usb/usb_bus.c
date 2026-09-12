@@ -84,10 +84,10 @@ static struct usb_bus_client* usb_client_from_device(struct device* pdev)
     return &s_usb_clients[id];
 }
 
-static int  usb_host_init_impl(struct device* pdev, const void* cfg);
-static int  usb_host_deinit_impl(struct device* pdev);
+static mt_err_t  usb_host_init_impl(struct device* pdev, const void* cfg);
+static mt_err_t  usb_host_deinit_impl(struct device* pdev);
 static int  usb_host_role_impl(struct device* pdev);
-static int  usb_client_register_impl(struct device* pdev, const void* cfg, void** out);
+static mt_err_t  usb_client_register_impl(struct device* pdev, const void* cfg, void** out);
 static void usb_client_unregister_impl(struct device* pdev);
 
 static const struct bus_controller_ops s_usb_controller_ops = {
@@ -104,7 +104,7 @@ static const struct bus_controller_ops s_usb_controller_ops = {
  * @param[in] cfg host 配置指针
  * @return 成功返回 MINI_OK, 池耗尽返回 MINI_ERR_NOMEM, 失败返回负数错误码
  */
-static int usb_host_init_impl(struct device* pdev, const void* cfg)
+static mt_err_t usb_host_init_impl(struct device* pdev, const void* cfg)
 {
     const struct hal_usb_bus_config* host_cfg;
     struct usb_bus_host*             host;
@@ -150,7 +150,7 @@ static int usb_host_init_impl(struct device* pdev, const void* cfg)
         goto fail_pool;
     }
 
-    SYS_LOGI(k_tag, "host init OK rhport=%u", (unsigned)host->rhport);
+    MT_LOG_INFO(k_tag, "host init OK rhport=%u", (unsigned)host->rhport);
     return MINI_OK;
 
 fail_pool:
@@ -159,14 +159,14 @@ fail_pool:
     return ret;
 }
 
-int usb_bus_host_init(struct device* pdev, const struct hal_usb_bus_config* cfg) { return usb_host_init_impl(pdev, cfg); }
+mt_err_t usb_bus_host_init(struct device* pdev, const struct hal_usb_bus_config* cfg) { return usb_host_init_impl(pdev, cfg); }
 
 /**
  * @brief USB 主机反初始化实现: 校验 ref_count + 解绑 + 释放池槽
  * @param[in] pdev host device 指针
  * @return 成功返回 MINI_OK, 引用未归零返回 MINI_ERR_BUSY, 未找到返回 MINI_ERR_NODEV
  */
-static int usb_host_deinit_impl(struct device* pdev)
+static mt_err_t usb_host_deinit_impl(struct device* pdev)
 {
     struct usb_bus_host* host;
     int                  idx, ret;
@@ -192,7 +192,7 @@ static int usb_host_deinit_impl(struct device* pdev)
     return ret;
 }
 
-int usb_bus_host_deinit(struct device* pdev) { return usb_host_deinit_impl(pdev); }
+mt_err_t usb_bus_host_deinit(struct device* pdev) { return usb_host_deinit_impl(pdev); }
 
 /**
  * @brief USB 主机角色查询实现 (USB 固定为 host, 恒返回 0)
@@ -212,7 +212,7 @@ static int usb_host_role_impl(struct device* pdev)
  * @param[out] out 回传已绑定 client 指针
  * @return 成功返回 MINI_OK, 占用冲突返回 MINI_ERR_BUSY, 参数非法返回 MINI_ERR_INVAL
  */
-static int usb_client_register_impl(struct device* pdev, const void* cfg, void** out)
+static mt_err_t usb_client_register_impl(struct device* pdev, const void* cfg, void** out)
 {
     struct bus_controller*       ctlr;
     struct usb_bus_host*         host;
@@ -252,7 +252,7 @@ static int usb_client_register_impl(struct device* pdev, const void* cfg, void**
     return MINI_OK;
 }
 
-int usb_bus_client_register(struct device* pdev, enum usb_client_class cls, struct usb_bus_client** out)
+mt_err_t usb_bus_client_register(struct device* pdev, enum usb_client_class cls, struct usb_bus_client** out)
 {
     return usb_client_register_impl(pdev, &cls, (void**)out);
 }
@@ -281,7 +281,7 @@ static void usb_client_unregister_impl(struct device* pdev)
 
 void usb_bus_client_unregister(struct device* pdev) { usb_client_unregister_impl(pdev); }
 
-int usb_bus_open(struct device* pdev)
+mt_err_t usb_bus_open(struct device* pdev)
 {
     struct usb_bus_client* usb_client = usb_client_from_device(pdev);
     if (!usb_client)
@@ -290,7 +290,7 @@ int usb_bus_open(struct device* pdev)
     return MINI_OK;
 }
 
-int usb_bus_close(struct device* pdev)
+mt_err_t usb_bus_close(struct device* pdev)
 {
     struct usb_bus_client* usb_client = usb_client_from_device(pdev);
     if (!usb_client)
@@ -299,7 +299,7 @@ int usb_bus_close(struct device* pdev)
     return MINI_OK;
 }
 
-int usb_bus_resolve_xfer_mode(struct device* client_or_host, uint32_t xfer_mode)
+mt_err_t usb_bus_resolve_xfer_mode(struct device* client_or_host, uint32_t xfer_mode)
 {
     struct usb_bus_host*   host = usb_host_from_device(client_or_host);
     struct usb_bus_client* client;

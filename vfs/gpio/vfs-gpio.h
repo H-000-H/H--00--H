@@ -45,7 +45,7 @@ struct vfs_gpio_arg
  * @param[in] vfs_arg 参数包 (含 obj 与 level)
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_gpio_set_level(struct vfs_gpio_arg* vfs_arg)
+MINI_STATIC_INLINE mt_err_t vfs_gpio_set_level(struct vfs_gpio_arg* vfs_arg)
 {
     if (IS_ERR(vfs_arg))
         return PTR_ERR(vfs_arg);
@@ -59,7 +59,7 @@ MINI_STATIC_INLINE int vfs_gpio_set_level(struct vfs_gpio_arg* vfs_arg)
  * @param[in] vfs_arg 参数包 (含 obj; level 回传结果)
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_gpio_get_level(struct vfs_gpio_arg* vfs_arg)
+MINI_STATIC_INLINE mt_err_t vfs_gpio_get_level(struct vfs_gpio_arg* vfs_arg)
 {
     if (IS_ERR(vfs_arg))
         return PTR_ERR(vfs_arg);
@@ -73,7 +73,7 @@ MINI_STATIC_INLINE int vfs_gpio_get_level(struct vfs_gpio_arg* vfs_arg)
  * @param[in] vfs_arg 参数包 (含 obj)
  * @return 成功返回 MINI_OK, 参数非法返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_gpio_toggle(struct vfs_gpio_arg* vfs_arg)
+MINI_STATIC_INLINE mt_err_t vfs_gpio_toggle(struct vfs_gpio_arg* vfs_arg)
 {
     if (IS_ERR(vfs_arg))
         return PTR_ERR(vfs_arg);

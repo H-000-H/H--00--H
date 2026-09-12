@@ -42,15 +42,15 @@ struct i2c_bus_client;
  * @brief I2C host 初始化 (config 类型直接用 hal_i2c_bus_config, bus 零翻译透传)
  * @param[in] pdev controller device (host)
  * @param[in] cfg host 配置 (VFS 填充 DTSI 硬件直投值)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_host_init(struct device* pdev, const struct hal_i2c_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_host_init(struct device* pdev, const struct hal_i2c_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C host 反初始化 (ref_count > 0 时返回 BUSY)
  * @param[in] pdev controller device (host)
- * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 MINI_ERR_*
  */
-int i2c_bus_host_deinit(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_host_deinit(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 查询 I2C host 角色 (master/slave)
  * @param[in] pdev controller device (host)
@@ -66,9 +66,9 @@ int i2c_bus_host_role(struct device* pdev) MINI_WARN_UNUSED_RESULT;
  * @param[in] pdev client device
  * @param[in] cfg client 配置 (VFS 填充 DTSI 硬件直投值)
  * @param[out] out 输出 i2c_bus_client 指针
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_client_register(struct device* pdev, const struct hal_i2c_device_config* cfg, struct i2c_bus_client** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_client_register(struct device* pdev, const struct hal_i2c_device_config* cfg, struct i2c_bus_client** out) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 注销 I2C client 并递减 host 引用计数 (ref_count -1, 清零槽位)
  * @param[in] pdev client device
@@ -78,15 +78,15 @@ void i2c_bus_client_unregister(struct device* pdev);
 /**
  * @brief 打开 I2C client 硬件 (幂等)
  * @param[in] pdev client device
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_open(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_open(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 关闭 I2C client 硬件 (幂等)
  * @param[in] pdev client device
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief I2C 同步传输 (tx 非空 rx 空→写; tx 空 rx 非空→读; 两者非空→先写后读)
@@ -95,9 +95,9 @@ int i2c_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
  * @param[out] rx 接收缓冲区 (可 NULL)
  * @param[in] len 传输字节数
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
+mt_err_t i2c_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
                      uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C 读数据
@@ -105,18 +105,18 @@ int i2c_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t
  * @param[out] rx 接收缓冲区
  * @param[out] len 读取长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_read(struct device* pdev, uint8_t* rx, size_t len, uint32_t timeout_ms, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_read(struct device* pdev, uint8_t* rx, size_t len, uint32_t timeout_ms, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C 写数据
  * @param[in] pdev client device
  * @param[in] tx 发送缓冲区
  * @param[in] len 写入长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_write(struct device* pdev, const uint8_t* tx, size_t len, uint32_t timeout_ms, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_write(struct device* pdev, const uint8_t* tx, size_t len, uint32_t timeout_ms, uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C slave 模式同步传输 (空壳: STM32 返回 NOTSUPP)
  * @param[in] pdev client device
@@ -124,18 +124,18 @@ int i2c_bus_write(struct device* pdev, const uint8_t* tx, size_t len, uint32_t t
  * @param[out] rx 接收缓冲区
  * @param[in] len 传输字节数
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_slave_sync(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_slave_sync(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C slave 模式排队发送 (空壳: STM32 返回 NOTSUPP)
  * @param[in] pdev client device
  * @param[in] data 发送数据
  * @param[in] len 数据长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t i2c_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief I2C slave 模式获取传输结果 (空壳: STM32 返回 NOTSUPP)
  * @param[in] pdev client device
@@ -143,9 +143,9 @@ int i2c_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len,
  * @param[out] rx_cap 接收缓冲区容量
  * @param[out] trans_len 输出实际传输长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int i2c_bus_slave_get_trans_result(struct device* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len,
+mt_err_t i2c_bus_slave_get_trans_result(struct device* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len,
                                    uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /* -------------------------------------------------------------------------- */
 

@@ -62,7 +62,7 @@ static struct relay_device* relay_get_drvdata(struct device* pdev) { return (str
 /**
  * @brief 打开 GPIO 设备并绑定参数（失败回滚关闭）
  */
-static int relay_gpio_on(struct relay_device* dev, struct device* g, struct vfs_gpio_arg* a)
+static mt_err_t relay_gpio_on(struct relay_device* dev, struct device* g, struct vfs_gpio_arg* a)
 {
     int ret = device_open(g, NULL);
     if (ret != MINI_OK)
@@ -78,9 +78,9 @@ static int relay_gpio_on(struct relay_device* dev, struct device* g, struct vfs_
 
 /**
  * @brief 首次 open 时打开 GPIO 并绑定参数
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int relay_hw_create(struct relay_device* dev)
+static mt_err_t relay_hw_create(struct relay_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -170,7 +170,7 @@ static int relay_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*relay_ioctl_fn_t)(struct relay_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*relay_ioctl_fn_t)(struct relay_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct relay_ioctl_map
 {
     relay_ioctl_fn_t handler;
@@ -179,7 +179,7 @@ struct relay_ioctl_map
 /**
  * @brief RELAY_CMD_SET 实现：GPIO 电平控制吸合/断开
  */
-static int relay_cmd(struct relay_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t relay_cmd(struct relay_device* dev, void* arg, size_t len, uint32_t ms)
 {
     MINI_IGNORE_RESULT(ms);
     if (!dev->hw_ready || !arg || len != sizeof(int))
@@ -195,7 +195,7 @@ static const struct relay_ioctl_map s_relay_map[RELAY_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int relay_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t relay_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct relay_device*  dev;
     struct dev_lifecycle* lc;
@@ -230,7 +230,7 @@ static const struct file_operations relay_fops = {
 /**
  * @brief probe：claim 池项、绑定 relay-gpio 并挂 fops
  */
-static int relay_probe(struct device* pdev)
+static mt_err_t relay_probe(struct device* pdev)
 {
     struct relay_device* dev;
     int                  pool_idx, ret;
@@ -255,7 +255,7 @@ static int relay_probe(struct device* pdev)
     }
     dev->ops = relay_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -267,7 +267,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int relay_remove(struct device* pdev)
+static mt_err_t relay_remove(struct device* pdev)
 {
     struct relay_device*  dev;
     struct dev_lifecycle* lc;

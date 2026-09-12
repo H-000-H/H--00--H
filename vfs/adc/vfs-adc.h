@@ -35,7 +35,7 @@ typedef struct vfs_adc_arg_t vfs_adc_arg;
  * @param[out] out_val 回传转换值
  * @return 成功返回 MINI_OK, 参数为空返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_read_dma_it_adc_value(hal_adc_device* pdev, uint16_t* out_val)
+MINI_STATIC_INLINE mt_err_t vfs_read_dma_it_adc_value(hal_adc_device* pdev, uint16_t* out_val)
 {
     if (!pdev || !out_val)
         return MINI_ERR_INVAL;
@@ -48,7 +48,7 @@ MINI_STATIC_INLINE int vfs_read_dma_it_adc_value(hal_adc_device* pdev, uint16_t*
  * @param[out] out_val 回传转换值
  * @return 成功返回 MINI_OK, 参数为空返回 MINI_ERR_INVAL
  */
-MINI_STATIC_INLINE int vfs_read_dma_adc_value(hal_adc_device* pdev, uint16_t* out_val)
+MINI_STATIC_INLINE mt_err_t vfs_read_dma_adc_value(hal_adc_device* pdev, uint16_t* out_val)
 {
     if (!pdev || !out_val)
         return MINI_ERR_INVAL;

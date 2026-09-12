@@ -39,10 +39,10 @@ int tcp_client_poll_send(struct tcp_client_context* ctx)
         if (err == ERR_OK)
             return ERR_OK;
         else
-            SYS_LOGE(k_tag, "tcp_write failed: %d\r\n", err);
+            MT_LOG_ERROR(k_tag, "tcp_write failed: %d\r\n", err);
     }
 
-    SYS_LOGE(k_tag, "fifo buffer not read %d bytes\r\n", read_bytes);
+    MT_LOG_ERROR(k_tag, "fifo buffer not read %d bytes\r\n", read_bytes);
     return ERR_VAL;
 }
 
@@ -57,7 +57,7 @@ static void tcp_client_error_callback(void* arg, err_t err)
     struct tcp_client_context* ctx = (struct tcp_client_context*)arg;
     if (ctx != NULL)
     {
-        SYS_LOGE(k_tag, "client err occurred: %d\r\n", err);
+        MT_LOG_ERROR(k_tag, "client err occurred: %d\r\n", err);
         ctx->pcb = NULL; /* lwIP 内部已释放 PCB，此处不调用 tcp_close */
         ctx->is_connected = false;
     }
@@ -85,7 +85,7 @@ static err_t tcp_client_receive_callback(void* arg, struct tcp_pcb* pcb, struct 
     /* 服务器断开连接 */
     if (current_buf == NULL)
     {
-        SYS_LOGI(k_tag, "server disconnected\r\n");
+        MT_LOG_INFO(k_tag, "server disconnected\r\n");
         tcp_arg(pcb, NULL);
         tcp_recv(pcb, NULL);
         tcp_err(pcb, NULL);
@@ -98,7 +98,7 @@ static err_t tcp_client_receive_callback(void* arg, struct tcp_pcb* pcb, struct 
 
     if (err != ERR_OK)
     {
-        SYS_LOGE(k_tag, "tcp_client_receive_callback error: %d\r\n", err);
+        MT_LOG_ERROR(k_tag, "tcp_client_receive_callback error: %d\r\n", err);
         pbuf_free(current_buf);
         return err;
     }
@@ -114,7 +114,7 @@ static err_t tcp_client_receive_callback(void* arg, struct tcp_pcb* pcb, struct 
             MINI_IGNORE_RESULT(fifo_uni_write_block(&ctx->rx_fifo, (const uint8_t*)buf->payload, buf->len, &written));
             total_bytes = (uint16_t)(total_bytes + written);
             if (written < buf->len)
-                SYS_LOGW(k_tag, "RX FIFO full, dropped %u bytes\r\n", (unsigned int)(buf->len - written));
+                MT_LOG_WARN(k_tag, "RX FIFO full, dropped %u bytes\r\n", (unsigned int)(buf->len - written));
         }
         buf = buf->next;
     }
@@ -156,12 +156,12 @@ static err_t tcp_client_connected_callback(void* arg, struct tcp_pcb* pcb, err_t
     struct tcp_client_context* ctx = (struct tcp_client_context*)arg;
     if (ctx == NULL || err != ERR_OK)
     {
-        SYS_LOGE(k_tag, "tcp_client_connected_callback error: %d\r\n", err);
+        MT_LOG_ERROR(k_tag, "tcp_client_connected_callback error: %d\r\n", err);
         if (ctx)
             ctx->is_connected = false;
         return err;
     }
-    SYS_LOGI(k_tag, "connected to %s:%u\r\n", ctx->server_ip, ctx->port);
+    MT_LOG_INFO(k_tag, "connected to %s:%u\r\n", ctx->server_ip, ctx->port);
 
     ctx->is_connected = true;
 
@@ -192,7 +192,7 @@ int tcp_client_init_and_connect(struct tcp_client_context* ctx, const char* serv
     /* 解析 IP */
     if (!ip4addr_aton(server_ip, &dest_ip))
     {
-        SYS_LOGE(k_tag, "invalid IP: %s\r\n", server_ip);
+        MT_LOG_ERROR(k_tag, "invalid IP: %s\r\n", server_ip);
         return ERR_ARG;
     }
 
@@ -200,7 +200,7 @@ int tcp_client_init_and_connect(struct tcp_client_context* ctx, const char* serv
     ctx->pcb = tcp_new();
     if (ctx->pcb == NULL)
     {
-        SYS_LOGE(k_tag, "tcp_new failed\r\n");
+        MT_LOG_ERROR(k_tag, "tcp_new failed\r\n");
         return ERR_MEM;
     }
 
@@ -213,13 +213,13 @@ int tcp_client_init_and_connect(struct tcp_client_context* ctx, const char* serv
 
     if (ret != ERR_OK)
     {
-        SYS_LOGE(k_tag, "tcp_connect failed: %d\r\n", ret);
+        MT_LOG_ERROR(k_tag, "tcp_connect failed: %d\r\n", ret);
         tcp_close(ctx->pcb);
         ctx->pcb = NULL;
         return ret;
     }
 
-    SYS_LOGI(k_tag, "connecting to %s:%d...\r\n", server_ip, port);
+    MT_LOG_INFO(k_tag, "connecting to %s:%d...\r\n", server_ip, port);
     return ERR_OK;
 }
 
@@ -269,6 +269,6 @@ int tcp_client_disconnect(struct tcp_client_context* ctx)
         ctx->pcb = NULL;
     }
     ctx->is_connected = false;
-    SYS_LOGI(k_tag, "client disconnected\r\n");
+    MT_LOG_INFO(k_tag, "client disconnected\r\n");
     return ERR_OK;
 }

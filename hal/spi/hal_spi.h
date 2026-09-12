@@ -6,8 +6,8 @@
  *@details
  *   @note 所有接口设计为平台无关，由具体芯片平台(如 STM32, ESP32, CH307)进行底层硬实现。
  *   @note 由于SPI是快速热路径外设所以SPI的初始化与配置应该尽量在硬件直投层完成
- *   @note 文件约定：返回值不允许void，必须使用int，并且错误码必须使用VFS.h中的错误码
- *   @note 返回值不允许void，必须使用int，并且错误码必须使用VFS.h中的错误码
+ *   @note 文件约定：返回值不允许void；错误码返回类型统一用 mt_err_t (定义见 status.h)，
+ *         仅"字节数/计数"这类非错误码返回值才用 int
  *   @note 接收的参数必须为指针，并且必须为合法的指针，不能为空指针
  *   @note 禁止使用enum,enum的问题dts已经解决没必要在hal层重复定义去映射enum不直观而且麻烦还容易出错
  */
@@ -165,14 +165,14 @@ struct hal_spi_dev
  * @param[in] hw_idx dummy buffer / HW slot 索引
  * @param[in] cfg 总线配置
  */
-int hal_spi_bus_host_init(struct hal_spi_bus_host* host, int hw_idx, const struct hal_spi_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_bus_host_init(struct hal_spi_bus_host* host, int hw_idx, const struct hal_spi_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 释放 SPI 总线主机
  * @param[in] host 总线主机对象指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_bus_host_deinit(struct hal_spi_bus_host* host) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_bus_host_deinit(struct hal_spi_bus_host* host) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 初始化 SPI 设备
@@ -180,21 +180,21 @@ int hal_spi_bus_host_deinit(struct hal_spi_bus_host* host) MINI_WARN_UNUSED_RESU
  * @param[in] host 总线控制器对象指针
  * @param[in] dev_cfg 设备配置
  */
-int hal_spi_dev_init(struct hal_spi_dev* pdev, struct hal_spi_bus_host* host, const struct hal_spi_device_config* dev_cfg) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_dev_init(struct hal_spi_dev* pdev, struct hal_spi_bus_host* host, const struct hal_spi_device_config* dev_cfg) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 打开 SPI 设备
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_dev_hw_open(struct hal_spi_dev* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_dev_hw_open(struct hal_spi_dev* pdev) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 关闭 SPI 设备
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_dev_hw_close(struct hal_spi_dev* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_dev_hw_close(struct hal_spi_dev* pdev) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief SPI 同步传输
@@ -204,9 +204,9 @@ int hal_spi_dev_hw_close(struct hal_spi_dev* pdev) MINI_WARN_UNUSED_RESULT;
  * @param[in] len 传输字节数
  * @param[in] timeout_ms 超时 (ms)
  * @param[in] xfer_mode HAL_SPI_XFER_AUTO / POLL / DMA
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int hal_spi_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
+mt_err_t hal_spi_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
                  uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 
 /**
@@ -219,7 +219,7 @@ int hal_spi_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_
  * @param[in] userdata 用户数据指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_transfer_async(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, hal_spi_callback_t cb,
+mt_err_t hal_spi_transfer_async(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, hal_spi_callback_t cb,
                            void* userdata) MINI_WARN_UNUSED_RESULT;
 
 /**
@@ -228,7 +228,7 @@ int hal_spi_transfer_async(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t*
  * @param[in] timeout_ms 超时 (ms)
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_transfer_poll(struct hal_spi_dev* pdev, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_transfer_poll(struct hal_spi_dev* pdev, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief SPI 获取传输结果
@@ -239,7 +239,7 @@ int hal_spi_transfer_poll(struct hal_spi_dev* pdev, uint32_t timeout_ms) MINI_WA
  * @param[in] timeout_ms 超时 (ms)
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_get_trans_result(struct hal_spi_dev* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len, uint32_t timeout_ms);
+mt_err_t hal_spi_get_trans_result(struct hal_spi_dev* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len, uint32_t timeout_ms);
 
 /**
  * @brief SPI 从机同步传输
@@ -250,7 +250,7 @@ int hal_spi_get_trans_result(struct hal_spi_dev* pdev, uint8_t* rx_data, size_t 
  * @param[in] timeout_ms 超时 (ms)
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_slave_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_slave_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief SPI 从机队列传输
@@ -260,7 +260,7 @@ int hal_spi_slave_sync(struct hal_spi_dev* pdev, const uint8_t* tx, uint8_t* rx,
  * @param[in] timeout_ms 超时 (ms)
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_INVAL
  */
-int hal_spi_slave_queue_tx(struct hal_spi_dev* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t hal_spi_slave_queue_tx(struct hal_spi_dev* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 #ifdef __cplusplus
 }

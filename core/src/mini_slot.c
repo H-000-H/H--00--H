@@ -111,7 +111,7 @@ MINI_STATIC_INLINE void mini_slot_mux_init(mini_slot_t* pool) { MINI_UNUSED_PARA
 /* 槽位池 API                                                                  */
 /* -------------------------------------------------------------------------- */
 
-int mini_slot_init(mini_slot_t* pool, volatile uint8_t* used_slots, size_t slot_count)
+mt_err_t mini_slot_init(mini_slot_t* pool, volatile uint8_t* used_slots, size_t slot_count)
 {
     if (!pool || !used_slots || slot_count == 0)
         return MINI_ERR_INVAL;
@@ -149,7 +149,7 @@ int mini_slot_claim(mini_slot_t* pool)
     return claimed_index;
 }
 
-int mini_slot_release(mini_slot_t* pool, int slot_index)
+mt_err_t mini_slot_release(mini_slot_t* pool, int slot_index)
 {
     if (!pool || !pool->used_slots || slot_index < 0 || (size_t)slot_index >= pool->slot_count)
         return MINI_ERR_INVAL;

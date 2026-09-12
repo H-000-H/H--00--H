@@ -71,7 +71,7 @@ int network_transport_write(struct NetworkContext* context, const void* buffer, 
     {
         if (!tcp_client->is_connected)
         {
-            SYS_LOGW(s_kTag, "write aborted, link down");
+            MT_LOG_WARN(s_kTag, "write aborted, link down");
             return NET_ERR_CONN;
         }
 
@@ -88,7 +88,7 @@ int network_transport_write(struct NetworkContext* context, const void* buffer, 
             /* TX FIFO 满: 让出调度等待窗口释放 */
             if ((mini_time_ms() - start_ms) >= NETWORK_TRANSPORT_TX_TIMEOUT_MS)
             {
-                SYS_LOGE(s_kTag, "write timeout, fifo full");
+                MT_LOG_ERROR(s_kTag, "write timeout, fifo full");
                 return NET_ERR_TIMEOUT;
             }
             mini_delay_ms(1);

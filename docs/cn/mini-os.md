@@ -243,11 +243,11 @@ port 汇编是核特定的，配错核会直接破坏上下文。启动构造函
 | 主题 | 语义 |
 | :--- | :--- |
 | 优先级 | mini-os 数字越小越优先（同 RT-Thread，**与 FreeRTOS 相反**），统一接口约定每后端用所属内核原生语义 |
-| 错误码 | `MINI_OS_ERR_*` 在可见 `config.h`/`status.h` 时与 `MINI_ERR_*` 数值一致，零开销直通；仅 `MINI_OS_ERR_AGAIN` 映射为 `MINI_ERR_TIMEOUT` |
+| 错误码 | `MINI_OS_ERR_*` 与 `MINI_ERR_*` **逐位数值一致**（别名分支与后备分支已等价），零开销直通；仅 `MINI_OS_ERR_AGAIN`（非阻塞竞争 / 队列满空）按语义映射为 `MINI_ERR_TIMEOUT` |
 | ISR 模式 | `*_isr` 不主动切换；`mini_yield_from_isr()` 转发 `mini_os_schedule_yield_isr()` |
 | 对象池 | 互斥锁/信号量静态内嵌内核对象 + `mini_slot` 槽位池，池临界区用 `mini_os_irq_save/restore` |
 | 调度启动 | `mini_scheduler_start()` 先惰性引导内核（`schedule_init` + idle 线程 + SysTick）再启动调度器 |
-| 调度冻结 | mini-os 无全局挂起 API，`（已移除）()` 退化为关中断（同 `mini_backend_bare` 单向冻结语义） |
+| 调度冻结 | mini-os 无全局挂起 API，`mini_sched_freeze()` 退化为关中断（同 `mini_backend_bare` 单向冻结语义） |
 
 ### 8.4 构建方式
 

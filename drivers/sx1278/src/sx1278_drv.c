@@ -62,9 +62,9 @@ static struct sx1278_device* sx1278_get_drvdata(struct device* pdev) { return (s
 
 /**
  * @brief SPI 全双工传输（AUTO 模式）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sx1278_spi_xfer(struct sx1278_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t sx1278_spi_xfer(struct sx1278_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     struct spi_transfer_arg arg;
     if (!dev || !dev->spi_dev || len == 0U)
@@ -78,9 +78,9 @@ static int sx1278_spi_xfer(struct sx1278_device* dev, const uint8_t* tx, uint8_t
 
 /**
  * @brief 首次 open 时打开 SPI 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sx1278_hw_create(struct sx1278_device* dev)
+static mt_err_t sx1278_hw_create(struct sx1278_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -169,7 +169,7 @@ static int sx1278_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*sx1278_ioctl_fn_t)(struct sx1278_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*sx1278_ioctl_fn_t)(struct sx1278_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct sx1278_ioctl_map
 {
     sx1278_ioctl_fn_t handler;
@@ -186,7 +186,7 @@ static int sx1278_wr_reg(struct sx1278_device* dev, uint8_t reg, uint8_t val, ui
 /**
  * @brief SX1278_CMD_RESET 实现：复位到睡眠模式
  */
-static int sx1278_cmd_reset(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sx1278_cmd_reset(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     MINI_IGNORE_RESULT(arg);
     MINI_IGNORE_RESULT(len);
@@ -198,7 +198,7 @@ static int sx1278_cmd_reset(struct sx1278_device* dev, void* arg, size_t len, ui
 /**
  * @brief SX1278_CMD_SET_FREQ 实现：按 Frf 公式换算并写频点寄存器
  */
-static int sx1278_cmd_freq(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sx1278_cmd_freq(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     uint32_t hz;
     uint8_t  frf[3];
@@ -220,7 +220,7 @@ static int sx1278_cmd_freq(struct sx1278_device* dev, void* arg, size_t len, uin
 /**
  * @brief SX1278_CMD_SEND 实现：切 TX 模式并写 FIFO 载荷（截断至 255B）
  */
-static int sx1278_cmd_send(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sx1278_cmd_send(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct sx1278_payload* pl = (struct sx1278_payload*)arg;
     if (!pl || len != sizeof(*pl) || !pl->data || !pl->len)
@@ -242,7 +242,7 @@ static int sx1278_cmd_send(struct sx1278_device* dev, void* arg, size_t len, uin
 /**
  * @brief SX1278_CMD_RECV 实现：读取 FIFO 首字节（简化单字节接收）
  */
-static int sx1278_cmd_recv(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sx1278_cmd_recv(struct sx1278_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct sx1278_payload* pl = (struct sx1278_payload*)arg;
     uint8_t                tx[2] = {0, 0};
@@ -269,7 +269,7 @@ static const struct sx1278_ioctl_map s_sx1278_map[SX1278_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int sx1278_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t sx1278_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct sx1278_device* dev;
     struct dev_lifecycle* lc;
@@ -304,7 +304,7 @@ static const struct file_operations sx1278_fops = {
 /**
  * @brief probe：claim 池项、绑定父 SPI 设备并挂 fops
  */
-static int sx1278_probe(struct device* pdev)
+static mt_err_t sx1278_probe(struct device* pdev)
 {
     struct sx1278_device* dev;
     int                   pool_idx, ret;
@@ -329,7 +329,7 @@ static int sx1278_probe(struct device* pdev)
     }
     dev->ops = sx1278_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -341,7 +341,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int sx1278_remove(struct device* pdev)
+static mt_err_t sx1278_remove(struct device* pdev)
 {
     struct sx1278_device* dev;
     struct dev_lifecycle* lc;

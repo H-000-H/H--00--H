@@ -63,9 +63,9 @@ static struct vl53l0x_device* vl53l0x_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int vl53l0x_i2c_wr(struct vl53l0x_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t vl53l0x_i2c_wr(struct vl53l0x_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -73,9 +73,9 @@ static int vl53l0x_i2c_wr(struct vl53l0x_device* dev, const uint8_t* tx, size_t 
 }
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int vl53l0x_i2c_rd(struct vl53l0x_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t vl53l0x_i2c_rd(struct vl53l0x_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -107,7 +107,7 @@ static int vl53l0x_rd8(struct vl53l0x_device* dev, uint8_t reg, uint8_t* val, ui
  * @brief 读 16bit 大端寄存器
  * @param[in] val 输出寄存器值
  */
-static int vl53l0x_rd16(struct vl53l0x_device* dev, uint8_t reg, uint16_t* val, uint32_t timeout_ms)
+static mt_err_t vl53l0x_rd16(struct vl53l0x_device* dev, uint8_t reg, uint16_t* val, uint32_t timeout_ms)
 {
     uint8_t raw[2];
     int     ret = vl53l0x_i2c_wr(dev, &reg, 1, timeout_ms);
@@ -122,9 +122,9 @@ static int vl53l0x_rd16(struct vl53l0x_device* dev, uint8_t reg, uint16_t* val, 
 
 /**
  * @brief 首次 open 时初始化硬件：软复位 + 模型校验 + dataInit 片段
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int vl53l0x_hw_create(struct vl53l0x_device* dev)
+static mt_err_t vl53l0x_hw_create(struct vl53l0x_device* dev)
 {
     uint8_t model = 0;
     int     ret;
@@ -149,7 +149,7 @@ static int vl53l0x_hw_create(struct vl53l0x_device* dev)
         goto fail;
     if (model != 0xEE)
     {
-        SYS_LOGE(k_tag, "bad model id 0x%02x", model);
+        MT_LOG_ERROR(k_tag, "bad model id 0x%02x", model);
         ret = MINI_ERR_NODEV;
         goto fail;
     }
@@ -263,7 +263,7 @@ static int vl53l0x_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*vl53l0x_ioctl_fn_t)(struct vl53l0x_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*vl53l0x_ioctl_fn_t)(struct vl53l0x_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct vl53l0x_ioctl_map
 {
     vl53l0x_ioctl_fn_t handler;
@@ -272,7 +272,7 @@ struct vl53l0x_ioctl_map
 /**
  * @brief VL53L0X_CMD_READ_DISTANCE 实现：单次测距启动 → 等待完成 → 读毫米值
  */
-static int vl53l0x_cmd_read(struct vl53l0x_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t vl53l0x_cmd_read(struct vl53l0x_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct vl53l0x_sample* sample = (struct vl53l0x_sample*)arg;
     uint8_t                st = 0;
@@ -341,7 +341,7 @@ static const struct vl53l0x_ioctl_map s_vl53l0x_map[VL53L0X_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int vl53l0x_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t vl53l0x_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct vl53l0x_device* dev;
     struct dev_lifecycle*  lc;
@@ -376,7 +376,7 @@ static const struct file_operations vl53l0x_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int vl53l0x_probe(struct device* pdev)
+static mt_err_t vl53l0x_probe(struct device* pdev)
 {
     struct vl53l0x_device* dev;
     int                    pool_idx, ret;
@@ -401,7 +401,7 @@ static int vl53l0x_probe(struct device* pdev)
     }
     dev->ops = vl53l0x_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -413,7 +413,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int vl53l0x_remove(struct device* pdev)
+static mt_err_t vl53l0x_remove(struct device* pdev)
 {
     struct vl53l0x_device* dev;
     struct dev_lifecycle*  lc;

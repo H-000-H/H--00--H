@@ -61,9 +61,9 @@ static struct mpu6050_device* mpu6050_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int mpu6050_i2c_wr(struct mpu6050_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t mpu6050_i2c_wr(struct mpu6050_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int mpu6050_i2c_wr(struct mpu6050_device* dev, const uint8_t* tx, size_t 
 
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int mpu6050_i2c_rd(struct mpu6050_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t mpu6050_i2c_rd(struct mpu6050_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -83,9 +83,9 @@ static int mpu6050_i2c_rd(struct mpu6050_device* dev, uint8_t* rx, size_t len, u
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int mpu6050_hw_create(struct mpu6050_device* dev)
+static mt_err_t mpu6050_hw_create(struct mpu6050_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -174,7 +174,7 @@ static int mpu6050_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*mpu6050_ioctl_fn_t)(struct mpu6050_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*mpu6050_ioctl_fn_t)(struct mpu6050_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct mpu6050_ioctl_map
 {
     mpu6050_ioctl_fn_t handler;
@@ -183,7 +183,7 @@ struct mpu6050_ioctl_map
 /**
  * @brief MPU6050_CMD_READ_ACCEL_GYRO 实现：自 0x3B 起连续读 14B 六轴原始值
  */
-static int mpu6050_cmd_read(struct mpu6050_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t mpu6050_cmd_read(struct mpu6050_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t          reg = 0x3B;
     uint8_t                raw[14];
@@ -212,7 +212,7 @@ static const struct mpu6050_ioctl_map s_mpu6050_map[MPU6050_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int mpu6050_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t mpu6050_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct mpu6050_device* dev;
     struct dev_lifecycle*  lc;
@@ -247,7 +247,7 @@ static const struct file_operations mpu6050_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int mpu6050_probe(struct device* pdev)
+static mt_err_t mpu6050_probe(struct device* pdev)
 {
     struct mpu6050_device* dev;
     int                    pool_idx, ret;
@@ -272,7 +272,7 @@ static int mpu6050_probe(struct device* pdev)
     }
     dev->ops = mpu6050_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -284,7 +284,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int mpu6050_remove(struct device* pdev)
+static mt_err_t mpu6050_remove(struct device* pdev)
 {
     struct mpu6050_device* dev;
     struct dev_lifecycle*  lc;

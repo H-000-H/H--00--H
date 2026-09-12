@@ -42,15 +42,15 @@ struct spi_bus_client;
  * @brief SPI host 初始化 (config 类型直接用 hal_spi_bus_config, bus 零翻译透传)
  * @param[in] pdev controller device (host)
  * @param[in] cfg host 配置 (VFS 填充 DTSI 硬件直投值)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_host_init(struct device* pdev, const struct hal_spi_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_host_init(struct device* pdev, const struct hal_spi_bus_config* cfg) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief SPI host 反初始化 (ref_count > 0 时返回 BUSY)
  * @param[in] pdev controller device (host)
- * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 MINI_ERR_*
  */
-int spi_bus_host_deinit(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_host_deinit(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 查询 SPI host 角色 (master/slave)
  * @param[in] pdev controller device (host)
@@ -66,9 +66,9 @@ int spi_bus_host_role(struct device* pdev) MINI_WARN_UNUSED_RESULT;
  * @param[in] pdev client device
  * @param[in] cfg client 配置 (VFS 填充 DTSI 硬件直投值)
  * @param[out] out 输出 spi_bus_client 指针
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_client_register(struct device* pdev, const struct hal_spi_device_config* cfg, struct spi_bus_client** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_client_register(struct device* pdev, const struct hal_spi_device_config* cfg, struct spi_bus_client** out) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 注销 SPI client 并递减 host 引用计数 (ref_count -1, 清零槽位)
  * @param[in] pdev client device
@@ -78,15 +78,15 @@ void spi_bus_client_unregister(struct device* pdev);
 /**
  * @brief 打开 SPI client 硬件 (幂等)
  * @param[in] pdev client device
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_open(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_open(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 关闭 SPI client 硬件 (幂等)
  * @param[in] pdev client device
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief SPI 同步全双工传输
  * @param[in] pdev client device
@@ -95,9 +95,9 @@ int spi_bus_close(struct device* pdev) MINI_WARN_UNUSED_RESULT;
  * @param[in] len 传输字节数
  * @param[in] timeout_ms 超时 (毫秒)
  * @param[in] xfer_mode HAL_SPI_XFER_AUTO / POLL / DMA
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
+mt_err_t spi_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms,
                      uint32_t xfer_mode) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief SPI slave 模式同步传输
@@ -106,18 +106,18 @@ int spi_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t
  * @param[out] rx 接收缓冲区
  * @param[in] len 传输字节数
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_slave_sync(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_slave_sync(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief SPI slave 模式排队发送
  * @param[in] pdev client device
  * @param[in] data 发送数据
  * @param[in] len 数据长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief SPI slave 模式获取传输结果
  * @param[in] pdev client device
@@ -125,9 +125,9 @@ int spi_bus_slave_queue_tx(struct device* pdev, const uint8_t* data, size_t len,
  * @param[out] rx_cap 接收缓冲区容量
  * @param[out] trans_len 输出实际传输长度
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_slave_get_trans_result(struct device* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len,
+mt_err_t spi_bus_slave_get_trans_result(struct device* pdev, uint8_t* rx_data, size_t rx_cap, size_t* trans_len,
                                    uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
@@ -138,17 +138,17 @@ int spi_bus_slave_get_trans_result(struct device* pdev, uint8_t* rx_data, size_t
  * @param[in] len 传输字节数
  * @param[in] cb 传输完成回调
  * @param[in] userdata 回调用户数据
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_transfer_async(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len,
+mt_err_t spi_bus_transfer_async(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t len,
                            void (*cb)(struct device* pdev, const void* trans, void* userdata), void* userdata) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 轮询等待异步传输完成
  * @param[in] pdev client device
  * @param[in] timeout_ms 超时 (毫秒)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int spi_bus_transfer_poll(struct device* pdev, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t spi_bus_transfer_poll(struct device* pdev, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 /* -------------------------------------------------------------------------- */
 
 #ifdef __cplusplus

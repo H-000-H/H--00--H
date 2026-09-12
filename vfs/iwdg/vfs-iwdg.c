@@ -39,7 +39,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void boot(void) { MINI
  * @param[in] arg 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_iwdg_open(struct device* pdev, void* arg)
+static mt_err_t vfs_iwdg_open(struct device* pdev, void* arg)
 {
     struct vfs_iwdg_priv* priv;
     struct dev_lifecycle* lc;
@@ -71,7 +71,7 @@ static int vfs_iwdg_open(struct device* pdev, void* arg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_iwdg_close(struct device* pdev)
+static mt_err_t vfs_iwdg_close(struct device* pdev)
 {
     struct dev_lifecycle* lc;
     int                   last;
@@ -97,7 +97,7 @@ static int vfs_iwdg_close(struct device* pdev)
  * @param[in] to 未使用
  * @return 成功返回 MINI_OK, 未知命令返回 MINI_ERR_INVAL, 失败返回负数错误码
  */
-static int vfs_iwdg_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t vfs_iwdg_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t to)
 {
     struct vfs_iwdg_priv* priv;
     struct dev_lifecycle* lc;
@@ -148,7 +148,7 @@ static const struct file_operations s_fops = {
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int vfs_iwdg_probe(struct device* pdev)
+static mt_err_t vfs_iwdg_probe(struct device* pdev)
 {
     struct hal_iwdg_config cfg = {.timeout_ms = 8000, .prer = 0xFFFFFFFFU, .rlr = 0xFFFFFFFFU};
     int                    value, idx, ret;
@@ -176,7 +176,7 @@ static int vfs_iwdg_probe(struct device* pdev)
         MINI_IGNORE_RESULT(mini_slot_release(&s_pool, idx));
         return MINI_ERR_IO;
     }
-    SYS_LOGI(k_tag, "probe OK");
+    MT_LOG_INFO(k_tag, "probe OK");
     return MINI_OK;
 }
 
@@ -185,7 +185,7 @@ static int vfs_iwdg_probe(struct device* pdev)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK
  */
-static int vfs_iwdg_remove(struct device* pdev)
+static mt_err_t vfs_iwdg_remove(struct device* pdev)
 {
     MINI_IGNORE_RESULT(pdev);
     device_ops_unregister(pdev);

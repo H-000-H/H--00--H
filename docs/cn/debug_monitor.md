@@ -23,13 +23,13 @@
 
 | API | 头 | 说明 |
 | :--- | :--- | :--- |
-| `SYS_LOGI/W/E` | `system_log.h` | 系统级；后端由 Kconfig 选择 |
-| `DRV_LOG*` | 同左（经 production_log） | 驱动路径；注意池与性能 |
+| `MT_LOG_ERROR/WARN/INFO` | `system_log.h` | 系统级；后端由 Kconfig 选择 |
+| `MT_DRV_LOG_*` | 同左 | 驱动路径；注意池与性能 |
 
 后端：
 
-- `CONFIG_SYS_LOG_USE_PRINTF`
-- `CONFIG_SYS_LOG_USE_PRINTF`
+- `CONFIG_SYS_LOG_USE_MINI_LOG`（随仓库 mini-log, 默认；SPSC 环形缓冲 + 可选 flash 落盘）
+- `CONFIG_SYS_LOG_USE_ESP`（ESP-IDF esp_log）
 - （可选）ESP 路径仅在对应宏下编译
 
 热路径不要刷 INFO；见 [fast_path.md](fast_path.md)。

@@ -75,9 +75,9 @@ static struct epaper_device* epaper_get_drvdata(struct device* pdev) { return (s
 
 /**
  * @brief SPI 全双工传输（AUTO 模式）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int epaper_spi_xfer(struct epaper_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t epaper_spi_xfer(struct epaper_device* dev, const uint8_t* tx, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     struct spi_transfer_arg arg;
     if (!dev || !dev->spi_dev || len == 0U)
@@ -101,7 +101,7 @@ static int epaper_dc(struct epaper_device* dev, int data)
  * @brief 等待 BUSY 释放（低电平表示空闲）
  * @return MINI_OK 或 MINI_ERR_BUSY（超时）
  */
-static int epaper_wait_busy(struct epaper_device* dev, uint32_t timeout_ms)
+static mt_err_t epaper_wait_busy(struct epaper_device* dev, uint32_t timeout_ms)
 {
     uint32_t elapsed = 0;
     int      ret;
@@ -120,9 +120,9 @@ static int epaper_wait_busy(struct epaper_device* dev, uint32_t timeout_ms)
 
 /**
  * @brief 首次 open 时打开 SPI/DC/RST/BUSY 并绑定 GPIO 参数
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int epaper_hw_create(struct epaper_device* dev)
+static mt_err_t epaper_hw_create(struct epaper_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -236,7 +236,7 @@ static int epaper_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*epaper_ioctl_fn_t)(struct epaper_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*epaper_ioctl_fn_t)(struct epaper_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct epaper_ioctl_map
 {
     epaper_ioctl_fn_t handler;
@@ -245,7 +245,7 @@ struct epaper_ioctl_map
 /**
  * @brief DISPLAY_CMD_CLEAR 实现：写空白帧并等待刷新完成
  */
-static int epaper_cmd_clear(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t epaper_cmd_clear(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_clear_arg* darg = (const struct display_clear_arg*)arg;
     uint8_t                         blank = 0x00;
@@ -260,7 +260,7 @@ static int epaper_cmd_clear(struct epaper_device* dev, void* arg, size_t len, ui
 /**
  * @brief DISPLAY_CMD_DRAW_AREA / FLUSH 实现：写整帧位图并等待刷新完成
  */
-static int epaper_cmd_draw(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t epaper_cmd_draw(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_draw_arg* darg = (const struct display_draw_arg*)arg;
     if (!dev->hw_ready || !darg || len != sizeof(*darg) || darg->format != DISPLAY_FMT_MONO_1BPP || !darg->data)
@@ -275,7 +275,7 @@ static int epaper_cmd_draw(struct epaper_device* dev, void* arg, size_t len, uin
 /**
  * @brief DISPLAY_CMD_FILL_RECT 实现：单色屏仅支持全屏矩形
  */
-static int epaper_cmd_fill_rect(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t epaper_cmd_fill_rect(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
 {
     const struct display_rect_arg* darg = (const struct display_rect_arg*)arg;
     struct display_clear_arg       clear_arg;
@@ -289,7 +289,7 @@ static int epaper_cmd_fill_rect(struct epaper_device* dev, void* arg, size_t len
 /**
  * @brief DISPLAY_CMD_GET_INFO 实现：返回默认几何
  */
-static int epaper_cmd_get_info(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t epaper_cmd_get_info(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
 {
     struct display_info_arg* info = (struct display_info_arg*)arg;
     MINI_IGNORE_RESULT(dev);
@@ -304,7 +304,7 @@ static int epaper_cmd_get_info(struct epaper_device* dev, void* arg, size_t len,
 /**
  * @brief DISPLAY_CMD_SET_BRIGHTNESS 实现：电子纸无背光/对比度控制
  */
-static int epaper_cmd_set_brightness(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t epaper_cmd_set_brightness(struct epaper_device* dev, void* arg, size_t len, uint32_t ms)
 {
     MINI_IGNORE_RESULT(dev);
     MINI_IGNORE_RESULT(arg);
@@ -324,7 +324,7 @@ static const struct epaper_ioctl_map s_epaper_map[DISPLAY_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int epaper_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t epaper_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct epaper_device* dev;
     struct dev_lifecycle* lc;
@@ -361,7 +361,7 @@ static const struct file_operations epaper_fops = {
  *
  * width/height 为 DTS 必填属性（对齐 ST7789）；busy-timeout-ms 可选，缺省 2000。
  */
-static int epaper_probe(struct device* pdev)
+static mt_err_t epaper_probe(struct device* pdev)
 {
     struct epaper_device* dev;
     int                   width = 0;
@@ -393,7 +393,7 @@ static int epaper_probe(struct device* pdev)
     /* 几何参数走 DTS（必填），不依赖驱动内部默认常量 */
     if (device_get_prop_int(pdev, "width", &width) != MINI_OK || device_get_prop_int(pdev, "height", &height) != MINI_OK || width <= 0 || height <= 0)
     {
-        SYS_LOGE(k_tag, "probe requires width/height in DTS");
+        MT_LOG_ERROR(k_tag, "probe requires width/height in DTS");
         ret = MINI_ERR_INVAL;
         goto err;
     }
@@ -410,7 +410,7 @@ static int epaper_probe(struct device* pdev)
     }
     dev->ops = epaper_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev %dx%dev", pool_idx, width, height);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev %dx%dev", pool_idx, width, height);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -422,7 +422,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int epaper_remove(struct device* pdev)
+static mt_err_t epaper_remove(struct device* pdev)
 {
     struct epaper_device* dev;
     struct dev_lifecycle* lc;

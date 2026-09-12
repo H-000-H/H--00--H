@@ -36,7 +36,7 @@ extern "C"
  * @param[in] pixel_buffer 像素缓冲（RGB565 或单色，取决于 pixel_format）
  * @param[in] pixel_format enum display_color_format
  * @param[in] timeout_ms 超时（ms）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
 MINI_STATIC_INLINE int display_lvgl_flush_callback(void* display_device, int16_t start_x, int16_t start_y, int16_t end_x, int16_t end_y,
                                                    const void* pixel_buffer, uint8_t pixel_format, uint32_t timeout_ms)
@@ -62,7 +62,7 @@ MINI_STATIC_INLINE int display_lvgl_flush_callback(void* display_device, int16_t
  * @param[in] frame_buffer 整帧缓冲（page-major 单色）
  * @param[in] buffer_length 缓冲长度（应为 宽*高/8）
  * @param[in] timeout_ms 超时（ms）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
 MINI_STATIC_INLINE int display_u8g2_flush_frame_buffer(void* display_device, const uint8_t* frame_buffer, size_t buffer_length, uint32_t timeout_ms)
 {

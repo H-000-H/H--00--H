@@ -89,7 +89,7 @@
 
 ## 6. 日志
 
-- `SYS_LOGI/W/E` 系统级；`DRV_LOG*` 驱动级（见 [debug_monitor.md](debug_monitor.md)）
+- `MT_LOG_ERROR/WARN/INFO` 系统级；`MT_DRV_LOG_*` 驱动级（见 [debug_monitor.md](debug_monitor.md)）
 - 热路径只 `LOGD`/`LOGV`，勿刷 INFO
 - 不把日志当调试断点塞满
 
@@ -109,7 +109,7 @@
 | 被 poison 的 API | 替代 |
 | :--- | :--- |
 | `malloc` / `free` / `calloc` / `realloc` | 静态池 / `mini_slot` / `kalloc` |
-| `printf` / `fprintf` / `sprintf` | `SYS_LOG*` |
+| `printf` / `fprintf` / `sprintf` | `MT_LOG_*` |
 | 裸 `memcpy` / `memset` / `memmove` | `safe_mem*` 或显式长度校验 |
 | `strcpy` / `strcat` / `strdup` / `strndup` | `safe_str*` |
 | 文件 IO：`fopen` / `fclose` / `fread` / `fwrite` / `fseek` / `tmpfile` / `popen` / `gets` … | 走中间件/板级提供的 IO 接口 |

@@ -171,6 +171,6 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_IRQ_BOTTOM) static void interrupt_bottom_h
 
 void interrupt_bottom_half_init(void) { bottom_half_poller_init(&s_global_poller); }
 
-int interrupt_bottom_half_submit(struct bottom_half_work* work) { return bottom_half_poller_submit(&s_global_poller, work); }
+mt_err_t interrupt_bottom_half_submit(struct bottom_half_work* work) { return bottom_half_poller_submit(&s_global_poller, work); }
 
 void interrupt_bottom_half_poll(void) { bottom_half_poller_run(&s_global_poller); }

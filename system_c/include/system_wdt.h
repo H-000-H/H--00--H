@@ -20,17 +20,17 @@ extern "C"
 {
 #endif
 
-    int system_wdt_init(uint32_t timeout_ms);
-    int system_wdt_subscribe(mini_task_handle_t task);
-    int system_wdt_unsubscribe(mini_task_handle_t task);
+    mt_err_t system_wdt_init(uint32_t timeout_ms);
+    mt_err_t system_wdt_subscribe(mini_task_handle_t task);
+    mt_err_t system_wdt_unsubscribe(mini_task_handle_t task);
     void system_wdt_feed(void);
 
-    int system_wdt_init_iwdg(uint32_t timeout_ms);
+    mt_err_t system_wdt_init_iwdg(uint32_t timeout_ms);
     void system_wdt_feed_iwdg(void);
     void system_wdt_iwdg_set_long_timeout(void);
     void system_wdt_iwdg_restore_timeout(void);
 
-    int system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes);
+    mt_err_t system_wdt_stack_monitor_register(mini_task_handle_t task, uint32_t alarm_threshold_bytes);
     void system_wdt_stack_check_all(void);
 
 #ifdef __cplusplus

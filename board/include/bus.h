@@ -50,14 +50,14 @@ typedef uint16_t bus_type_t;
  * @brief Host 级控制器操作表 — 管理控制器生命周期与 client 挂载
  *
  *
- * @return 成功返回 0, BUSY 返回 MINI_ERR_BUSY, 失败返回 VFS_ERR_*
+ * @return 成功返回 0, BUSY 返回 MINI_ERR_BUSY, 失败返回 MINI_ERR_*
  */
 struct bus_controller_ops
 {
-    int (*init)(struct device* pdev, const void* cfg);                        /**< 初始化 host */
-    int (*deinit)(struct device* pdev);                                       /**< 反初始化 host (返回 int, BUSY 时不销毁) */
+    mt_err_t (*init)(struct device* pdev, const void* cfg);                        /**< 初始化 host */
+    mt_err_t (*deinit)(struct device* pdev);                                       /**< 反初始化 host (返回 int, BUSY 时不销毁) */
     int (*role)(struct device* pdev);                                         /**< 查询角色 (MASTER/SLAVE) */
-    int (*client_register)(struct device* pdev, const void* cfg, void** out); /**< 注册 client */
+    mt_err_t (*client_register)(struct device* pdev, const void* cfg, void** out); /**< 注册 client */
     void (*client_unregister)(struct device* pdev);                           /**< 注销 client */
 };
 /* -------------------------------------------------------------------------- */
@@ -94,9 +94,9 @@ struct bus_controller
  * @param[in] ctlr_ops  host 级 ops
  * @param[in] hw_ctx    host 私有上下文 (struct xxx_bus_host*)
  *
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-int bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct bus_controller_ops* ctlr_ops, void* hw_ctx) MINI_WARN_UNUSED_RESULT;
+mt_err_t bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct bus_controller_ops* ctlr_ops, void* hw_ctx) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 查找 device 自身绑定的 controller (传 host)
@@ -104,7 +104,7 @@ int bus_controller_bind_full(struct device* pdev, bus_type_t type, const struct 
  * @param[out] out 回传 bus_controller 指针
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_NODEV
  */
-int bus_controller_get(const struct device* pdev, struct bus_controller** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t bus_controller_get(const struct device* pdev, struct bus_controller** out) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 查找 client 所属的 controller
@@ -117,7 +117,7 @@ int bus_controller_get(const struct device* pdev, struct bus_controller** out) M
  *
  * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_NODEV
  */
-int bus_controller_of(const struct device* pdev, struct bus_controller** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t bus_controller_of(const struct device* pdev, struct bus_controller** out) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 解绑 controller

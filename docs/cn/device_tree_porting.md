@@ -322,7 +322,7 @@ static int bmp280_probe(struct device* pdev)
     /* 3. 绑定生命周期（probe 阶段才可注册，见 driver.h） */
     /* device_lc_bind(pdev); */
 
-    SYS_LOGI("bmp280", "probed @0x%02x on i2c0", dev->addr);
+    MT_LOG_INFO("bmp280", "probed @0x%02x on i2c0", dev->addr);
     return MINI_OK;
 }
 
@@ -532,7 +532,7 @@ static void led_task_cb(x_task* self)
             return;
         if (device_open(pdev, NULL) != MINI_OK)
         {
-            SYS_LOGE(s_kTag, "device_open(led) failed");
+            MT_LOG_ERROR(s_kTag, "device_open(led) failed");
             return;
         }
         s_led_dev = pdev;
@@ -540,14 +540,14 @@ static void led_task_cb(x_task* self)
 
     ret = device_ioctl(s_led_dev, GPIO_CMD_TOGGLE, &arg, sizeof(arg), 100);
     if (ret != MINI_OK)
-        SYS_LOGE(s_kTag, "device_ioctl(TOGGLE) failed: %d", ret);
+        MT_LOG_ERROR(s_kTag, "device_ioctl(TOGGLE) failed: %d", ret);
 }
 
 /* 任务注册：协调式新签名（task, name, cb, period_ms） */
 void App_Led_register(void)
 {
     if (xscheduler_task_create(&g_led_task, APP_LED_NAME, led_task_cb, APP_LED_PERIOD_MS) == 0)
-        SYS_LOGE(s_kTag, "register failed");
+        MT_LOG_ERROR(s_kTag, "register failed");
 }
 ```
 
@@ -601,7 +601,7 @@ namespace App_Led
                 return;
             if (device_open(pdev, nullptr) != MINI_OK)
             {
-                SYS_LOGE(kName.c_str(), "device_open(led) failed");
+                MT_LOG_ERROR(kName.c_str(), "device_open(led) failed");
                 return;
             }
             s_led_dev = pdev;
@@ -609,7 +609,7 @@ namespace App_Led
 
         ret = device_ioctl(s_led_dev, GPIO_CMD_TOGGLE, &arg, sizeof(arg), 100);
         if (ret != MINI_OK)
-            SYS_LOGE(kName.c_str(), "device_ioctl(TOGGLE) failed: %d", ret);
+            MT_LOG_ERROR(kName.c_str(), "device_ioctl(TOGGLE) failed: %d", ret);
     }
 
     etl::optional<int> register_task(void)

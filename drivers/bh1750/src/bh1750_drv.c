@@ -62,9 +62,9 @@ static struct bh1750_device* bh1750_get_drvdata(struct device* pdev) { return (s
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bh1750_i2c_wr(struct bh1750_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t bh1750_i2c_wr(struct bh1750_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -73,9 +73,9 @@ static int bh1750_i2c_wr(struct bh1750_device* dev, const uint8_t* tx, size_t le
 
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bh1750_i2c_rd(struct bh1750_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t bh1750_i2c_rd(struct bh1750_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -84,9 +84,9 @@ static int bh1750_i2c_rd(struct bh1750_device* dev, uint8_t* rx, size_t len, uin
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int bh1750_hw_create(struct bh1750_device* dev)
+static mt_err_t bh1750_hw_create(struct bh1750_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -175,7 +175,7 @@ static int bh1750_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*bh1750_ioctl_fn_t)(struct bh1750_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*bh1750_ioctl_fn_t)(struct bh1750_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct bh1750_ioctl_map
 {
     bh1750_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct bh1750_ioctl_map
 /**
  * @brief BH1750_CMD_READ_LUX 实现：上电 + 连续 H 模式（120ms）读 lux
  */
-static int bh1750_cmd_lux(struct bh1750_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t bh1750_cmd_lux(struct bh1750_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t on = 0x01, cont = 0x10;
     uint8_t       raw[2];
@@ -206,7 +206,7 @@ static const struct bh1750_ioctl_map s_bh1750_map[BH1750_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int bh1750_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t bh1750_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct bh1750_device* dev;
     struct dev_lifecycle* lc;
@@ -241,7 +241,7 @@ static const struct file_operations bh1750_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int bh1750_probe(struct device* pdev)
+static mt_err_t bh1750_probe(struct device* pdev)
 {
     struct bh1750_device* dev;
     int                   pool_idx, ret;
@@ -266,7 +266,7 @@ static int bh1750_probe(struct device* pdev)
     }
     dev->ops = bh1750_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -278,7 +278,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int bh1750_remove(struct device* pdev)
+static mt_err_t bh1750_remove(struct device* pdev)
 {
     struct bh1750_device* dev;
     struct dev_lifecycle* lc;

@@ -28,19 +28,19 @@ extern "C"
  * @brief 初始化存储介质 (探测介质并识别有效槽位)
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码 (weak stub 返回 MINI_ERR_NOTSUPP)
  */
-int hal_storage_init(void);
+mt_err_t hal_storage_init(void);
 /**
  * @brief 读取槽位元数据标记
  * @param[out] flag 回传当前有效槽位标记
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码
  */
-int hal_storage_read_flag(uint8_t* flag);
+mt_err_t hal_storage_read_flag(uint8_t* flag);
 /**
  * @brief 写入槽位元数据标记
  * @param[in] flag 待写入的有效槽位标记
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码
  */
-int hal_storage_write_flag(uint8_t flag);
+mt_err_t hal_storage_write_flag(uint8_t flag);
 /**
  * @brief 读取指定槽位的 blob 数据
  * @param[in] slot 槽位号 (0=A 区, 1=B 区)
@@ -48,7 +48,7 @@ int hal_storage_write_flag(uint8_t flag);
  * @param[in,out] len 入参=缓冲区容量, 出参=实际读取长度
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码
  */
-int hal_storage_read_blob(uint8_t slot, uint8_t* buf, size_t* len);
+mt_err_t hal_storage_read_blob(uint8_t slot, uint8_t* buf, size_t* len);
 /**
  * @brief 写入 blob 数据到指定槽位
  * @param[in] slot 槽位号 (0=A 区, 1=B 区)
@@ -56,12 +56,12 @@ int hal_storage_read_blob(uint8_t slot, uint8_t* buf, size_t* len);
  * @param[in] len 数据长度
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码
  */
-int hal_storage_write_blob(uint8_t slot, const uint8_t* buf, size_t len);
+mt_err_t hal_storage_write_blob(uint8_t slot, const uint8_t* buf, size_t len);
 /**
  * @brief 全擦除存储介质
  * @return MINI_OK 成功; 失败返回 MINI_ERR_* 负错误码
  */
-int hal_storage_erase_all(void);
+mt_err_t hal_storage_erase_all(void);
 /* -------------------------------------------------------------------------- */
 
 /*ioctl 命令与参数结构*/

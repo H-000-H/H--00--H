@@ -62,9 +62,9 @@ static struct ads1115_device* ads1115_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ads1115_i2c_wr(struct ads1115_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t ads1115_i2c_wr(struct ads1115_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int ads1115_i2c_wr(struct ads1115_device* dev, const uint8_t* tx, size_t 
 }
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ads1115_i2c_rd(struct ads1115_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t ads1115_i2c_rd(struct ads1115_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -83,9 +83,9 @@ static int ads1115_i2c_rd(struct ads1115_device* dev, uint8_t* rx, size_t len, u
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ads1115_hw_create(struct ads1115_device* dev)
+static mt_err_t ads1115_hw_create(struct ads1115_device* dev)
 {
     int ret;
     if (!dev)
@@ -175,7 +175,7 @@ static int ads1115_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*ads1115_ioctl_fn_t)(struct ads1115_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*ads1115_ioctl_fn_t)(struct ads1115_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct ads1115_ioctl_map
 {
     ads1115_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct ads1115_ioctl_map
 /**
  * @brief ADS1115_CMD_READ_CHANNEL 实现：配置 MUX + 单次模式，延时后读转换值
  */
-static int ads1115_cmd_read(struct ads1115_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t ads1115_cmd_read(struct ads1115_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct ads1115_sample* sample = (struct ads1115_sample*)arg;
     uint8_t                cfg[3];
@@ -219,7 +219,7 @@ static const struct ads1115_ioctl_map s_ads1115_map[ADS1115_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int ads1115_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t ads1115_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct ads1115_device* dev;
     struct dev_lifecycle*  lc;
@@ -254,7 +254,7 @@ static const struct file_operations ads1115_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int ads1115_probe(struct device* pdev)
+static mt_err_t ads1115_probe(struct device* pdev)
 {
     struct ads1115_device* dev;
     int                    pool_idx, ret;
@@ -279,7 +279,7 @@ static int ads1115_probe(struct device* pdev)
     }
     dev->ops = ads1115_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -291,7 +291,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int ads1115_remove(struct device* pdev)
+static mt_err_t ads1115_remove(struct device* pdev)
 {
     struct ads1115_device* dev;
     struct dev_lifecycle*  lc;

@@ -436,12 +436,12 @@ set(CORE_SRCS
     "core/src/mini_backend_freertos.c"
     "core/src/mini_backend_mini_os.c"
     "core/src/mini_backend_rtthread.c"
-    "core/src/mini_log.c"
     "core/src/mini_panic.c"
     "core/src/mini_slot.c"
     "core/src/mini_time.c"
-    "core/src/production_log.c"
-    "core/src/printf_output.c"
+    "core/src/status.c"
+    "mini-log/src/log.c"
+    "mini-log/src/crc.c"
 )
 if(MINI_TREE_EVENT_BUS)
     list(APPEND CORE_SRCS "core/src/event_bus.c")
@@ -539,6 +539,7 @@ target_include_directories(mini_tree
     PUBLIC
         "${CMAKE_CURRENT_LIST_DIR}"
         "${CMAKE_CURRENT_LIST_DIR}/algorithm/buffer"
+        "${CMAKE_CURRENT_LIST_DIR}/mini-log/inc"
         "${CMAKE_CURRENT_LIST_DIR}/board"
         "${CMAKE_CURRENT_LIST_DIR}/board/include"
         "${CMAKE_CURRENT_LIST_DIR}/board/define/vfs"

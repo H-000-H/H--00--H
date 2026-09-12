@@ -62,9 +62,9 @@ static struct dfplayer_device* dfplayer_get_drvdata(struct device* pdev) { retur
 
 /**
  * @brief 向 UART 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int dfplayer_uart_wr(struct dfplayer_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t dfplayer_uart_wr(struct dfplayer_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->uart_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int dfplayer_uart_wr(struct dfplayer_device* dev, const uint8_t* tx, size
 }
 /**
  * @brief 从 UART 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int dfplayer_uart_rd(struct dfplayer_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t dfplayer_uart_rd(struct dfplayer_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->uart_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -83,9 +83,9 @@ static int dfplayer_uart_rd(struct dfplayer_device* dev, uint8_t* rx, size_t len
 
 /**
  * @brief 首次 open 时打开 UART 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int dfplayer_hw_create(struct dfplayer_device* dev)
+static mt_err_t dfplayer_hw_create(struct dfplayer_device* dev)
 {
     int ret;
     if (!dev)
@@ -172,7 +172,7 @@ static int dfplayer_close(struct device* pdev)
     return MINI_OK;
 }
 
-typedef int (*dfplayer_ioctl_fn_t)(struct dfplayer_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*dfplayer_ioctl_fn_t)(struct dfplayer_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct dfplayer_ioctl_map
 {
     dfplayer_ioctl_fn_t handler;
@@ -202,7 +202,7 @@ static int dfplayer_frame(struct dfplayer_device* dev, uint8_t cmd, uint16_t par
 /**
  * @brief DFPLAYER_CMD_PLAY 实现：播放指定曲目
  */
-static int dfplayer_cmd_play(struct dfplayer_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t dfplayer_cmd_play(struct dfplayer_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     struct dfplayer_track* track_arg = (struct dfplayer_track*)arg;
     if (!dev->hw_ready || !track_arg || len != sizeof(*track_arg))
@@ -213,7 +213,7 @@ static int dfplayer_cmd_play(struct dfplayer_device* dev, void* arg, size_t len,
 /**
  * @brief DFPLAYER_CMD_VOLUME 实现：设置音量（0..30）
  */
-static int dfplayer_cmd_vol(struct dfplayer_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t dfplayer_cmd_vol(struct dfplayer_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     uint8_t* val = (uint8_t*)arg;
     if (!dev->hw_ready || !val || len != sizeof(uint8_t) || *val > 30U)
@@ -229,7 +229,7 @@ static const struct dfplayer_ioctl_map s_dfplayer_map[DFPLAYER_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int dfplayer_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t dfplayer_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct dfplayer_device* dev;
     struct dev_lifecycle*   lc;
@@ -264,7 +264,7 @@ static const struct file_operations dfplayer_fops = {
 /**
  * @brief probe：claim 池项、绑定父 UART 设备并挂 fops
  */
-static int dfplayer_probe(struct device* pdev)
+static mt_err_t dfplayer_probe(struct device* pdev)
 {
     struct dfplayer_device* dev;
     int                     pool_idx, ret;
@@ -289,7 +289,7 @@ static int dfplayer_probe(struct device* pdev)
     }
     dev->ops = dfplayer_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -301,7 +301,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int dfplayer_remove(struct device* pdev)
+static mt_err_t dfplayer_remove(struct device* pdev)
 {
     struct dfplayer_device* dev;
     struct dev_lifecycle*   lc;

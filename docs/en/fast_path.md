@@ -37,7 +37,7 @@ Cold paths (probe, deinit, error recovery, user-config ioctls) **may** do full c
 
 | Forbidden | Why |
 | :--- | :--- |
-| `printf` / `SYS_LOGI` spam | blocking, non-reentrant, stretches IRQ-off time |
+| `printf` / `MT_LOG_INFO` spam | blocking, non-reentrant, stretches IRQ-off time |
 | `malloc` / new-delete | unbounded latency; possibly poisoned |
 | Mutex or sleep | deadlock or illegal ISR call |
 | `strcmp`, device-tree walks, device lookup | latency jitter |

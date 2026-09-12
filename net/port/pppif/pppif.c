@@ -84,7 +84,7 @@ static struct pppif_context s_pppif_context = {0};
  * @param[in] timeout_ms 指令整体执行超时时间 (ms)
  * @return 成功返回 MINI_OK，超时或失败返回对应错误码
  */
-static int pppif_at_send_expect(const char* cmd, const char* expect_resp, uint32_t timeout_ms)
+static mt_err_t pppif_at_send_expect(const char* cmd, const char* expect_resp, uint32_t timeout_ms)
 {
     struct modem_at_buf at_buf = {0};
     uint8_t             resp_buf[PPPIF_AT_BUF_SIZE];
@@ -135,7 +135,7 @@ static int pppif_at_send_expect(const char* cmd, const char* expect_resp, uint32
  * @param[in] apn 运营商接入点名称
  * @return 成功返回 MINI_OK，失败返回错误码
  */
-static int pppif_modem_dial(const char* apn)
+static mt_err_t pppif_modem_dial(const char* apn)
 {
     char cmd_buf[64];
     int  ret;
@@ -144,7 +144,7 @@ static int pppif_modem_dial(const char* apn)
     ret = pppif_at_send_expect("AT\r", "OK", PPPIF_AT_TIMEOUT_MS);
     if (ret != MINI_OK)
     {
-        SYS_LOGE(k_tag, "Modem AT no response: %d", ret);
+        MT_LOG_ERROR(k_tag, "Modem AT no response: %d", ret);
         return ret;
     }
     /* 关闭命令回显 */
@@ -155,13 +155,13 @@ static int pppif_modem_dial(const char* apn)
         int snprintf_ret = snprintf(cmd_buf, sizeof(cmd_buf), "AT+CGDCONT=1,\"IP\",\"%s\"\r", apn);
         if (snprintf_ret <= 0 || (size_t)snprintf_ret >= sizeof(cmd_buf))
         {
-            SYS_LOGE(k_tag, "APN too long: %s", apn);
+            MT_LOG_ERROR(k_tag, "APN too long: %s", apn);
             return MINI_ERR_INVAL;
         }
         ret = pppif_at_send_expect(cmd_buf, "OK", PPPIF_AT_TIMEOUT_MS);
         if (ret != MINI_OK)
         {
-            SYS_LOGE(k_tag, "Set APN failed: %d", ret);
+            MT_LOG_ERROR(k_tag, "Set APN failed: %d", ret);
             return ret;
         }
     }
@@ -169,7 +169,7 @@ static int pppif_modem_dial(const char* apn)
     /*  触发 PPP 拨号命令，等待模组切入透传数据态 */
     ret = pppif_at_send_expect("ATD*99#\r", "CONNECT", PPPIF_AT_TIMEOUT_MS);
     if (ret != MINI_OK)
-        SYS_LOGE(k_tag, "Modem dial failed: %d", ret);
+        MT_LOG_ERROR(k_tag, "Modem dial failed: %d", ret);
     return ret;
 }
 
@@ -208,13 +208,13 @@ static void pppif_link_status_callback(ppp_pcb* pcb, int err_code, void* ctx)
     {
         /*ppp成功获得IP*/
         p_ctx->is_link_up = true;
-        SYS_LOGI(k_tag, "PPP link up. IP: %s, GW: %s, MASK: %s", ip4addr_ntoa(netif_ip4_addr(ppp_netif)), ip4addr_ntoa(netif_ip4_gw(ppp_netif)),
+        MT_LOG_INFO(k_tag, "PPP link up. IP: %s, GW: %s, MASK: %s", ip4addr_ntoa(netif_ip4_addr(ppp_netif)), ip4addr_ntoa(netif_ip4_gw(ppp_netif)),
                  ip4addr_ntoa(netif_ip4_netmask(ppp_netif)));
 #if LWIP_DNS
         /* 打印 DNS 地址 */
         const ip_addr_t* primary_dns = dns_getserver(0);
         const ip_addr_t* secondary_dns = dns_getserver(1);
-        SYS_LOGI(k_tag, "DNS Server: 1: %s, 2: %s", ipaddr_ntoa(primary_dns), ipaddr_ntoa(secondary_dns));
+        MT_LOG_INFO(k_tag, "DNS Server: 1: %s, 2: %s", ipaddr_ntoa(primary_dns), ipaddr_ntoa(secondary_dns));
 #endif
         netif_set_link_up(ppp_netif);
         netif_set_up(ppp_netif);
@@ -224,7 +224,7 @@ static void pppif_link_status_callback(ppp_pcb* pcb, int err_code, void* ctx)
     {
         /*主动关闭对话*/
         p_ctx->is_link_up = false;
-        SYS_LOGI(k_tag, "PPP session closed gracefully");
+        MT_LOG_INFO(k_tag, "PPP session closed gracefully");
         ppp_free(p_ctx->ppp_pcb);
         p_ctx->ppp_pcb = NULL;
         break;
@@ -232,7 +232,7 @@ static void pppif_link_status_callback(ppp_pcb* pcb, int err_code, void* ctx)
     default:
     {
         p_ctx->is_link_up = false;
-        SYS_LOGW(k_tag, "PPP link down or error: %d", err_code);
+        MT_LOG_WARN(k_tag, "PPP link down or error: %d", err_code);
         netif_set_link_down(ppp_netif);
         break;
     }
@@ -248,7 +248,7 @@ static void pppif_rx_thread_entry(void* param)
 {
     struct pppif_context* p_ctx = (struct pppif_context*)param;
     int                   receive_len;
-    SYS_LOGI(k_tag, "ppp rx task started");
+    MT_LOG_INFO(k_tag, "ppp rx task started");
 
     while (p_ctx->is_running)
     {
@@ -261,7 +261,7 @@ static void pppif_rx_thread_entry(void* param)
         if (receive_len > 0)
             pppos_input(p_ctx->ppp_pcb, p_ctx->rx_buf, receive_len);
     }
-    SYS_LOGI(k_tag, "PPP RX task exited");
+    MT_LOG_INFO(k_tag, "PPP RX task exited");
     mini_task_delete(NULL);
 }
 #endif /* !NO_SYS */
@@ -270,9 +270,9 @@ static void pppif_rx_thread_entry(void* param)
  * @brief PPP 数据态裸机轮询驱动 (NO_SYS=1 主循环周期调用)
  * @details 读模组串口裸字节流喂 pppos_input, 并驱动 lwIP 超时
  *          (LCP/IPCP 协商重传依赖 sys_check_timeouts)。
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-int pppif_poll(void)
+mt_err_t pppif_poll(void)
 {
     int receive_len;
     if (!s_pppif_context.modem_dev || !s_pppif_context.ppp_pcb)
@@ -294,7 +294,7 @@ int pppif_poll(void)
  * @param[in] password PAP/CHAP 认证密码 (可为 NULL)
  * @return 成功返回 MINI_OK，失败返回对应错误码
  */
-int pppif_init(const char* modem_label, const char* apn, const char* username, const char* password)
+mt_err_t pppif_init(const char* modem_label, const char* apn, const char* username, const char* password)
 {
     int ret;
     if (!modem_label)
@@ -307,7 +307,7 @@ int pppif_init(const char* modem_label, const char* apn, const char* username, c
     if (IS_ERR(s_pppif_context.modem_dev))
     {
         ret = PTR_ERR(s_pppif_context.modem_dev);
-        SYS_LOGE(k_tag, "Modem '%s' not found: %d", modem_label, ret);
+        MT_LOG_ERROR(k_tag, "Modem '%s' not found: %d", modem_label, ret);
         s_pppif_context.modem_dev = NULL;
         return ret;
     }
@@ -315,7 +315,7 @@ int pppif_init(const char* modem_label, const char* apn, const char* username, c
     ret = device_open(s_pppif_context.modem_dev, NULL);
     if (ret != MINI_OK)
     {
-        SYS_LOGE(k_tag, "Open modem device failed: %d", ret);
+        MT_LOG_ERROR(k_tag, "Open modem device failed: %d", ret);
         s_pppif_context.modem_dev = NULL;
         return ret;
     }
@@ -375,7 +375,7 @@ err_clean_device:
     return ret;
 }
 
-int pppif_deinit(void)
+mt_err_t pppif_deinit(void)
 {
     if (!s_pppif_context.ppp_pcb && !s_pppif_context.modem_dev)
         return MINI_ERR_INVAL;

@@ -21,7 +21,7 @@
 | 4 | Enforced bus isolation | `#pragma GCC poison` blocks upper layers from calling HAL directly |
 | 5 | the unified interface triple-backend | FreeRTOS / RT-Thread / NULL, trimmed by Kconfig |
 | 6 | Single C system backend | `system_c/` is pure C; the command module `SystemCmd` is the only C++ exception (no more C/C++ choice) |
-| 7 | Unified error codes | `status.h`'s `MINI_ERR_*` / `MINI_ERR_*` |
+| 7 | Unified error codes | `status.h`'s self-owned `MINI_OK` / `MINI_ERR_*` (0 = success, negative = error, sector-based and extensible, no errno dependency) |
 
 ---
 

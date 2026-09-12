@@ -71,7 +71,7 @@ mini_pre_execution(MINI_PRE_EXEC_PRIO_DRIVER_POOL) static void pools(void)
  * @param[in] d 输出的 DMA 配置结构指针
  * @return 成功返回 MINI_OK (属性缺失或不足 6 元视为可选, 不报错)
  */
-static int parse_dma_tuple(struct device* pdev, const char* prop, struct hal_i2s_dma_config* d)
+static mt_err_t parse_dma_tuple(struct device* pdev, const char* prop, struct hal_i2s_dma_config* d)
 {
     int dma_arr[14];
     int result;
@@ -111,7 +111,7 @@ static int parse_dma_tuple(struct device* pdev, const char* prop, struct hal_i2s
  * @param[out] out 输出的引脚配置结构指针
  * @return 成功返回 MINI_OK (port 缺失时 out 清零且不报错)
  */
-static int parse_one_pin(struct device* pdev, const char* port_k, const char* pin_k, const char* clk_k, const char* af_k, struct hal_i2s_pin_cfg* out)
+static mt_err_t parse_one_pin(struct device* pdev, const char* port_k, const char* pin_k, const char* clk_k, const char* af_k, struct hal_i2s_pin_cfg* out)
 {
     int value;
 
@@ -136,7 +136,7 @@ static int parse_one_pin(struct device* pdev, const char* port_k, const char* pi
  * @param[in] role 总线角色 (MASTER/SLAVE)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int parse_host(struct device* pdev, struct hal_i2s_bus_config* cfg, uint32_t role)
+static mt_err_t parse_host(struct device* pdev, struct hal_i2s_bus_config* cfg, uint32_t role)
 {
     int value;
     int irqn = -1;
@@ -185,7 +185,7 @@ static int parse_host(struct device* pdev, struct hal_i2s_bus_config* cfg, uint3
  * @param[in] cfg 输出的设备配置结构指针
  * @return 成功返回 MINI_OK
  */
-static int parse_client(struct device* pdev, struct hal_i2s_device_config* cfg)
+static mt_err_t parse_client(struct device* pdev, struct hal_i2s_device_config* cfg)
 {
     int value;
 
@@ -210,7 +210,7 @@ static int parse_client(struct device* pdev, struct hal_i2s_device_config* cfg)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  * @note 虚拟中断不在此处注册 (尚无 hal_i2s_dev); 见 i2s_bus_open
  */
-static int host_probe(struct device* pdev, uint32_t role)
+static mt_err_t host_probe(struct device* pdev, uint32_t role)
 {
     struct vfs_i2s_host_priv* priv;
     int                       idx;
@@ -249,7 +249,7 @@ static int host_probe(struct device* pdev, uint32_t role)
         goto err;
     }
 
-    SYS_LOGI(k_host, "probe OK %s (dma_tx=%u dma_rx=%u it=%u)", device_get_name(pdev), (unsigned)priv->cfg.dma_tx.dma_enable,
+    MT_LOG_INFO(k_host, "probe OK %s (dma_tx=%u dma_rx=%u it=%u)", device_get_name(pdev), (unsigned)priv->cfg.dma_tx.dma_enable,
              (unsigned)priv->cfg.dma_rx.dma_enable, (unsigned)priv->cfg.it_enable);
     return MINI_OK;
 
@@ -263,7 +263,7 @@ err:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int host_remove(struct device* pdev)
+static mt_err_t host_remove(struct device* pdev)
 {
     struct vfs_i2s_host_priv* priv = device_get_priv(pdev);
     int                       ret;
@@ -285,14 +285,14 @@ static int host_remove(struct device* pdev)
  * @param[in] p 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int host_probe_master(struct device* p) { return host_probe(p, I2S_BUS_ROLE_MASTER); }
+static mt_err_t host_probe_master(struct device* p) { return host_probe(p, I2S_BUS_ROLE_MASTER); }
 
 /**
  * @brief Host Slave 角色探测入口
  * @param[in] p 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int host_probe_slave(struct device* p) { return host_probe(p, I2S_BUS_ROLE_SLAVE); }
+static mt_err_t host_probe_slave(struct device* p) { return host_probe(p, I2S_BUS_ROLE_SLAVE); }
 
 /**
  * @brief Client 打开: 引用计数, 首次打开时调用 i2s_bus_open (含虚拟中断注册)
@@ -300,7 +300,7 @@ static int host_probe_slave(struct device* p) { return host_probe(p, I2S_BUS_ROL
  * @param[in] arg 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_open(struct device* pdev, void* arg)
+static mt_err_t i2s_open(struct device* pdev, void* arg)
 {
     struct dev_lifecycle* lc;
     int                   first;
@@ -332,7 +332,7 @@ static int i2s_open(struct device* pdev, void* arg)
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_close(struct device* pdev)
+static mt_err_t i2s_close(struct device* pdev)
 {
     struct dev_lifecycle* lc;
     int                   last;
@@ -419,7 +419,7 @@ static int i2s_read(struct device* pdev, void* buf, size_t len, uint32_t to)
 /* -------------------------------------------------------------------------- */
 /* ioctl 命令映射表 — index = (cmd - I2S_CMD_BASE - 1), 与 I2S_CMD_* 编号一一对应 (对齐 SPI) */
 /* -------------------------------------------------------------------------- */
-typedef int (*i2s_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
+typedef mt_err_t (*i2s_ioctl_fn_t)(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms);
 
 struct i2s_ioctl_map
 {
@@ -434,7 +434,7 @@ struct i2s_ioctl_map
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_transfer_arg* xfer_arg = (const struct i2s_transfer_arg*)arg;
     struct vfs_i2s_client*         priv;
@@ -459,7 +459,7 @@ static int i2s_cmd_transfer(struct device* pdev, void* arg, size_t arg_len, uint
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_xfer_mode_arg* xfer_arg = (const struct i2s_xfer_mode_arg*)arg;
     struct vfs_i2s_client*          priv;
@@ -481,7 +481,7 @@ static int i2s_cmd_set_xfer_mode(struct device* pdev, void* arg, size_t arg_len,
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct i2s_xfer_mode_arg* xfer_arg = (struct i2s_xfer_mode_arg*)arg;
     struct vfs_i2s_client*    priv;
@@ -503,7 +503,7 @@ static int i2s_cmd_get_xfer_mode(struct device* pdev, void* arg, size_t arg_len,
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_transfer_async(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_transfer_async(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_transfer_async_arg* xfer_arg = (const struct i2s_transfer_async_arg*)arg;
 
@@ -524,7 +524,7 @@ static int i2s_cmd_transfer_async(struct device* pdev, void* arg, size_t arg_len
  * @param[in] timeout_ms 超时 (毫秒)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_async_wait(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_async_wait(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     MINI_IGNORE_RESULT(arg);
     MINI_IGNORE_RESULT(arg_len);
@@ -541,7 +541,7 @@ static int i2s_cmd_async_wait(struct device* pdev, void* arg, size_t arg_len, ui
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_circ_start(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_circ_start(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_circ_arg* xfer_arg = (const struct i2s_circ_arg*)arg;
 
@@ -559,7 +559,7 @@ static int i2s_cmd_circ_start(struct device* pdev, void* arg, size_t arg_len, ui
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_circ_stop(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_circ_stop(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     MINI_IGNORE_RESULT(arg);
     MINI_IGNORE_RESULT(arg_len);
@@ -577,7 +577,7 @@ static int i2s_cmd_circ_stop(struct device* pdev, void* arg, size_t arg_len, uin
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_circ_write(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_circ_write(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_circ_buf_arg* xfer_arg = (const struct i2s_circ_buf_arg*)arg;
 
@@ -595,7 +595,7 @@ static int i2s_cmd_circ_write(struct device* pdev, void* arg, size_t arg_len, ui
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_circ_read(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_circ_read(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct i2s_circ_buf_arg* xfer_arg = (struct i2s_circ_buf_arg*)arg;
 
@@ -613,7 +613,7 @@ static int i2s_cmd_circ_read(struct device* pdev, void* arg, size_t arg_len, uin
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_set_dma_irq_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_set_dma_irq_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct i2s_dma_irq_mode_arg* xfer_arg = (const struct i2s_dma_irq_mode_arg*)arg;
 
@@ -631,7 +631,7 @@ static int i2s_cmd_set_dma_irq_mode(struct device* pdev, void* arg, size_t arg_l
  * @param[in] timeout_ms 未使用
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_cmd_get_dma_irq_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t i2s_cmd_get_dma_irq_mode(struct device* pdev, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct i2s_dma_irq_mode_arg* xfer_arg = (struct i2s_dma_irq_mode_arg*)arg;
 
@@ -664,7 +664,7 @@ static const struct i2s_ioctl_map s_i2s_ioctl_map[I2S_CMD_COUNT] = {
  * @param[in] to 超时 (毫秒, 部分命令透传)
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int i2s_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t to)
+static mt_err_t i2s_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t to)
 {
     struct dev_lifecycle* lc;
     int32_t               offset;
@@ -704,7 +704,7 @@ static const struct file_operations s_fops = {
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int client_probe(struct device* pdev)
+static mt_err_t client_probe(struct device* pdev)
 {
     struct vfs_i2s_client* priv;
     struct i2s_bus_client* bus_cli;
@@ -742,7 +742,7 @@ static int client_probe(struct device* pdev)
         goto err;
     }
 
-    SYS_LOGI(k_cli, "probe OK %s", device_get_name(pdev));
+    MT_LOG_INFO(k_cli, "probe OK %s", device_get_name(pdev));
     return MINI_OK;
 
 err:
@@ -755,7 +755,7 @@ err:
  * @param[in] pdev 设备对象指针
  * @return 成功返回 MINI_OK, 失败返回负数错误码
  */
-static int client_remove(struct device* pdev)
+static mt_err_t client_remove(struct device* pdev)
 {
     struct vfs_i2s_client* priv = device_get_priv(pdev);
     struct dev_lifecycle*  lc;

@@ -9,6 +9,7 @@ add_library(bus_framework STATIC
 target_include_directories(bus_framework PUBLIC
     "${CMAKE_CURRENT_LIST_DIR}/include"
     "${CMAKE_CURRENT_LIST_DIR}/../core/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../mini-log/inc"
     "${CMAKE_CURRENT_LIST_DIR}/../board/include"
 )
 

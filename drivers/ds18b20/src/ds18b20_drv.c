@@ -71,7 +71,7 @@ static void ds18b20_delay_us(uint32_t us) { mini_delay_us(us); }
  * @brief 单总线复位脉冲：拉低 480us 后释放，检测存在脉冲
  * @return MINI_OK（检测到应答）或 MINI_ERR_IO（无应答）
  */
-static int ds18b20_reset(struct ds18b20_device* dev)
+static mt_err_t ds18b20_reset(struct ds18b20_device* dev)
 {
     int present;
 
@@ -93,7 +93,7 @@ static int ds18b20_reset(struct ds18b20_device* dev)
 /**
  * @brief 写 1bit（写 1：短拉低；写 0：长拉低）
  */
-static int ds18b20_write_bit(struct ds18b20_device* dev, int bit)
+static mt_err_t ds18b20_write_bit(struct ds18b20_device* dev, int bit)
 {
     dev->data_gpio.level = 0;
     if (vfs_gpio_set_level(&dev->data_gpio) != MINI_OK)
@@ -110,7 +110,7 @@ static int ds18b20_write_bit(struct ds18b20_device* dev, int bit)
  * @brief 读 1bit（拉低 3us 后释放，采样电平）
  * @param[in] bit 输出读到的位
  */
-static int ds18b20_read_bit(struct ds18b20_device* dev, int* bit)
+static mt_err_t ds18b20_read_bit(struct ds18b20_device* dev, int* bit)
 {
     dev->data_gpio.level = 0;
     if (vfs_gpio_set_level(&dev->data_gpio) != MINI_OK)
@@ -130,7 +130,7 @@ static int ds18b20_read_bit(struct ds18b20_device* dev, int* bit)
 /**
  * @brief 写 1B（LSB 先行）
  */
-static int ds18b20_write_byte(struct ds18b20_device* dev, uint8_t val)
+static mt_err_t ds18b20_write_byte(struct ds18b20_device* dev, uint8_t val)
 {
     int index;
     for (index = 0; index < 8; index++)
@@ -146,7 +146,7 @@ static int ds18b20_write_byte(struct ds18b20_device* dev, uint8_t val)
  * @brief 读 1B（LSB 先行）
  * @param[in] val 输出读到的字节
  */
-static int ds18b20_read_byte(struct ds18b20_device* dev, uint8_t* val)
+static mt_err_t ds18b20_read_byte(struct ds18b20_device* dev, uint8_t* val)
 {
     int     index;
     int     bit_val;
@@ -164,9 +164,9 @@ static int ds18b20_read_byte(struct ds18b20_device* dev, uint8_t* val)
 
 /**
  * @brief 首次 open 时打开 GPIO 设备并查询默认电平（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int ds18b20_hw_create(struct ds18b20_device* dev)
+static mt_err_t ds18b20_hw_create(struct ds18b20_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -258,7 +258,7 @@ static int ds18b20_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*ds18b20_ioctl_fn_t)(struct ds18b20_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*ds18b20_ioctl_fn_t)(struct ds18b20_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct ds18b20_ioctl_map
 {
     ds18b20_ioctl_fn_t handler;
@@ -267,7 +267,7 @@ struct ds18b20_ioctl_map
 /**
  * @brief DS18B20_CMD_READ_TEMP 实现：复位 → 转换（750ms）→ 读暂存器换算温度
  */
-static int ds18b20_cmd_temp(struct ds18b20_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t ds18b20_cmd_temp(struct ds18b20_device* dev, void* arg, size_t len, uint32_t ms)
 {
     uint8_t lo = 0;
     uint8_t hi = 0;
@@ -304,7 +304,7 @@ static const struct ds18b20_ioctl_map s_ds18b20_map[DS18B20_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int ds18b20_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t ds18b20_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct ds18b20_device* dev;
     struct dev_lifecycle*  lc;
@@ -339,7 +339,7 @@ static const struct file_operations ds18b20_fops = {
 /**
  * @brief probe：claim 池项、绑定 data-gpio 设备并挂 fops
  */
-static int ds18b20_probe(struct device* pdev)
+static mt_err_t ds18b20_probe(struct device* pdev)
 {
     struct ds18b20_device* dev;
     int                    pool_idx, ret;
@@ -364,7 +364,7 @@ static int ds18b20_probe(struct device* pdev)
     }
     dev->ops = ds18b20_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -376,7 +376,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int ds18b20_remove(struct device* pdev)
+static mt_err_t ds18b20_remove(struct device* pdev)
 {
     struct ds18b20_device* dev;
     struct dev_lifecycle*  lc;

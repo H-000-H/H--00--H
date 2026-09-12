@@ -21,7 +21,7 @@
 | 4 | Bus 强制隔离 | `#pragma GCC poison` 防上层直调 HAL |
 | 5 | OS 三栖 | FreeRTOS / RT-Thread / NULL，Kconfig 裁剪 |
 | 6 | 系统层单一 C 后端 | `system_c/` 纯 C；命令模块 `SystemCmd` 为唯一 C++ 例外（不再 C/C++ 二选一） |
-| 7 | 统一错误码 | `status.h` 的 `MINI_ERR_*` / `MINI_ERR_*` |
+| 7 | 统一错误码 | `status.h` 自持编号的 `MINI_OK` / `MINI_ERR_*`（0 成功 / 负数失败，分段可扩容，不依赖 errno） |
 
 ---
 

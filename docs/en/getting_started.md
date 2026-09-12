@@ -84,13 +84,13 @@ The root `CMakeLists.txt` runs the same logic during the configure stage (the ES
 | OS 后端 | `OS_BARE` / `OS_MINI_OS` / `OS_FREERTOS` / `OS_RTTHREAD` | runtime backend: bare-metal (cooperative / preemptive) / mini-os (in-tree, Cortex-M only) / FreeRTOS v11.3.0 / RT-Thread v5.3.0 |
 | the unified interface Capacity | `OS_BARE_MAX_QUEUES` (base queue count, +1 auto when EventBus on) / `OS_BARE_QUEUE_BUF_SZ` / `FREERTOS_HEAP_SIZE` / `RTT_HEAP_SIZE` | queue & heap RAM (backend-scoped) |
 | System | `SYSTEM` | master switch (default on); the system layer is pure C (`system_c/`) |
-| Log | `SYS_LOG_USE_PRINTF` / `the unified interface` | `SYS_LOG*` backend |
+| Log | `SYS_LOG_USE_MINI_LOG` / `SYS_LOG_USE_ESP` | `MT_LOG_*` backend (bundled mini-log / ESP-IDF esp_log) |
 | Board Features | `SYSTEM_WDT` / `SYSTEM_SCRUBBER` etc. | framework watchdog (on) / CRC scrubber (off), depends on `SYSTEM` |
 | Runtime | `EVENT_BUS` / `EVENT_BUS_*` / `MINI_MUTEX_POOL_SIZE` / `BOTTOM_HALF_QUEUE_DEPTH` | master switch + capacity |
 
 `SYSTEM` is an optional module **enabled by default**; `EVENT_BUS` and `SYSTEM_CMD` are **off by default**: turning off `SYSTEM` trims `system_c/` and EventBus together (the command module `system_cmd` follows `SYSTEM_CMD`); turning on `EVENT_BUS` adds the pub/sub bus while keeping the two-phase boot and watchdogs.
 
-The repository's bundled `.config` uses common defaults: `OS_BARE` + `SYSTEM` + `SYSTEM_WDT` + `SYS_LOG_USE_PRINTF` (`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` off).
+The repository's bundled `.config` uses common defaults: `OS_BARE` + `SYSTEM` + `SYSTEM_WDT` + `SYS_LOG_USE_MINI_LOG` (`EVENT_BUS` / `SYSTEM_CMD` / `SYSTEM_SCRUBBER` off).
 
 ---
 

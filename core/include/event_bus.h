@@ -56,7 +56,7 @@ typedef void (*event_callback_t)(const struct event* event, void* user_data);
  * @brief 初始化事件总线 (创建订阅表, 启动前调用)
  * @return MINI_OK 成功; MINI_ERR_NOMEM 资源不足
  */
-int event_bus_init(void) MINI_WARN_UNUSED_RESULT;
+mt_err_t event_bus_init(void) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 订阅 [id_min, id_max] 闭区间内的事件
  * @param[in] id_min 订阅区间下界
@@ -66,7 +66,7 @@ int event_bus_init(void) MINI_WARN_UNUSED_RESULT;
  * @return MINI_OK 成功; MINI_ERR_ISR 中断上下文调用; MINI_ERR_NOTSUPP 已封表;
  *         MINI_ERR_INVAL 参数非法/未初始化; MINI_ERR_TIMEOUT 锁超时; MINI_ERR_NOSPC 槽位已满
  */
-int event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callback, void* user_data) MINI_WARN_UNUSED_RESULT;
+mt_err_t event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callback, void* user_data) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 发布事件 (task 上下文)
  * @param[in] id 事件 ID (框架级或用户自定义)
@@ -74,7 +74,7 @@ int event_bus_subscribe(uint32_t id_min, uint32_t id_max, event_callback_t callb
  * @return MINI_OK 成功; MINI_ERR_ISR 中断上下文调用; MINI_ERR_AGAIN 总线未就绪; MINI_ERR_NOSPC
  * 队列满
  */
-int event_bus_post(uint32_t id, uintptr_t arg) MINI_WARN_UNUSED_RESULT;
+mt_err_t event_bus_post(uint32_t id, uintptr_t arg) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 发布事件 (ISR 上下文)
  * @param[in] id 事件 ID
@@ -82,7 +82,7 @@ int event_bus_post(uint32_t id, uintptr_t arg) MINI_WARN_UNUSED_RESULT;
  * @param[out] px_yield_required ISR 内是否需要请求上下文切换
  * @return MINI_OK 成功; MINI_ERR_AGAIN 总线未就绪; MINI_ERR_NOSPC 队列满
  */
-int event_bus_post_from_isr(uint32_t id, uintptr_t arg, bool* px_yield_required) MINI_WARN_UNUSED_RESULT;
+mt_err_t event_bus_post_from_isr(uint32_t id, uintptr_t arg, bool* px_yield_required) MINI_WARN_UNUSED_RESULT;
 /**
  * @brief 启动事件分发 (创建分发任务)
  */

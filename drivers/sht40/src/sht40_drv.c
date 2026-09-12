@@ -62,9 +62,9 @@ static struct sht40_device* sht40_get_drvdata(struct device* pdev) { return (str
 
 /**
  * @brief 向 I2C 总线写数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht40_i2c_wr(struct sht40_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
+static mt_err_t sht40_i2c_wr(struct sht40_device* dev, const uint8_t* tx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !tx || len == 0U)
         return MINI_ERR_INVAL;
@@ -72,9 +72,9 @@ static int sht40_i2c_wr(struct sht40_device* dev, const uint8_t* tx, size_t len,
 }
 /**
  * @brief 从 I2C 总线读数据
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht40_i2c_rd(struct sht40_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
+static mt_err_t sht40_i2c_rd(struct sht40_device* dev, uint8_t* rx, size_t len, uint32_t timeout_ms)
 {
     if (!dev || !dev->i2c_dev || !rx || len == 0U)
         return MINI_ERR_INVAL;
@@ -83,9 +83,9 @@ static int sht40_i2c_rd(struct sht40_device* dev, uint8_t* rx, size_t len, uint3
 
 /**
  * @brief 首次 open 时打开 I2C 总线（空实现，仅确保 hw_ready）
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int sht40_hw_create(struct sht40_device* dev)
+static mt_err_t sht40_hw_create(struct sht40_device* dev)
 {
     int ret;
     if (!dev)
@@ -175,7 +175,7 @@ static int sht40_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*sht40_ioctl_fn_t)(struct sht40_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*sht40_ioctl_fn_t)(struct sht40_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct sht40_ioctl_map
 {
     sht40_ioctl_fn_t handler;
@@ -184,7 +184,7 @@ struct sht40_ioctl_map
 /**
  * @brief SHT40_CMD_READ_TEMP_RH 实现：触发测量（10ms）并换算 T/RH
  */
-static int sht40_cmd_read(struct sht40_device* dev, void* arg, size_t len, uint32_t timeout_ms)
+static mt_err_t sht40_cmd_read(struct sht40_device* dev, void* arg, size_t len, uint32_t timeout_ms)
 {
     const uint8_t        cmd = 0xFD;
     uint8_t              raw[6];
@@ -216,7 +216,7 @@ static const struct sht40_ioctl_map s_sht40_map[SHT40_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int sht40_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t sht40_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct sht40_device*  dev;
     struct dev_lifecycle* lc;
@@ -251,7 +251,7 @@ static const struct file_operations sht40_fops = {
 /**
  * @brief probe：claim 池项、绑定父 I2C 设备并挂 fops
  */
-static int sht40_probe(struct device* pdev)
+static mt_err_t sht40_probe(struct device* pdev)
 {
     struct sht40_device* dev;
     int                  pool_idx, ret;
@@ -276,7 +276,7 @@ static int sht40_probe(struct device* pdev)
     }
     dev->ops = sht40_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -288,7 +288,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int sht40_remove(struct device* pdev)
+static mt_err_t sht40_remove(struct device* pdev)
 {
     struct sht40_device*  dev;
     struct dev_lifecycle* lc;

@@ -67,9 +67,9 @@ static struct drv8833_device* drv8833_get_drvdata(struct device* pdev) { return 
 
 /**
  * @brief 首次 open 时打开四路输入 GPIO 并绑定参数
- * @return MINI_OK 或 VFS_ERR_*
+ * @return MINI_OK 或 MINI_ERR_*
  */
-static int drv8833_hw_create(struct drv8833_device* dev)
+static mt_err_t drv8833_hw_create(struct drv8833_device* dev)
 {
     if (!dev)
         return MINI_ERR_INVAL;
@@ -170,7 +170,7 @@ static int drv8833_close(struct device* pdev)
     return MINI_OK;
 }
 
-typedef int (*drv8833_ioctl_fn_t)(struct drv8833_device* dev, void* arg, size_t arg_len, uint32_t ms);
+typedef mt_err_t (*drv8833_ioctl_fn_t)(struct drv8833_device* dev, void* arg, size_t arg_len, uint32_t ms);
 struct drv8833_ioctl_map
 {
     drv8833_ioctl_fn_t handler;
@@ -187,7 +187,7 @@ static void drv8833_apply(struct vfs_gpio_arg* gpio_args, int val)
 /**
  * @brief DRV8833_CMD_SET_MOTOR 实现：按方向差分驱动两路输入
  */
-static int drv8833_cmd_motor(struct drv8833_device* dev, void* arg, size_t len, uint32_t ms)
+static mt_err_t drv8833_cmd_motor(struct drv8833_device* dev, void* arg, size_t len, uint32_t ms)
 {
     struct drv8833_motor* motor_arg = (struct drv8833_motor*)arg;
     MINI_IGNORE_RESULT(ms);
@@ -212,7 +212,7 @@ static const struct drv8833_ioctl_map s_drv8833_map[DRV8833_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int drv8833_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
+static mt_err_t drv8833_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t ms)
 {
     struct drv8833_device* dev;
     struct dev_lifecycle*  lc;
@@ -247,7 +247,7 @@ static const struct file_operations drv8833_fops = {
 /**
  * @brief probe：claim 池项、绑定四路输入 GPIO 并挂 fops
  */
-static int drv8833_probe(struct device* pdev)
+static mt_err_t drv8833_probe(struct device* pdev)
 {
     struct drv8833_device* dev;
     int                    pool_idx, ret;
@@ -275,7 +275,7 @@ static int drv8833_probe(struct device* pdev)
     }
     dev->ops = drv8833_fops;
     pdev->ops = &dev->ops;
-    SYS_LOGI(k_tag, "probe OK pool=%dev", pool_idx);
+    MT_LOG_INFO(k_tag, "probe OK pool=%dev", pool_idx);
     return MINI_OK;
 err:
     pdev->ops = NULL;
@@ -287,7 +287,7 @@ err:
 /**
  * @brief remove：排空在途 io、释放硬件并归还池项
  */
-static int drv8833_remove(struct device* pdev)
+static mt_err_t drv8833_remove(struct device* pdev)
 {
     struct drv8833_device* dev;
     struct dev_lifecycle*  lc;

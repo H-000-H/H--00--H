@@ -366,7 +366,7 @@ x_task_handle_t x_scheduler_task_create(const char* name, uint32_t period_ms, ui
  * @param[in] irq_num 中断号
  * @return MINI_OK
  */
-int scheduler_tim_isr_top(void* context, uint16_t irq_num)
+mt_err_t scheduler_tim_isr_top(void* context, uint16_t irq_num)
 {
     MINI_IGNORE_RESULT(irq_num);
     struct x_preempt_priv* priv = (struct x_preempt_priv*)context;
@@ -386,7 +386,7 @@ int scheduler_tim_isr_top(void* context, uint16_t irq_num)
  * @param[in] ms 滴答增量
  * @return MINI_OK
  */
-int x_scheduler_tick(x_scheduler* sched, unsigned int ms)
+mt_err_t x_scheduler_tick(x_scheduler* sched, unsigned int ms)
 {
     s_priv.tick_count += ms;
     /* 同步对外契约时钟 (mini_time_ms 等读 g_scheduler.tick_count) */
@@ -402,7 +402,7 @@ int x_scheduler_tick(x_scheduler* sched, unsigned int ms)
  * @param[in] sched 忽略 (preempt 用全局 s_priv)
  * @return MINI_OK
  */
-int x_task_run_preempt(x_scheduler* sched)
+mt_err_t x_task_run_preempt(x_scheduler* sched)
 {
     MINI_IGNORE_RESULT(sched); /* preempt 用全局 s_priv */
 

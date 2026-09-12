@@ -112,7 +112,7 @@ uint16_t tud_network_xmit_cb(uint8_t* dst, void* ref, uint16_t arg)
     return arg;
 }
 
-int usb_net_frame_push_tx(const void* frame, size_t len)
+mt_err_t usb_net_frame_push_tx(const void* frame, size_t len)
 {
     uint32_t start_time;
     if (!frame || len == 0U || len > (size_t)CFG_TUD_NET_MTU)
@@ -137,7 +137,7 @@ int usb_net_frame_push_tx(const void* frame, size_t len)
     return (int)len;
 }
 
-int usb_net_frame_pop_rx(void* frame, size_t len)
+mt_err_t usb_net_frame_pop_rx(void* frame, size_t len)
 {
     if (!frame || len == 0U)
         return MINI_ERR_INVAL;

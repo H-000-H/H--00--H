@@ -80,7 +80,7 @@ static uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len)
 static void scrubber_task(void* param)
 {
     (void)param;
-    SYS_LOGI(k_tag, "scrubber task started, chunk=%u bytes, interval=%ums", (unsigned)SYSTEM_SCRUBBER_CHUNK_BYTES,
+    MT_LOG_INFO(k_tag, "scrubber task started, chunk=%u bytes, interval=%ums", (unsigned)SYSTEM_SCRUBBER_CHUNK_BYTES,
              (unsigned)SYSTEM_SCRUBBER_INTERVAL_MS);
 
     const uint32_t base_addr = hal_flash_get_app_addr();
@@ -88,7 +88,7 @@ static void scrubber_task(void* param)
 
     if (base_addr == 0 || total_size == 0)
     {
-        SYS_LOGE(k_tag, "cannot locate app partition — scrubber aborted");
+        MT_LOG_ERROR(k_tag, "cannot locate app partition — scrubber aborted");
         mini_task_self_delete();
         return;
     }
@@ -97,12 +97,12 @@ static void scrubber_task(void* param)
 
     if (baseline_crc == 0)
     {
-        SYS_LOGW(k_tag, "CRC baseline not set (0x%08X) — scrubber inactive, run post_build_crc.py", (unsigned)baseline_crc);
+        MT_LOG_WARN(k_tag, "CRC baseline not set (0x%08X) — scrubber inactive, run post_build_crc.py", (unsigned)baseline_crc);
         mini_task_self_delete();
         return;
     }
 
-    SYS_LOGI(k_tag, "app partition: addr=0x%08X size=%u bytes, baseline=0x%08X", (unsigned)base_addr, (unsigned)total_size, (unsigned)baseline_crc);
+    MT_LOG_INFO(k_tag, "app partition: addr=0x%08X size=%u bytes, baseline=0x%08X", (unsigned)base_addr, (unsigned)total_size, (unsigned)baseline_crc);
 
     uint32_t offset = 0;
     uint32_t crc = 0xFFFFFFFF;
@@ -129,11 +129,11 @@ static void scrubber_task(void* param)
 
             if (crc != baseline_crc)
             {
-                SYS_LOGE(k_tag, "FLASH CORRUPTION: crc=0x%08X != baseline=0x%08X", (unsigned)crc, (unsigned)baseline_crc);
+                MT_LOG_ERROR(k_tag, "FLASH CORRUPTION: crc=0x%08X != baseline=0x%08X", (unsigned)crc, (unsigned)baseline_crc);
                 enter_safe_state("Flash bit-rot detected — firmware corruption");
             }
 
-            SYS_LOGI(k_tag, "scrub pass complete, crc=0x%08X OK", (unsigned)crc);
+            MT_LOG_INFO(k_tag, "scrub pass complete, crc=0x%08X OK", (unsigned)crc);
 
             offset = 0;
             crc = 0xFFFFFFFF;
@@ -142,7 +142,7 @@ static void scrubber_task(void* param)
         mini_delay_ms(SYSTEM_SCRUBBER_INTERVAL_MS);
     }
 
-    SYS_LOGI(k_tag, "scrubber task exiting");
+    MT_LOG_INFO(k_tag, "scrubber task exiting");
     mini_task_self_delete();
 }
 
@@ -150,13 +150,13 @@ static void scrubber_task(void* param)
  * @brief scrubber init
  * @return MINI_OK 成功
  */
-int system_scrubber_init(void) { return MINI_OK; }
+mt_err_t system_scrubber_init(void) { return MINI_OK; }
 
 /**
  * @brief 启动 CRC 巡检任务
  * @return MINI_OK 成功; MINI_ERR_NOMEM 任务创建失败
  */
-int system_scrubber_start(void)
+mt_err_t system_scrubber_start(void)
 {
     if (s_running)
         return MINI_OK;
@@ -165,12 +165,12 @@ int system_scrubber_start(void)
     int ret = mini_task_create_handle("scrubber", k_scrubber_stack, k_scrubber_prio, scrubber_task, NULL, 0, &s_handle);
     if (ret != 0)
     {
-        SYS_LOGE(k_tag, "failed to create scrubber task");
+        MT_LOG_ERROR(k_tag, "failed to create scrubber task");
         s_running = false;
         return MINI_ERR_NOMEM;
     }
 
-    SYS_LOGI(k_tag, "scrubber task created, prio=%u", (unsigned)k_scrubber_prio);
+    MT_LOG_INFO(k_tag, "scrubber task created, prio=%u", (unsigned)k_scrubber_prio);
     return MINI_OK;
 }
 

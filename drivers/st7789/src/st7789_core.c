@@ -85,7 +85,7 @@ static struct st7789_device* st7789_get_drvdata(struct device* pdev) { return (s
 /**
  * @brief 设置 GPIO 输出电平（obj 为 NULL 时跳过）
  */
-static int st7789_gpio_out(struct vfs_gpio_arg* ga, int level)
+static mt_err_t st7789_gpio_out(struct vfs_gpio_arg* ga, int level)
 {
     if (!ga || !ga->obj)
         return MINI_OK;
@@ -96,7 +96,7 @@ static int st7789_gpio_out(struct vfs_gpio_arg* ga, int level)
 /**
  * @brief 打开 GPIO 设备并绑定参数（绑定失败自动回滚关闭）
  */
-static int st7789_bind_gpio(struct device* gdev, struct vfs_gpio_arg* ga)
+static mt_err_t st7789_bind_gpio(struct device* gdev, struct vfs_gpio_arg* ga)
 {
     int ret;
 
@@ -117,7 +117,7 @@ static int st7789_bind_gpio(struct device* gdev, struct vfs_gpio_arg* ga)
 /**
  * @brief SPI 分块写入（受 spi_chunk 限制，自动切块）
  */
-static int st7789_spi_write(struct st7789_device* lcd, const uint8_t* data, size_t len, uint32_t timeout_ms)
+static mt_err_t st7789_spi_write(struct st7789_device* lcd, const uint8_t* data, size_t len, uint32_t timeout_ms)
 {
     size_t offset = 0;
 
@@ -166,7 +166,7 @@ static int st7789_write_data(struct st7789_device* lcd, const uint8_t* data, siz
  * @brief 矩形裁剪到面板边界（越界部分裁掉）
  * @return MINI_OK（裁剪后仍有有效区域）或 MINI_ERR_INVAL（完全越界）
  */
-static int st7789_clip_rect(const struct st7789_device* lcd, int* pos_x, int* pos_y, int* size_w, int* size_h)
+static mt_err_t st7789_clip_rect(const struct st7789_device* lcd, int* pos_x, int* pos_y, int* size_w, int* size_h)
 {
     if (!lcd || !pos_x || !pos_y || !size_w || !size_h || *size_w <= 0 || *size_h <= 0)
         return MINI_ERR_INVAL;
@@ -229,7 +229,7 @@ static int st7789_set_window(struct st7789_device* lcd, int pos_x, int pos_y, in
 /**
  * @brief 面板初始化序列：复位 → SLPOUT → MADCTL/COLMOD/RAMCTRL → 显示开
  */
-static int st7789_hw_init(struct st7789_device* lcd, uint32_t timeout_ms)
+static mt_err_t st7789_hw_init(struct st7789_device* lcd, uint32_t timeout_ms)
 {
     uint8_t madctl = lcd->madctl;
     uint8_t colmod = ST7789_COLMOD_16BIT;                         /* RGB565 */
@@ -298,7 +298,7 @@ static int st7789_hw_init(struct st7789_device* lcd, uint32_t timeout_ms)
 /**
  * @brief 应用背光亮度（PWM 占空比换算，支持低电平有效反转）
  */
-static int st7789_apply_backlight(struct st7789_device* lcd, uint8_t brightness)
+static mt_err_t st7789_apply_backlight(struct st7789_device* lcd, uint8_t brightness)
 {
     uint32_t ccr;
 
@@ -321,7 +321,7 @@ static int st7789_apply_backlight(struct st7789_device* lcd, uint8_t brightness)
 /**
  * @brief 矩形填充：裁剪 → 开窗 → 分块流式写 GRAM
  */
-static int st7789_do_fill_rect(struct st7789_device* lcd, int pos_x, int pos_y, int size_w, int size_h, uint16_t color, uint32_t timeout_ms)
+static mt_err_t st7789_do_fill_rect(struct st7789_device* lcd, int pos_x, int pos_y, int size_w, int size_h, uint16_t color, uint32_t timeout_ms)
 {
     uint8_t hi;
     uint8_t lo;
@@ -377,7 +377,7 @@ static int st7789_do_fill_rect(struct st7789_device* lcd, int pos_x, int pos_y, 
 /**
  * @brief 位图绘制：开窗后一次写入 RGB565 数据（须完全在屏内）
  */
-static int st7789_do_draw_bitmap(struct st7789_device* lcd, int pos_x, int pos_y, int size_w, int size_h, const uint8_t* data, uint32_t timeout_ms)
+static mt_err_t st7789_do_draw_bitmap(struct st7789_device* lcd, int pos_x, int pos_y, int size_w, int size_h, const uint8_t* data, uint32_t timeout_ms)
 {
     size_t pixels;
     int    ret;
@@ -571,7 +571,7 @@ static int st7789_close(struct device* pdev)
 /**
  * @brief ioctl 命令分发类型（命令处理函数由 map 绑定）
  */
-typedef int (*st7789_ioctl_fn_t)(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms);
+typedef mt_err_t (*st7789_ioctl_fn_t)(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms);
 
 struct st7789_ioctl_map
 {
@@ -581,7 +581,7 @@ struct st7789_ioctl_map
 /**
  * @brief DISPLAY_CMD_FILL_RECT 实现
  */
-static int st7789_cmd_fill_rect(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_fill_rect(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct display_rect_arg* arg_data = (const struct display_rect_arg*)arg;
 
@@ -593,7 +593,7 @@ static int st7789_cmd_fill_rect(struct st7789_device* lcd, void* arg, size_t arg
 /**
  * @brief DISPLAY_CMD_CLEAR 实现：全屏填充
  */
-static int st7789_cmd_clear(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_clear(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct display_clear_arg* arg_data = (const struct display_clear_arg*)arg;
 
@@ -605,7 +605,7 @@ static int st7789_cmd_clear(struct st7789_device* lcd, void* arg, size_t arg_len
 /**
  * @brief DISPLAY_CMD_DRAW_AREA 实现（RGB565）
  */
-static int st7789_cmd_draw_area(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_draw_area(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct display_draw_arg* arg_data = (const struct display_draw_arg*)arg;
 
@@ -617,7 +617,7 @@ static int st7789_cmd_draw_area(struct st7789_device* lcd, void* arg, size_t arg
 /**
  * @brief DISPLAY_CMD_SET_BRIGHTNESS 实现
  */
-static int st7789_cmd_set_brightness(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_set_brightness(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct display_bright_arg* arg_data = (const struct display_bright_arg*)arg;
 
@@ -630,7 +630,7 @@ static int st7789_cmd_set_brightness(struct st7789_device* lcd, void* arg, size_
 /**
  * @brief DISPLAY_CMD_GET_INFO 实现
  */
-static int st7789_cmd_get_info(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_get_info(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct display_info_arg* arg_data = (struct display_info_arg*)arg;
 
@@ -646,7 +646,7 @@ static int st7789_cmd_get_info(struct st7789_device* lcd, void* arg, size_t arg_
 /**
  * @brief DISPLAY_CMD_FLUSH 实现：LVGL 区域坐标 → 位图绘制
  */
-static int st7789_cmd_flush(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_cmd_flush(struct st7789_device* lcd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     const struct display_draw_arg* arg_data = (const struct display_draw_arg*)arg;
 
@@ -667,7 +667,7 @@ static const struct st7789_ioctl_map s_st7789_ioctl_map[DISPLAY_CMD_COUNT] = {
 /**
  * @brief fops.ioctl：查表分发命令，持 io 生命周期锁
  */
-static int st7789_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
+static mt_err_t st7789_ioctl(struct device* pdev, int cmd, void* arg, size_t arg_len, uint32_t timeout_ms)
 {
     struct st7789_device* lcd;
     struct dev_lifecycle* lc;
@@ -709,7 +709,7 @@ static const struct file_operations st7789_fops = {
  * @brief 公共 probe：解析 DTS 属性、claim 池项、绑定引脚/背光并挂 fops
  * @param[in] require_nocs 非 0 时断言父 SPI client cs-pin < 0
  */
-int st7789_probe_common(struct device* pdev, int require_nocs)
+mt_err_t st7789_probe_common(struct device* pdev, int require_nocs)
 {
     struct st7789_device* lcd;
     struct device*        dc_dev;
@@ -766,7 +766,7 @@ int st7789_probe_common(struct device* pdev, int require_nocs)
     {
         if (device_get_prop_int(lcd->spi_dev, "cs-pin", &parent_cs) != MINI_OK || parent_cs >= 0)
         {
-            SYS_LOGE(k_tag, "nocs requires parent cs-pin < 0");
+            MT_LOG_ERROR(k_tag, "nocs requires parent cs-pin < 0");
             ret = MINI_ERR_INVAL;
             goto err_pool;
         }
@@ -805,7 +805,7 @@ int st7789_probe_common(struct device* pdev, int require_nocs)
     lcd->ops = st7789_fops;
     pdev->ops = &lcd->ops;
 
-    SYS_LOGI(k_tag, "probe OK: pool=%d %dx%d dc=%s bl=%s nocs=%d", pool_idx, width, height, device_get_name(dc_dev),
+    MT_LOG_INFO(k_tag, "probe OK: pool=%d %dx%d dc=%s bl=%s nocs=%d", pool_idx, width, height, device_get_name(dc_dev),
              bl_tim_dev ? device_get_name(bl_tim_dev) : "none", require_nocs);
     return MINI_OK;
 
@@ -819,7 +819,7 @@ err_pool:
 /**
  * @brief 公共 remove：排空在途 io、灭背光并归还池项
  */
-int st7789_remove_common(struct device* pdev)
+mt_err_t st7789_remove_common(struct device* pdev)
 {
     struct st7789_device* lcd;
     struct dev_lifecycle* lc;

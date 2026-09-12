@@ -25,11 +25,10 @@ add_library(core STATIC
     "src/mini_backend_freertos.c"
     "src/mini_backend_mini_os.c"
     "src/mini_backend_rtthread.c"
-    "src/mini_log.c"
     "src/mini_panic.c"
     "src/mini_slot.c"
     "src/mini_time.c"
-    "src/production_log.c"
+    "src/status.c"
 )
 
 target_include_directories(core

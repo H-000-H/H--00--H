@@ -108,10 +108,10 @@ static struct uart_bus_client* uart_client_from_device(struct device* pdev)
 /* -------------------------------------------------------------------------- */
 /*controller_ops (host 级操作)*/
 /* -------------------------------------------------------------------------- */
-static int  uart_host_init_impl(struct device* pdev, const void* cfg);
-static int  uart_host_deinit_impl(struct device* pdev);
+static mt_err_t  uart_host_init_impl(struct device* pdev, const void* cfg);
+static mt_err_t  uart_host_deinit_impl(struct device* pdev);
 static int  uart_host_role_impl(struct device* pdev);
-static int  uart_client_register_impl(struct device* pdev, const void* cfg, void** out);
+static mt_err_t  uart_client_register_impl(struct device* pdev, const void* cfg, void** out);
 static void uart_client_unregister_impl(struct device* pdev);
 
 static const struct bus_controller_ops s_uart_controller_ops = {
@@ -130,9 +130,9 @@ static const struct bus_controller_ops s_uart_controller_ops = {
  * controller
  * @param[in] pdev controller device (host)
  * @param[in] cfg host 配置 (struct hal_uart_config*, VFS 从 DTSI 硬件直投填充, bus 零翻译透传)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-static int uart_host_init_impl(struct device* pdev, const void* cfg)
+static mt_err_t uart_host_init_impl(struct device* pdev, const void* cfg)
 {
     const struct hal_uart_config* host_cfg = (const struct hal_uart_config*)cfg;
     struct uart_bus_host*         host;
@@ -171,16 +171,16 @@ static int uart_host_init_impl(struct device* pdev, const void* cfg)
         return ret;
     }
 
-    SYS_LOGI(k_tag, "host init OK: %s uart=%lu baud=%lu", device_get_name(pdev), (unsigned long)host_cfg->uart, (unsigned long)host_cfg->baud_rate);
+    MT_LOG_INFO(k_tag, "host init OK: %s uart=%lu baud=%lu", device_get_name(pdev), (unsigned long)host_cfg->uart, (unsigned long)host_cfg->baud_rate);
     return MINI_OK;
 }
 
 /**
  * @brief host 反初始化实现 (controller_ops.deinit): 检查 ref_count, 解绑 controller, 释放池槽位
  * @param[in] pdev controller device (host)
- * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, BUSY 返回 MINI_ERR_BUSY, 失败返回 MINI_ERR_*
  */
-static int uart_host_deinit_impl(struct device* pdev)
+static mt_err_t uart_host_deinit_impl(struct device* pdev)
 {
     struct uart_bus_host* host;
     int                   idx;
@@ -219,9 +219,9 @@ static int uart_host_role_impl(struct device* pdev)
     return 0; /* UART 无 master/slave 之分 */
 }
 
-int uart_bus_host_init(struct device* pdev, const struct hal_uart_config* cfg) { return uart_host_init_impl(pdev, cfg); }
+mt_err_t uart_bus_host_init(struct device* pdev, const struct hal_uart_config* cfg) { return uart_host_init_impl(pdev, cfg); }
 
-int uart_bus_host_deinit(struct device* pdev) { return uart_host_deinit_impl(pdev); }
+mt_err_t uart_bus_host_deinit(struct device* pdev) { return uart_host_deinit_impl(pdev); }
 
 /* -------------------------------------------------------------------------- */
 /*Client API*/
@@ -232,9 +232,9 @@ int uart_bus_host_deinit(struct device* pdev) { return uart_host_deinit_impl(pde
  * @param[in] pdev client device
  * @param[in] cfg client 配置 (UART 无 per-client 配置, 此参数忽略)
  * @param[out] out 输出 client 私有上下文 (可 NULL)
- * @return 成功返回 MINI_OK, 失败返回 VFS_ERR_*
+ * @return 成功返回 MINI_OK, 失败返回 MINI_ERR_*
  */
-static int uart_client_register_impl(struct device* pdev, const void* cfg, void** out)
+static mt_err_t uart_client_register_impl(struct device* pdev, const void* cfg, void** out)
 {
     struct bus_controller*  ctlr;
     struct uart_bus_host*   host;
@@ -314,14 +314,14 @@ static void uart_client_unregister_impl(struct device* pdev)
     MINI_IGNORE_RESULT(mini_slot_release(&s_uart_client_pool_ctrl, idx));
 }
 
-int uart_bus_client_register(struct device* pdev) { return uart_client_register_impl(pdev, NULL, NULL); }
+mt_err_t uart_bus_client_register(struct device* pdev) { return uart_client_register_impl(pdev, NULL, NULL); }
 
 void uart_bus_client_unregister(struct device* pdev) { uart_client_unregister_impl(pdev); }
 
 /* -------------------------------------------------------------------------- */
 /*I/O API (VFS 层调用)*/
 /* -------------------------------------------------------------------------- */
-int uart_bus_open(struct device* pdev)
+mt_err_t uart_bus_open(struct device* pdev)
 {
     struct uart_bus_client* cli = uart_client_from_device(pdev);
     if (!cli || !cli->host)
@@ -329,7 +329,7 @@ int uart_bus_open(struct device* pdev)
     return MINI_OK; /* ref_count 在 client_register/unregister 维护 */
 }
 
-int uart_bus_close(struct device* pdev)
+mt_err_t uart_bus_close(struct device* pdev)
 {
     struct uart_bus_client* cli = uart_client_from_device(pdev);
     if (!cli || !cli->host)
@@ -337,7 +337,7 @@ int uart_bus_close(struct device* pdev)
     return MINI_OK; /* ref_count 在 client_register/unregister 维护 */
 }
 
-int uart_bus_write(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms)
+mt_err_t uart_bus_write(struct device* pdev, const uint8_t* data, size_t len, uint32_t timeout_ms)
 {
     struct uart_bus_client* cli = uart_client_from_device(pdev);
     struct hal_uart_dev     hal_dev;
@@ -347,7 +347,7 @@ int uart_bus_write(struct device* pdev, const uint8_t* data, size_t len, uint32_
     return hal_uart_write(&hal_dev, data, len, timeout_ms);
 }
 
-int uart_bus_read(struct device* pdev, uint8_t* data, size_t len, uint32_t timeout_ms)
+mt_err_t uart_bus_read(struct device* pdev, uint8_t* data, size_t len, uint32_t timeout_ms)
 {
     struct uart_bus_client* cli = uart_client_from_device(pdev);
     struct hal_uart_dev     hal_dev;
@@ -357,7 +357,7 @@ int uart_bus_read(struct device* pdev, uint8_t* data, size_t len, uint32_t timeo
     return hal_uart_read(&hal_dev, data, len, timeout_ms);
 }
 
-int uart_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t tx_len, size_t rx_len, uint32_t timeout_ms)
+mt_err_t uart_bus_transfer(struct device* pdev, const uint8_t* tx, uint8_t* rx, size_t tx_len, size_t rx_len, uint32_t timeout_ms)
 {
     int ret = MINI_OK;
 

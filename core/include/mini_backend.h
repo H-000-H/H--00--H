@@ -82,7 +82,7 @@ typedef struct mini_mutex mini_mutex_t;
  * @param[in] storage_size 缓冲区字节数
  * @return 成功返回 MINI_OK; 参数非法返回 MINI_ERR_INVAL; 中断中调用返回 MINI_ERR_ISR
  */
-int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 创建递归互斥锁, 存储在调用方给出的缓冲区
@@ -92,7 +92,7 @@ int mini_mutex_create_static(mini_mutex_t** out, void* storage, size_t storage_s
  * @return 成功返回 MINI_OK; 参数非法返回 MINI_ERR_INVAL; 中断中调用返回 MINI_ERR_ISR
  * @note 同一持有者可重复 lock, 须等量 unlock 才真正释放
  */
-int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 锁定互斥锁
@@ -101,14 +101,14 @@ int mini_mutex_create_static_recursive(mini_mutex_t** out, void* storage, size_t
  * @return 成功返回 MINI_OK; 超时返回 MINI_ERR_TIMEOUT; 参数非法返回 MINI_ERR_INVAL
  * @note 仅任务上下文可调用
  */
-int mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_mutex_lock(mini_mutex_t* mtx, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 释放互斥锁
  * @param[in] mtx 互斥锁句柄
  * @return 成功返回 MINI_OK; 未持有返回 MINI_ERR_IO; 参数非法返回 MINI_ERR_INVAL
  */
-int mini_mutex_unlock(mini_mutex_t* mtx) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_mutex_unlock(mini_mutex_t* mtx) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 销毁互斥锁 (仅需在对象生命周期结束时调用; 静态存储的锁可不调用)
@@ -140,7 +140,7 @@ void* mini_calloc(size_t count, size_t size);
  * @param[in] ptr 内存指针 (可为 NULL)
  * @return 成功返回 MINI_OK
  */
-int mini_free(void* ptr);
+mt_err_t mini_free(void* ptr);
 
 /* -------------------------------------------------------------------------- */
 /* ISR 出口上下文切换                                                          */
@@ -188,7 +188,7 @@ typedef void (*mini_task_entry_t)(void* param);
  * @param[out] out_handle 回传任务句柄
  * @return 成功返回 MINI_OK; 创建失败返回负错误码; 裸机返回 MINI_ERR_NOTSUPP
  */
-int mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
+mt_err_t mini_task_create_handle(const char* name, uint32_t stack_size, uint32_t priority, mini_task_entry_t entry, void* param, int core_id,
                             mini_task_handle_t* out_handle) MINI_WARN_UNUSED_RESULT;
 
 /**
@@ -316,7 +316,7 @@ bool mini_queue_receive_from_isr(mini_queue_t* queue, void* item, bool* px_yield
  *          由 lwIP 配置决定)。池尺寸由板级给出, 池耗尽返回 NOMEM 而不是崩溃。
  * @note 池内对象同样由 mini_mutex_destroy 归还槽位; 递归锁请用 create_static_recursive。
  */
-int mini_mutex_create(mini_mutex_t** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_mutex_create(mini_mutex_t** out) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 二值信号量不透明句柄 (初始计数 0, 多次 post 合并为 1)
@@ -330,7 +330,7 @@ typedef struct mini_sem mini_sem_t;
  * @param[in] storage_size 缓冲区字节数
  * @return 成功返回 MINI_OK; 参数非法返回 MINI_ERR_INVAL
  */
-int mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storage_size) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 创建二值信号量, 对象取自后端内部静态池
@@ -339,7 +339,7 @@ int mini_sem_create_binary_static(mini_sem_t** out, void* storage, size_t storag
  * @details 同 mini_mutex_create: 为网络移植层 (lwIP 的 sys_sem_new) 提供不需要
  *          调用方存储的创建路径。池内对象由 mini_sem_destroy 归还槽位。
  */
-int mini_sem_create_binary(mini_sem_t** out) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_sem_create_binary(mini_sem_t** out) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 等待信号量
@@ -347,7 +347,7 @@ int mini_sem_create_binary(mini_sem_t** out) MINI_WARN_UNUSED_RESULT;
  * @param[in] timeout_ms 超时毫秒数 (MINI_WAIT_FOREVER = 永久等待)
  * @return 成功返回 MINI_OK; 超时返回 MINI_ERR_TIMEOUT
  */
-int mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
+mt_err_t mini_sem_wait(mini_sem_t* sem, uint32_t timeout_ms) MINI_WARN_UNUSED_RESULT;
 
 /**
  * @brief 释放信号量 (任务上下文)
@@ -392,7 +392,7 @@ void mini_sem_destroy(mini_sem_t* sem);
  * @note tick 源只在这里启动, **不在内核自举钩子里**: 自举只建立内核数据结构
  *       (mini_os_schedule_init) 与 idle 线程, 不产生任何中断副作用。
  */
-int mini_scheduler_start(void);
+mt_err_t mini_scheduler_start(void);
 
 #endif /* !CONFIG_OS_BARE */
 

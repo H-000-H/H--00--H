@@ -46,7 +46,7 @@
     defined(__CORTEX_M7) || defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7EM__) || defined(__ARM_ARCH_8M_BASE__) ||    \
     defined(__ARM_ARCH_8M_MAIN__)
 
-int hal_systick_init(uint32_t tick_hz)
+mt_err_t hal_systick_init(uint32_t tick_hz)
 {
     if (tick_hz == 0u)
         return MINI_ERR_INVAL;
@@ -69,7 +69,7 @@ int hal_systick_init(uint32_t tick_hz)
     return MINI_OK;
 }
 
-int hal_systick_deinit(void)
+mt_err_t hal_systick_deinit(void)
 {
     MINI_REG_WRITE32(HAL_SYSTICK_BASE + HAL_SYSTICK_REG_CTRL, 0u);
     MINI_REG_WRITE32(HAL_SYSTICK_BASE + HAL_SYSTICK_REG_LOAD, 0u);
@@ -84,13 +84,13 @@ MINI_WEAK void SysTick_Handler(void) { hal_systick_irq_handler(); }
 
 #else /* 非 Cortex-M: 无 SysTick, 返回 NOTSUPP 让调度器回退 DTS chosen TIM */
 
-int hal_systick_init(uint32_t tick_hz)
+mt_err_t hal_systick_init(uint32_t tick_hz)
 {
     (void)tick_hz;
     return MINI_ERR_NOTSUPP;
 }
 
-int hal_systick_deinit(void) { return MINI_OK; }
+mt_err_t hal_systick_deinit(void) { return MINI_OK; }
 
 #endif /* __CORTEX_M* / __ARM_ARCH_*M__ */
 

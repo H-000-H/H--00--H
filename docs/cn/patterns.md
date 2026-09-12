@@ -74,7 +74,7 @@
 1. **`device_tree_init` 必须先于一切设备访问**：运行时实例表（`device` / 递归互斥锁池 / `dev_lifecycle`）是静态数组，但锁必须逐个 `mini_mutex_create_static_recursive` 创建；任何 `device_*` 调用前这些必须就绪。
 2. **第一阶段必须关全局中断**：probe 过程中 `device_open` 会真正使能外设中断（NVIC），而此刻 VIRQ 表 / 下半部 work 可能尚未注册完整。先关中断，保证"中断使能"只发生在所有 ISR 依赖就绪之后；`system_init_complete()` 才统一释放。
 3. **EventBus 必须先建**：probe 失败路径会调用 `device_ops_unregister` → `event_bus_post(EVENT_SYS_DEVICE_REMOVED, ...)`，事件队列必须已经存在。
-4. **probe 放第二阶段而不是第一阶段**：probe 会 open 设备、走日志、失败时按 criticality 触发 `MINI_PANIC`（需要 `printf_output` 与 safe_state 已就绪）；这些依赖都在第一阶段结尾才备齐。
+4. **probe 放第二阶段而不是第一阶段**：probe 会 open 设备、走日志、失败时按 criticality 触发 `MINI_PANIC`（需要 mini-log 与 safe_state 已就绪）；这些依赖都在第一阶段结尾才备齐。
 5. **中断使能放在调度器之前**：RTOS 路径下，先开中断再 `vTaskStartScheduler`，否则调度器启动瞬间的中断没有任务上下文可以承接。
 
 ### 常见坑

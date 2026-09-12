@@ -40,7 +40,7 @@ typedef struct list_node
  * @brief 初始化链表节点 (自环)
  * @param[in] node 节点
  */
-MINI_STATIC_INLINE int list_init(list_node* node)
+MINI_STATIC_INLINE mt_err_t list_init(list_node* node)
 {
     node->next = node;
     node->prev = node;
@@ -53,7 +53,7 @@ MINI_STATIC_INLINE int list_init(list_node* node)
  * @param[in] next 后继
  * @param[in] prev 前驱
  */
-MINI_STATIC_INLINE int list_add(list_node* new_node, list_node* next, list_node* prev)
+MINI_STATIC_INLINE mt_err_t list_add(list_node* new_node, list_node* next, list_node* prev)
 {
     next->prev = new_node;
     new_node->prev = prev;
@@ -131,7 +131,7 @@ MINI_STATIC_INLINE void x_scheduler_init(x_scheduler* sched)
  * @param[in] ms 滴答增量
  * @return MINI_OK / MINI_ERR_INVAL
  */
-int x_scheduler_tick(x_scheduler* sched, unsigned int ms);
+mt_err_t x_scheduler_tick(x_scheduler* sched, unsigned int ms);
 
 #ifdef CONFIG_XTASK_COROUTINE
 /** @brief 当前系统滴答 (ms), 调度器内部 tick 计数 (coop/preempt 各自实现) */
@@ -198,7 +198,7 @@ x_task* x_scheduler_current(void);
 x_task_handle_t x_scheduler_task_create(const char* name, uint32_t period_ms, uint32_t priority, void (*cb)(x_task*), void* param);
 
 /** @brief 抢占式调度核心 (主循环调用, 无任务时精确 WFI) */
-int x_task_run_preempt(x_scheduler* sched);
+mt_err_t x_task_run_preempt(x_scheduler* sched);
 
 /** @brief 轮询全局调度器 (与协调式同名, 应用层无感知) */
 void x_scheduler_poll(void);
@@ -209,7 +209,7 @@ void x_scheduler_poll(void);
 x_task_handle_t xscheduler_task_create(x_task* task, const char* name, void (*cb)(x_task*), unsigned int period_ms);
 
 /** @brief 协调式调度核心 (轮询到期任务) */
-int x_task_run(x_scheduler* sched);
+mt_err_t x_task_run(x_scheduler* sched);
 
 /** @brief 轮询全局调度器 (主循环调用) */
 void x_scheduler_poll(void);
@@ -223,7 +223,7 @@ void xscheduler_start(void);
 /** @brief TIM 上半部: 清 update flag + 累加 tick
  * @return MINI_IRQ_ENTRY_NOBOTTOM
  */
-int scheduler_tim_isr_top(void* context, uint16_t irq_num);
+mt_err_t scheduler_tim_isr_top(void* context, uint16_t irq_num);
 
 #ifdef __cplusplus
 }

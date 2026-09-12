@@ -45,6 +45,7 @@ target_include_directories(mini_tree_net PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/port"
     "${CMAKE_SOURCE_DIR}/lib/lwip/src/include"
     "${CMAKE_SOURCE_DIR}/core/include"
+    "${CMAKE_SOURCE_DIR}/mini-log/inc"
     "${CMAKE_SOURCE_DIR}/algorithm/buffer"
     "${CMAKE_SOURCE_DIR}/board/include"
     "${CMAKE_SOURCE_DIR}/hal/gpio"
